@@ -1,12 +1,32 @@
 import { useParams } from 'react-router-dom'
+import GameLayout from '../components/GameLayout'
+import SnakeGame from '../games/snake/SnakeGame'
+import { games } from '../data/games'
+
+const GAME_COMPONENTS = {
+  snake: SnakeGame,
+}
 
 export default function GamePage() {
   const { gameId } = useParams()
+  const game = games.find((g) => g.id === gameId)
+  const Component = GAME_COMPONENTS[gameId]
+
+  const title = game?.name?.toUpperCase() ?? gameId?.toUpperCase() ?? 'GAME'
+  const icon = game?.icon
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-arcadia-bg">
-      <h1 className="font-arcade text-xl text-neon-cyan md:text-3xl">
-        GAME: {gameId}
-      </h1>
-    </div>
+    <GameLayout title={title} icon={icon}>
+      {Component ? (
+        <Component />
+      ) : (
+        <div className="flex flex-col items-center gap-3 py-20 text-center">
+          <p className="font-arcade text-sm text-neon-pink">COMING SOON</p>
+          <p className="text-sm text-white/50">
+            This cabinet hasn't been wired up yet.
+          </p>
+        </div>
+      )}
+    </GameLayout>
   )
 }
