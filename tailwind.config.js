@@ -5,12 +5,33 @@ export default {
     extend: {
       colors: {
         'arcadia-bg': '#0a0a0f',
+        'arcadia-surface': '#11111a',
         'neon-green': '#00ff88',
         'neon-cyan': '#00d4ff',
         'neon-pink': '#ff006e',
       },
       fontFamily: {
         arcade: ['"Press Start 2P"', 'system-ui', 'monospace'],
+        sans: ['Outfit', 'system-ui', 'sans-serif'],
+      },
+      boxShadow: {
+        'neon-green': '0 0 12px rgba(0, 255, 136, 0.55), 0 0 24px rgba(0, 255, 136, 0.25)',
+        'neon-cyan': '0 0 12px rgba(0, 212, 255, 0.55), 0 0 24px rgba(0, 212, 255, 0.25)',
+        'neon-pink': '0 0 12px rgba(255, 0, 110, 0.55), 0 0 24px rgba(255, 0, 110, 0.25)',
+      },
+      keyframes: {
+        blink: {
+          '0%, 49%': { opacity: '1' },
+          '50%, 100%': { opacity: '0' },
+        },
+        'grid-pan': {
+          '0%': { backgroundPosition: '0 0' },
+          '100%': { backgroundPosition: '60px 60px' },
+        },
+      },
+      animation: {
+        blink: 'blink 1s steps(1) infinite',
+        'grid-pan': 'grid-pan 12s linear infinite',
       },
     },
   },
