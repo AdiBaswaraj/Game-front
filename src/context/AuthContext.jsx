@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react'
 import { supabase } from '../lib/supabase'
+import { profileNameFor } from '../lib/profile'
 import AuthModal from '../components/AuthModal'
 
 const AuthContext = createContext(null)
@@ -17,17 +18,8 @@ function generateGuestName() {
   return `Player_${n}`
 }
 
-function displayNameFor(user) {
-  return (
-    user?.user_metadata?.full_name ||
-    user?.user_metadata?.name ||
-    (user?.email ? user.email.split('@')[0] : null) ||
-    'Player'
-  )
-}
-
 async function upsertProfile(user) {
-  const username = displayNameFor(user)
+  const username = profileNameFor(user)
   const avatar_url =
     user.user_metadata?.avatar_url || user.user_metadata?.picture || null
   try {
@@ -112,7 +104,7 @@ export function AuthProvider({ children }) {
   const closeModal = useCallback(() => setModalOpen(false), [])
 
   const isGuest = !user && !!guestName
-  const displayName = user ? displayNameFor(user) : guestName
+  const displayName = user ? profileNameFor(user) : guestName
 
   const value = {
     user,

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getLeaderboard, postScore } from '../../lib/api'
+import { profileNameFor } from '../../lib/profile'
 
 const GRID = 20
 const CELL = 24
@@ -64,14 +65,12 @@ export default function SnakeGame() {
     if (!user) return
     let cancelled = false
     getLeaderboard('snake')
-      .then((data) => {
+      .then((list) => {
         if (cancelled) return
-        const list = Array.isArray(data)
-          ? data
-          : data?.scores || data?.data || data?.leaderboard || []
-        const mine = list.find(
-          (e) => e.user_id === user.id || e.userId === user.id,
-        )
+        const myName = profileNameFor(user)
+        const mine = list
+          .filter((e) => e.username === myName)
+          .reduce((best, e) => (e.score > (best?.score ?? -1) ? e : best), null)
         const remote = mine?.score ?? 0
         setHighScore((prev) => {
           const next = Math.max(prev, remote)
@@ -189,7 +188,11 @@ export default function SnakeGame() {
         return prev
       })
       if (user && finalScore > 0) {
-        postScore({ gameId: 'snake', score: finalScore }).catch(() => {})
+        postScore({
+          userId: user.id,
+          gameId: 'snake',
+          score: finalScore,
+        }).catch(() => {})
       }
     }
 

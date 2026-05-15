@@ -1,10 +1,14 @@
 import { useParams } from 'react-router-dom'
 import GameLayout from '../components/GameLayout'
 import SnakeGame from '../games/snake/SnakeGame'
+import SudokuGame from '../games/sudoku/SudokuGame'
+import MinesweeperGame from '../games/minesweeper/MinesweeperGame'
 import { games } from '../data/games'
 
 const GAME_COMPONENTS = {
   snake: SnakeGame,
+  sudoku: SudokuGame,
+  minesweeper: MinesweeperGame,
 }
 
 export default function GamePage() {

@@ -8,7 +8,7 @@ async function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
-export async function postScore({ gameId, score }) {
+export async function postScore({ userId, gameId, score }) {
   const headers = {
     'Content-Type': 'application/json',
     ...(await authHeaders()),
@@ -16,7 +16,12 @@ export async function postScore({ gameId, score }) {
   const res = await fetch(`${BASE}/api/scores`, {
     method: 'POST',
     headers,
-    body: JSON.stringify({ gameId, score }),
+    body: JSON.stringify({
+      user_id: userId,
+      game_id: gameId,
+      score,
+      completed_at: new Date().toISOString(),
+    }),
   })
   if (!res.ok) throw new Error(`Score save failed: ${res.status}`)
   return res.json().catch(() => ({}))
@@ -25,5 +30,6 @@ export async function postScore({ gameId, score }) {
 export async function getLeaderboard(gameId) {
   const res = await fetch(`${BASE}/api/scores/leaderboard/${gameId}`)
   if (!res.ok) throw new Error(`Leaderboard fetch failed: ${res.status}`)
-  return res.json()
+  const data = await res.json()
+  return Array.isArray(data) ? data : []
 }
