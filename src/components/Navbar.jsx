@@ -1,8 +1,12 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 export default function Navbar({ playersOnline = 0 }) {
+  const { user, isGuest, displayName, loading, openLogin, openSignup, signOut } =
+    useAuth()
+
   return (
-    <header className="sticky top-0 z-40 border-b border-neon-green/40 bg-arcadia-bg/85 backdrop-blur-md shadow-[0_1px_0_0_rgba(0,255,136,0.25),0_10px_30px_-20px_rgba(0,255,136,0.5)]">
+    <header className="sticky top-0 z-40 border-b border-neon-green/40 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.25),0_10px_30px_-20px_rgba(0,255,136,0.5)] backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
         <Link
           to="/"
@@ -20,22 +24,98 @@ export default function Navbar({ playersOnline = 0 }) {
             {playersOnline} PLAYERS ONLINE
           </span>
 
-          <button
-            type="button"
-            onClick={() => {}}
-            className="font-arcade text-[10px] text-white/80 transition hover:text-neon-cyan md:text-xs"
-          >
-            LOGIN
-          </button>
-          <button
-            type="button"
-            onClick={() => {}}
-            className="rounded-md border border-neon-pink/70 bg-neon-pink/10 px-3 py-1.5 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink md:text-xs"
-          >
-            SIGN UP
-          </button>
+          {loading ? (
+            <div className="h-7 w-24 animate-pulse rounded-md bg-white/5" />
+          ) : user ? (
+            <SignedIn name={displayName} onSignOut={signOut} />
+          ) : isGuest ? (
+            <GuestBadge
+              name={displayName}
+              onLogin={openLogin}
+              onSignOut={signOut}
+            />
+          ) : (
+            <LoggedOut onLogin={openLogin} onSignup={openSignup} />
+          )}
         </div>
       </div>
     </header>
   )
+}
+
+function SignedIn({ name, onSignOut }) {
+  return (
+    <div className="flex items-center gap-3">
+      <span className="hidden font-arcade text-[10px] text-neon-green sm:inline">
+        {truncate(name, 14)}
+      </span>
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="rounded-md border border-neon-pink/60 bg-neon-pink/10 px-3 py-1.5 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink md:text-xs"
+      >
+        SIGN OUT
+      </button>
+    </div>
+  )
+}
+
+function GuestBadge({ name, onLogin, onSignOut }) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="hidden flex-col items-end leading-tight sm:flex">
+        <span className="font-arcade text-[10px] text-white/70">
+          {truncate(name, 14)}
+        </span>
+        <button
+          type="button"
+          onClick={onLogin}
+          className="font-arcade text-[8px] text-neon-cyan/80 transition hover:text-neon-cyan"
+        >
+          LOGIN TO SAVE SCORES
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={onLogin}
+        className="font-arcade text-[10px] text-neon-cyan transition hover:text-neon-cyan sm:hidden"
+      >
+        LOGIN
+      </button>
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="font-arcade text-[10px] text-white/40 transition hover:text-neon-pink"
+        title="Exit guest mode"
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
+
+function LoggedOut({ onLogin, onSignup }) {
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onLogin}
+        className="font-arcade text-[10px] text-white/80 transition hover:text-neon-cyan md:text-xs"
+      >
+        LOGIN
+      </button>
+      <button
+        type="button"
+        onClick={onSignup}
+        className="rounded-md border border-neon-pink/70 bg-neon-pink/10 px-3 py-1.5 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink md:text-xs"
+      >
+        SIGN UP
+      </button>
+    </>
+  )
+}
+
+function truncate(s, n) {
+  if (!s) return ''
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s
 }

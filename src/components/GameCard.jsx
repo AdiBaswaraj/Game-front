@@ -1,4 +1,6 @@
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
 const ACCENTS = {
   'neon-green': {
@@ -32,10 +34,19 @@ const ACCENTS = {
 
 export default function GameCard({ game }) {
   const navigate = useNavigate()
+  const { user, openLogin } = useAuth()
+  const toast = useToast()
   const a = ACCENTS[game.accent] ?? ACCENTS['neon-green']
 
   const handlePlay = () => {
     if (game.multiplayer) {
+      if (!user) {
+        toast.show({
+          message: 'Login required for multiplayer.',
+          action: { label: 'LOGIN', onClick: openLogin },
+        })
+        return
+      }
       navigate(`/room/create?game=${game.id}`)
     } else {
       navigate(`/game/${game.id}`)
