@@ -48,6 +48,8 @@ export default function GameCard({ game }) {
         return
       }
       navigate(`/room/create?game=${game.id}`)
+    } else if (game.hasDifficulty) {
+      navigate(`/game/${game.id}/difficulty`)
     } else {
       navigate(`/game/${game.id}`)
     }

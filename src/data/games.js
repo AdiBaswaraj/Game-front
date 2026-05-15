@@ -15,6 +15,7 @@ export const games = [
     players: '1P',
     category: 'Puzzle',
     multiplayer: false,
+    hasDifficulty: true,
     accent: 'neon-cyan',
   },
   {
@@ -33,10 +34,11 @@ export const games = [
     players: '1P',
     category: 'Strategy',
     multiplayer: false,
+    hasDifficulty: true,
     accent: 'neon-green',
   },
   {
-    id: 'snake-ladder',
+    id: 'snake-and-ladder',
     name: 'Snake & Ladder',
     icon: '🎲',
     players: '2P',

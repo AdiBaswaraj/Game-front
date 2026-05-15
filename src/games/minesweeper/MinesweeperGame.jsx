@@ -98,10 +98,10 @@ function cloneBoard(b) {
   return b.map((row) => row.map((cell) => ({ ...cell })))
 }
 
-export default function MinesweeperGame() {
+export default function MinesweeperGame({ difficulty = 'easy' }) {
   const { user } = useAuth()
-  const [diff, setDiff] = useState('easy')
-  const cfg = DIFFICULTIES[diff]
+  const diff = difficulty
+  const cfg = DIFFICULTIES[diff] ?? DIFFICULTIES.easy
 
   const [board, setBoard] = useState(() => makeBoard(cfg.rows, cfg.cols))
   const [status, setStatus] = useState('idle')
@@ -110,20 +110,19 @@ export default function MinesweeperGame() {
   const [flagMode, setFlagMode] = useState(false)
   const startTimeRef = useRef(null)
 
-  const newGame = useCallback(
-    (nextDiff) => {
-      const d = nextDiff ?? diff
-      const c = DIFFICULTIES[d]
-      if (nextDiff) setDiff(d)
-      setBoard(makeBoard(c.rows, c.cols))
-      setStatus('idle')
-      setFlagsLeft(c.mines)
-      setTime(0)
-      setFlagMode(false)
-      startTimeRef.current = null
-    },
-    [diff],
-  )
+  const newGame = useCallback(() => {
+    setBoard(makeBoard(cfg.rows, cfg.cols))
+    setStatus('idle')
+    setFlagsLeft(cfg.mines)
+    setTime(0)
+    setFlagMode(false)
+    startTimeRef.current = null
+  }, [cfg.rows, cfg.cols, cfg.mines])
+
+  // Reset when difficulty changes (route param)
+  useEffect(() => {
+    newGame()
+  }, [difficulty, newGame])
 
   // Timer
   useEffect(() => {
@@ -244,23 +243,6 @@ export default function MinesweeperGame() {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {Object.entries(DIFFICULTIES).map(([id, d]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => newGame(id)}
-            className={`rounded-md border px-3 py-1.5 font-arcade text-[10px] transition ${
-              diff === id
-                ? 'border-neon-green/70 bg-neon-green/10 text-neon-green shadow-neon-green'
-                : 'border-white/15 text-white/60 hover:text-neon-green'
-            }`}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
-
       <div className="rounded-lg border-2 border-neon-green/60 bg-arcadia-surface p-3 shadow-neon-green">
         <div className="mb-3 flex items-center justify-between gap-4">
           <Counter

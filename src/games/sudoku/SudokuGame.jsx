@@ -10,11 +10,6 @@ import {
 } from './generator'
 
 const N = 9
-const DIFFICULTIES = [
-  { id: 'easy', label: 'EASY' },
-  { id: 'medium', label: 'MEDIUM' },
-  { id: 'hard', label: 'HARD' },
-]
 
 function makeBoard(difficulty) {
   const { puzzle, solution } = generatePuzzle(difficulty)
@@ -33,15 +28,24 @@ function fmtTime(s) {
   return `${m}:${sec}`
 }
 
-export default function SudokuGame() {
+export default function SudokuGame({ difficulty = 'easy' }) {
   const { user } = useAuth()
-  const [difficulty, setDifficulty] = useState('easy')
-  const [board, setBoard] = useState(() => makeBoard('easy'))
+  const [board, setBoard] = useState(() => makeBoard(difficulty))
   const [selected, setSelected] = useState(null)
   const [time, setTime] = useState(0)
   const [status, setStatus] = useState('playing')
   const [showErrors, setShowErrors] = useState(false)
   const startTimeRef = useRef(Date.now())
+
+  // If difficulty changes (route param), reset the game
+  useEffect(() => {
+    setBoard(makeBoard(difficulty))
+    setSelected(null)
+    setTime(0)
+    setShowErrors(false)
+    setStatus('playing')
+    startTimeRef.current = Date.now()
+  }, [difficulty])
 
   const conflicts = useMemo(() => findConflicts(board.grid), [board.grid])
   const errors = useMemo(() => {
@@ -69,19 +73,14 @@ export default function SudokuGame() {
     return () => clearInterval(id)
   }, [status])
 
-  const newGame = useCallback(
-    (nextDifficulty) => {
-      const d = nextDifficulty ?? difficulty
-      if (nextDifficulty) setDifficulty(d)
-      setBoard(makeBoard(d))
-      setSelected(null)
-      setTime(0)
-      setShowErrors(false)
-      setStatus('playing')
-      startTimeRef.current = Date.now()
-    },
-    [difficulty],
-  )
+  const newGame = useCallback(() => {
+    setBoard(makeBoard(difficulty))
+    setSelected(null)
+    setTime(0)
+    setShowErrors(false)
+    setStatus('playing')
+    startTimeRef.current = Date.now()
+  }, [difficulty])
 
   const handleInput = useCallback(
     (value) => {
@@ -157,23 +156,6 @@ export default function SudokuGame() {
 
   return (
     <div className="flex flex-col items-center gap-6">
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {DIFFICULTIES.map((d) => (
-          <button
-            key={d.id}
-            type="button"
-            onClick={() => newGame(d.id)}
-            className={`rounded-md border px-3 py-1.5 font-arcade text-[10px] transition ${
-              difficulty === d.id
-                ? 'border-neon-cyan/70 bg-neon-cyan/10 text-neon-cyan shadow-neon-cyan'
-                : 'border-white/15 text-white/60 hover:text-neon-cyan'
-            }`}
-          >
-            {d.label}
-          </button>
-        ))}
-      </div>
-
       <div className="flex flex-wrap items-center justify-center gap-3">
         <Stat label="TIME" value={fmtTime(time)} accent="text-neon-cyan" />
         <button
@@ -188,7 +170,7 @@ export default function SudokuGame() {
           onClick={() => newGame()}
           className="rounded-md border border-neon-pink/60 px-4 py-2 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/15 hover:shadow-neon-pink"
         >
-          NEW GAME
+          NEW PUZZLE
         </button>
       </div>
 

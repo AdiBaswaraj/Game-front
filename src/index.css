@@ -51,3 +51,38 @@ body,
     );
   }
 }
+
+@keyframes wp-flip-correct {
+  0% { transform: rotateX(0deg); background: #11111a; border-color: rgba(255,255,255,0.15); color: #fff; }
+  49% { transform: rotateX(-90deg); background: #11111a; border-color: rgba(255,255,255,0.15); color: #fff; }
+  50% { transform: rotateX(-90deg); background: #00ff88; border-color: #00ff88; color: #0a0a0f; }
+  100% { transform: rotateX(0deg); background: #00ff88; border-color: #00ff88; color: #0a0a0f; }
+}
+@keyframes wp-flip-present {
+  0% { transform: rotateX(0deg); background: #11111a; border-color: rgba(255,255,255,0.15); color: #fff; }
+  49% { transform: rotateX(-90deg); background: #11111a; border-color: rgba(255,255,255,0.15); color: #fff; }
+  50% { transform: rotateX(-90deg); background: #d4a200; border-color: #d4a200; color: #0a0a0f; }
+  100% { transform: rotateX(0deg); background: #d4a200; border-color: #d4a200; color: #0a0a0f; }
+}
+@keyframes wp-flip-absent {
+  0% { transform: rotateX(0deg); background: #11111a; border-color: rgba(255,255,255,0.15); color: #fff; }
+  49% { transform: rotateX(-90deg); background: #11111a; border-color: rgba(255,255,255,0.15); color: #fff; }
+  50% { transform: rotateX(-90deg); background: #2a2a36; border-color: #2a2a36; color: rgba(255,255,255,0.55); }
+  100% { transform: rotateX(0deg); background: #2a2a36; border-color: #2a2a36; color: rgba(255,255,255,0.55); }
+}
+@keyframes wp-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+@keyframes wp-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+.wp-tile-correct { animation: wp-flip-correct 0.55s ease-in-out forwards; }
+.wp-tile-present { animation: wp-flip-present 0.55s ease-in-out forwards; }
+.wp-tile-absent { animation: wp-flip-absent 0.55s ease-in-out forwards; }
+.wp-row-shake { animation: wp-shake 0.4s ease-in-out; }
+.wp-tile-pop { animation: wp-pop 0.12s ease-out; }
