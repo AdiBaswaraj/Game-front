@@ -41,9 +41,10 @@ export const games = [
     id: 'snake-and-ladder',
     name: 'Snake & Ladder',
     icon: '🎲',
-    players: '2P',
+    players: '2-4P',
     category: 'Board',
     multiplayer: true,
+    hasModeSelect: true,
     accent: 'neon-cyan',
   },
   {

@@ -6,6 +6,7 @@ import { getRoom } from '../lib/api'
 import { socket } from '../lib/socket'
 import Avatar from '../components/Avatar'
 import { games as gameMeta } from '../data/games'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const MP_GAME_NAMES = {
   chess: { name: 'Chess', icon: '♟️' },
@@ -59,6 +60,7 @@ export default function RoomPage() {
   const joinedRef = useRef(false)
 
   const code = (roomCode ?? '').toUpperCase()
+  useDocumentTitle(`Room ${code}`)
   const gameInfo =
     (room?.gameId && MP_GAME_NAMES[room.gameId]) ||
     (room?.gameId &&

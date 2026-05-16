@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export default function GameLayout({
   title,
@@ -7,6 +8,7 @@ export default function GameLayout({
   backTo = '/',
   backLabel = 'LOBBY',
 }) {
+  useDocumentTitle(title ?? null)
   return (
     <div className="scanlines relative min-h-screen bg-arcadia-bg text-white">
       <header className="sticky top-0 z-30 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md">

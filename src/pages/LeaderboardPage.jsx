@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Leaderboard from '../components/Leaderboard'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const GAMES = [
   {
@@ -38,6 +39,7 @@ const GAMES = [
 export default function LeaderboardPage() {
   const [game, setGame] = useState(GAMES[0])
   const [diff, setDiff] = useState('easy')
+  useDocumentTitle('Hall of Fame')
 
   const boardGameId = game.difficulties ? `${game.id}-${diff}` : game.id
   const title = game.difficulties

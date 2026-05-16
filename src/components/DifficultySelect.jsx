@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const ACCENT_BY_DIFF = {
   easy: {
@@ -31,6 +32,7 @@ export default function DifficultySelect({
   options = DEFAULT_OPTIONS,
 }) {
   const navigate = useNavigate()
+  useDocumentTitle(`${title} — Difficulty`)
 
   return (
     <div className="scanlines relative min-h-screen bg-arcadia-bg text-white">

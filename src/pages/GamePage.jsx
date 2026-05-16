@@ -1,6 +1,7 @@
 import { useParams, useSearchParams } from 'react-router-dom'
 import GameLayout from '../components/GameLayout'
 import DifficultySelect from '../components/DifficultySelect'
+import GameErrorBoundary from '../components/GameErrorBoundary'
 import SnakeGame from '../games/snake/SnakeGame'
 import SudokuGame from '../games/sudoku/SudokuGame'
 import MinesweeperGame from '../games/minesweeper/MinesweeperGame'
@@ -9,6 +10,9 @@ import WordPuzzleModeSelect from '../games/word-puzzle/WordPuzzleModeSelect'
 import WordPuzzleLengthSelect from '../games/word-puzzle/WordPuzzleLengthSelect'
 import WordPuzzleBattle from '../games/word-puzzle/WordPuzzleBattle'
 import SnakeAndLadderGame from '../games/snake-and-ladder/SnakeAndLadderGame'
+import SnakeAndLadderModeSelect from '../games/snake-and-ladder/SnakeAndLadderModeSelect'
+import SnakeAndLadderLocalSelect from '../games/snake-and-ladder/SnakeAndLadderLocalSelect'
+import SnakeAndLadderLocalGame from '../games/snake-and-ladder/SnakeAndLadderLocalGame'
 import ChessModeSelect from '../games/chess/ChessModeSelect'
 import ChessDifficultySelect from '../games/chess/ChessDifficultySelect'
 import ChessGame from '../games/chess/ChessGame'
@@ -26,7 +30,7 @@ const DIFFICULTY_GAMES = {
 const VALID_DIFFICULTIES = new Set(['easy', 'medium', 'hard'])
 const VALID_WP_LENGTHS = new Set(['4', '5', '6'])
 
-export default function GamePage() {
+function GamePageBody() {
   const { gameId, difficulty, variant } = useParams()
   const [searchParams] = useSearchParams()
   const room = searchParams.get('room')
@@ -69,30 +73,55 @@ export default function GamePage() {
 
   // ===== Snake & Ladder =====
   if (gameId === 'snake-and-ladder') {
-    if (!room) {
+    if (room) {
       return (
-        <GameLayout title={title} icon={icon}>
-          <div className="flex flex-col items-center gap-3 py-20 text-center">
-            <p className="font-arcade text-sm text-neon-pink">
-              No room joined.
-            </p>
-            <p className="text-xs text-white/50">
-              Create or join a Snake &amp; Ladder room from the lobby.
-            </p>
-          </div>
+        <GameLayout
+          title={`${title} · BATTLE`}
+          icon={icon}
+          backTo="/"
+          backLabel="LOBBY"
+        >
+          <SnakeAndLadderGame roomCode={room} />
         </GameLayout>
       )
     }
-    return (
-      <GameLayout
-        title={`${title} · BATTLE`}
-        icon={icon}
-        backTo="/"
-        backLabel="LOBBY"
-      >
-        <SnakeAndLadderGame roomCode={room} />
-      </GameLayout>
-    )
+    if (!difficulty) return <SnakeAndLadderModeSelect />
+    if (difficulty === 'computer') {
+      const cpuPlayers = ['You', 'CPU']
+      return (
+        <GameLayout
+          title={`${title} · VS CPU`}
+          icon={icon}
+          backTo="/game/snake-and-ladder"
+          backLabel="MODE"
+        >
+          <SnakeAndLadderLocalGame
+            playerNames={cpuPlayers}
+            cpuIndices={new Set([1])}
+          />
+        </GameLayout>
+      )
+    }
+    if (difficulty === 'local') {
+      if (!variant) return <SnakeAndLadderLocalSelect />
+      const count = Number(variant)
+      if (![2, 3, 4].includes(count)) return <SnakeAndLadderLocalSelect />
+      const names = Array.from(
+        { length: count },
+        (_, i) => `Player ${i + 1}`,
+      )
+      return (
+        <GameLayout
+          title={`${title} · LOCAL ${count}P`}
+          icon={icon}
+          backTo="/game/snake-and-ladder/local"
+          backLabel="PLAYERS"
+        >
+          <SnakeAndLadderLocalGame playerNames={names} />
+        </GameLayout>
+      )
+    }
+    return <SnakeAndLadderModeSelect />
   }
 
   // ===== Word Puzzle =====
@@ -173,5 +202,16 @@ export default function GamePage() {
         </div>
       )}
     </GameLayout>
+  )
+}
+
+export default function GamePage() {
+  const { gameId, difficulty, variant } = useParams()
+  const [searchParams] = useSearchParams()
+  const resetKey = `${gameId ?? ''}-${difficulty ?? ''}-${variant ?? ''}-${searchParams.get('room') ?? ''}`
+  return (
+    <GameErrorBoundary resetKey={resetKey}>
+      <GamePageBody />
+    </GameErrorBoundary>
   )
 }

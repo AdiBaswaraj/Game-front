@@ -9,6 +9,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { profileNameFor } from '../lib/profile'
 import AuthModal from '../components/AuthModal'
+import UsernamePromptModal from '../components/UsernamePromptModal'
 
 const AuthContext = createContext(null)
 const GUEST_KEY = 'arcadia:guest'
@@ -89,6 +90,27 @@ export function AuthProvider({ children }) {
     if (user) await supabase.auth.signOut()
     localStorage.removeItem(GUEST_KEY)
     setGuestName(null)
+    // Wipe per-user game state so the next session in this browser
+    // starts clean: daily Word Puzzle state, local "best" mirrors,
+    // username-prompt flags, and outgoing-friend-request hints.
+    try {
+      const remove = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (!k) continue
+        if (
+          k.startsWith('arcadia:wordpuzzle:') ||
+          k.startsWith('arcadia:highscore:') ||
+          k.startsWith('arcadia:bestTime:') ||
+          k.startsWith('arcadia:usernamePrompted:')
+        ) {
+          remove.push(k)
+        }
+      }
+      remove.forEach((k) => localStorage.removeItem(k))
+    } catch {
+      // private mode or full storage — ignore
+    }
   }, [user])
 
   const openLogin = useCallback(() => {
@@ -123,6 +145,7 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider value={value}>
       {children}
       <AuthModal open={modalOpen} initialTab={modalTab} onClose={closeModal} />
+      <UsernamePromptModal />
     </AuthContext.Provider>
   )
 }

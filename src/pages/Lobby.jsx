@@ -4,8 +4,10 @@ import GameCard from '../components/GameCard'
 import Footer from '../components/Footer'
 import JoinRoomCard from '../components/JoinRoomCard'
 import { games } from '../data/games'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 export default function Lobby() {
+  useDocumentTitle('Lobby')
   return (
     <div className="scanlines relative min-h-screen bg-arcadia-bg text-white">
       <Navbar playersOnline={0} />

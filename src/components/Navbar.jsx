@@ -1,17 +1,28 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useFriends } from '../context/FriendsContext'
+import SideNavDrawer from './SideNavDrawer'
 
 export default function Navbar({ playersOnline = 0 }) {
   const { user, isGuest, displayName, loading, openLogin, openSignup, signOut } =
     useAuth()
   const friendsCtx = useFriends()
   const pendingCount = friendsCtx?.pendingRequests?.length ?? 0
+  const [navOpen, setNavOpen] = useState(false)
 
   return (
     <header className="sticky top-0 z-40 border-b border-neon-green/40 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.25),0_10px_30px_-20px_rgba(0,255,136,0.5)] backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
-        <div className="flex items-center gap-4 md:gap-7">
+        <div className="flex items-center gap-3 md:gap-5">
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            className="rounded-md border border-white/15 px-2.5 py-1.5 font-arcade text-xs text-white/70 transition hover:border-neon-green/60 hover:text-neon-green"
+            aria-label="Open navigation"
+          >
+            ☰
+          </button>
           <Link
             to="/"
             className="font-arcade text-base text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.6)] md:text-xl"
@@ -20,12 +31,14 @@ export default function Navbar({ playersOnline = 0 }) {
           </Link>
           <Link
             to="/leaderboard"
-            className="flex items-center gap-1.5 font-arcade text-[10px] text-white/65 transition hover:text-neon-cyan md:text-xs"
+            className="hidden items-center gap-1.5 font-arcade text-[10px] text-white/65 transition hover:text-neon-cyan sm:flex md:text-xs"
           >
             <span aria-hidden="true">🏆</span>
-            <span className="hidden sm:inline">HALL OF FAME</span>
+            <span>HALL OF FAME</span>
           </Link>
         </div>
+
+        <SideNavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
 
         <div className="flex items-center gap-3 md:gap-5">
           <span

@@ -7,7 +7,12 @@ import { useToast } from '../../context/ToastContext'
 import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
-import { DIFFICULTY_DEPTH, getBestMove } from './engine'
+import {
+  DIFFICULTY_DEPTH,
+  getBestMove,
+  preloadEngine,
+  subscribeEngineState,
+} from './engine'
 
 const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
 
@@ -54,8 +59,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const containerRef = useRef(null)
   const aiThinkingRef = useRef(false)
   const [aiThinking, setAiThinking] = useState(false)
+  const [engineState, setEngineStateLocal] = useState('idle')
 
   const isMP = mode === 'multiplayer'
+
+  // Subscribe to Stockfish loading state — only matters for vs CPU
+  useEffect(() => {
+    if (isMP) return
+    preloadEngine()
+    const unsubscribe = subscribeEngineState(setEngineStateLocal)
+    return unsubscribe
+  }, [isMP])
 
   // Responsive board size — pick the smaller of container width / 480
   useEffect(() => {
@@ -348,8 +362,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
                 width: boardSize,
                 height: boardSize,
               },
-              darkSquareStyle: { backgroundColor: '#11111a' },
-              lightSquareStyle: { backgroundColor: '#1e1e2a' },
+              darkSquareStyle: { backgroundColor: '#5e6b86' },
+              lightSquareStyle: { backgroundColor: '#d8d8e8' },
             }}
           />
         </div>
@@ -380,6 +394,20 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       </div>
 
       <aside className="flex flex-col gap-3">
+        {!isMP && engineState === 'loading' && (
+          <div className="flex items-center gap-2 rounded-lg border border-neon-cyan/40 bg-neon-cyan/10 px-3 py-2 text-[10px] text-neon-cyan">
+            <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-neon-cyan shadow-neon-cyan" />
+            <span className="font-arcade">LOADING ENGINE…</span>
+          </div>
+        )}
+        {!isMP && engineState === 'fallback' && (
+          <div className="rounded-lg border border-neon-pink/40 bg-neon-pink/10 px-3 py-2 text-[10px]">
+            <p className="font-arcade text-neon-pink">AI: BASIC MODE</p>
+            <p className="mt-1 text-[9px] text-white/55">
+              Stockfish failed to load. Falling back to random legal moves.
+            </p>
+          </div>
+        )}
         <PlayerStrip
           name={opponentLabel}
           subtitle={isMP ? 'OPPONENT' : 'COMPUTER'}

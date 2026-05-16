@@ -7,6 +7,7 @@ import { getLeaderboard } from '../lib/api'
 import { supabase } from '../lib/supabase'
 import { profileNameFor } from '../lib/profile'
 import Avatar from '../components/Avatar'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 const SINGLE_PLAYER_GAMES = [
   { id: 'snake', name: 'Snake', icon: '🐍', scoreFormat: 'points', lowerIsBetter: false },
@@ -61,6 +62,8 @@ export default function ProfilePage() {
     isPendingOutgoing,
   } = useFriends()
   const toast = useToast()
+
+  useDocumentTitle(decodedUsername ? `@${decodedUsername}` : 'Profile')
 
   const isOwnProfile =
     !!me && myName?.toLowerCase() === decodedUsername.toLowerCase()

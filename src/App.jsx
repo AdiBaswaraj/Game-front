@@ -4,6 +4,7 @@ import GamePage from './pages/GamePage'
 import RoomPage from './pages/RoomPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
+import SettingsPage from './pages/SettingsPage'
 import { FriendsProvider } from './context/FriendsContext'
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/room/:roomCode" element={<RoomPage />} />
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/profile/:username" element={<ProfilePage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Routes>
       </FriendsProvider>
     </BrowserRouter>

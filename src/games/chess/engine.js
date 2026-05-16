@@ -9,14 +9,32 @@ const ENGINE_URL = '/stockfish/stockfish-18-lite-single.js'
 let workerPromise = null
 let pendingMove = null
 
+// Engine state subscribers: 'idle' → 'loading' → 'ready' | 'fallback'
+let engineState = 'idle'
+const stateListeners = new Set()
+
+export function subscribeEngineState(fn) {
+  stateListeners.add(fn)
+  fn(engineState)
+  return () => stateListeners.delete(fn)
+}
+
+function setEngineState(s) {
+  if (engineState === s) return
+  engineState = s
+  for (const fn of stateListeners) fn(s)
+}
+
 function loadWorker() {
   if (workerPromise) return workerPromise
+  setEngineState('loading')
   workerPromise = new Promise((resolve) => {
     let worker
     try {
       worker = new Worker(ENGINE_URL)
     } catch (err) {
       console.warn('[chess] Stockfish worker construction failed', err)
+      setEngineState('fallback')
       resolve(null)
       return
     }
@@ -28,9 +46,10 @@ function loadWorker() {
         try {
           worker.terminate()
         } catch {}
+        setEngineState('fallback')
         resolve(null)
       }
-    }, 8000)
+    }, 15000)
 
     const onMessage = (e) => {
       const line = typeof e.data === 'string' ? e.data : ''
@@ -51,14 +70,28 @@ function loadWorker() {
         worker.addEventListener('error', (err) => {
           console.warn('[chess] Stockfish worker error', err)
         })
+        setEngineState('ready')
         resolve(worker)
       }
     }
     worker.addEventListener('message', onMessage)
+    worker.addEventListener('error', (err) => {
+      if (!initialized) {
+        console.warn('[chess] Stockfish errored during init', err)
+        clearTimeout(timeout)
+        setEngineState('fallback')
+        resolve(null)
+      }
+    })
     worker.postMessage('uci')
     worker.postMessage('isready')
   })
   return workerPromise
+}
+
+// Eagerly load the engine so the loading indicator shows up early.
+export function preloadEngine() {
+  loadWorker()
 }
 
 export async function getBestMove(fen, depth) {
