@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
 import GameLayout from '../components/GameLayout'
 import DifficultySelect from '../components/DifficultySelect'
 import SnakeGame from '../games/snake/SnakeGame'
@@ -7,6 +7,11 @@ import MinesweeperGame from '../games/minesweeper/MinesweeperGame'
 import WordPuzzleGame from '../games/word-puzzle/WordPuzzleGame'
 import WordPuzzleModeSelect from '../games/word-puzzle/WordPuzzleModeSelect'
 import WordPuzzleLengthSelect from '../games/word-puzzle/WordPuzzleLengthSelect'
+import WordPuzzleBattle from '../games/word-puzzle/WordPuzzleBattle'
+import SnakeAndLadderGame from '../games/snake-and-ladder/SnakeAndLadderGame'
+import ChessModeSelect from '../games/chess/ChessModeSelect'
+import ChessDifficultySelect from '../games/chess/ChessDifficultySelect'
+import ChessGame from '../games/chess/ChessGame'
 import { games } from '../data/games'
 
 const SIMPLE_GAMES = {
@@ -23,12 +28,87 @@ const VALID_WP_LENGTHS = new Set(['4', '5', '6'])
 
 export default function GamePage() {
   const { gameId, difficulty, variant } = useParams()
+  const [searchParams] = useSearchParams()
+  const room = searchParams.get('room')
+
   const game = games.find((g) => g.id === gameId)
   const title = game?.name?.toUpperCase() ?? gameId?.toUpperCase() ?? 'GAME'
   const icon = game?.icon
 
-  // Word Puzzle has its own routing: mode select → daily | free → (free) length select → game
+  // ===== Chess =====
+  if (gameId === 'chess') {
+    if (room) {
+      return (
+        <GameLayout
+          title={`${title} · BATTLE`}
+          icon={icon}
+          backTo="/"
+          backLabel="LOBBY"
+        >
+          <ChessGame mode="multiplayer" roomCode={room} />
+        </GameLayout>
+      )
+    }
+    if (!difficulty) return <ChessModeSelect />
+    if (difficulty === 'computer') {
+      if (!variant) return <ChessDifficultySelect />
+      if (!VALID_DIFFICULTIES.has(variant)) return <ChessDifficultySelect />
+      return (
+        <GameLayout
+          title={`${title} · CPU · ${variant.toUpperCase()}`}
+          icon={icon}
+          backTo="/game/chess/computer"
+          backLabel="DIFFICULTY"
+        >
+          <ChessGame mode="computer" difficulty={variant} />
+        </GameLayout>
+      )
+    }
+    return <ChessModeSelect />
+  }
+
+  // ===== Snake & Ladder =====
+  if (gameId === 'snake-and-ladder') {
+    if (!room) {
+      return (
+        <GameLayout title={title} icon={icon}>
+          <div className="flex flex-col items-center gap-3 py-20 text-center">
+            <p className="font-arcade text-sm text-neon-pink">
+              No room joined.
+            </p>
+            <p className="text-xs text-white/50">
+              Create or join a Snake &amp; Ladder room from the lobby.
+            </p>
+          </div>
+        </GameLayout>
+      )
+    }
+    return (
+      <GameLayout
+        title={`${title} · BATTLE`}
+        icon={icon}
+        backTo="/"
+        backLabel="LOBBY"
+      >
+        <SnakeAndLadderGame roomCode={room} />
+      </GameLayout>
+    )
+  }
+
+  // ===== Word Puzzle =====
   if (gameId === 'word-puzzle') {
+    if (room) {
+      return (
+        <GameLayout
+          title={`${title} · BATTLE`}
+          icon={icon}
+          backTo="/"
+          backLabel="LOBBY"
+        >
+          <WordPuzzleBattle roomCode={room} />
+        </GameLayout>
+      )
+    }
     if (!difficulty) return <WordPuzzleModeSelect />
     if (difficulty === 'daily') {
       return (
@@ -60,6 +140,7 @@ export default function GamePage() {
     return <WordPuzzleModeSelect />
   }
 
+  // ===== Sudoku / Minesweeper (difficulty games) =====
   if (gameId in DIFFICULTY_GAMES) {
     if (!difficulty || !VALID_DIFFICULTIES.has(difficulty)) {
       return <DifficultySelect title={title} icon={icon} gameId={gameId} />
@@ -77,6 +158,7 @@ export default function GamePage() {
     )
   }
 
+  // ===== Simple single-player =====
   const Component = SIMPLE_GAMES[gameId]
   return (
     <GameLayout title={title} icon={icon}>

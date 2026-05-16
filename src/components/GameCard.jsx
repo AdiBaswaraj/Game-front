@@ -43,6 +43,12 @@ export default function GameCard({ game }) {
 
   const handlePlay = async () => {
     if (game.multiplayer) {
+      // Games like Chess have a mode select (vs CPU / vs Player) before
+      // a room is created. Send them through that screen first.
+      if (game.hasModeSelect) {
+        navigate(`/game/${game.id}`)
+        return
+      }
       if (!user) {
         toast.show({
           message: 'Login required for multiplayer.',

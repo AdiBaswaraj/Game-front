@@ -53,6 +53,7 @@ export const games = [
     players: '2P',
     category: 'Strategy',
     multiplayer: true,
+    hasModeSelect: true,
     accent: 'neon-pink',
   },
 ]
