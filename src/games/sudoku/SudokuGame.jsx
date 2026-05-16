@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { postScore } from '../../lib/api'
+import Leaderboard from '../../components/Leaderboard'
 import {
   findConflicts,
   generatePuzzle,
@@ -192,6 +193,17 @@ export default function SudokuGame({ difficulty = 'easy' }) {
       </div>
 
       <NumberPad onInput={handleInput} />
+
+      {status === 'won' && (
+        <div className="lb-slide-in w-full max-w-md">
+          <Leaderboard
+            gameId={`sudoku-${difficulty}`}
+            scoreFormat="time"
+            lowerIsBetter
+            title={`SUDOKU · ${difficulty.toUpperCase()}`}
+          />
+        </div>
+      )}
 
       {!user && (
         <p className="text-center text-[10px] text-white/40">

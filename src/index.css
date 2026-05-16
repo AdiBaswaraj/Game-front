@@ -86,3 +86,9 @@ body,
 .wp-tile-absent { animation: wp-flip-absent 0.55s ease-in-out forwards; }
 .wp-row-shake { animation: wp-shake 0.4s ease-in-out; }
 .wp-tile-pop { animation: wp-pop 0.12s ease-out; }
+
+@keyframes lb-slide-in {
+  from { transform: translateY(16px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.lb-slide-in { animation: lb-slide-in 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) both; animation-delay: 0.15s; }

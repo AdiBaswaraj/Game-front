@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { postScore } from '../../lib/api'
+import Leaderboard from '../../components/Leaderboard'
 import {
   epochDayUTC,
   getDailyDateKey,
@@ -357,6 +358,17 @@ export default function WordPuzzleGame() {
       )}
 
       <Keyboard keyStates={keyStates} onKey={handleKeyInput} />
+
+      {(status === 'won' || status === 'lost') && (
+        <div className="lb-slide-in w-full max-w-md">
+          <Leaderboard
+            gameId="word-puzzle"
+            scoreFormat="guesses"
+            lowerIsBetter
+            title="WORD PUZZLE"
+          />
+        </div>
+      )}
 
       {!user && status === 'playing' && (
         <p className="text-center text-[10px] text-white/40">

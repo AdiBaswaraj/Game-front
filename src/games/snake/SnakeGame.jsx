@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { getLeaderboard, postScore } from '../../lib/api'
 import { profileNameFor } from '../../lib/profile'
+import Leaderboard from '../../components/Leaderboard'
 
 const GRID = 20
 const CELL = 24
@@ -296,6 +297,7 @@ export default function SnakeGame() {
   }, [user])
 
   return (
+    <div className="flex flex-col items-center gap-8">
     <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
       <div className="relative">
         <div className="rounded-xl border-2 border-neon-green/60 bg-arcadia-surface p-2 shadow-neon-green">
@@ -369,6 +371,13 @@ export default function SnakeGame() {
         level={level}
         signedIn={!!user}
       />
+    </div>
+
+      {status === 'gameover' && (
+        <div className="lb-slide-in w-full max-w-md">
+          <Leaderboard gameId="snake" scoreFormat="points" />
+        </div>
+      )}
     </div>
   )
 }

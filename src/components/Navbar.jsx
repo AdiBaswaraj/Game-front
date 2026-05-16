@@ -8,12 +8,21 @@ export default function Navbar({ playersOnline = 0 }) {
   return (
     <header className="sticky top-0 z-40 border-b border-neon-green/40 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.25),0_10px_30px_-20px_rgba(0,255,136,0.5)] backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
-        <Link
-          to="/"
-          className="font-arcade text-base text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.6)] md:text-xl"
-        >
-          ARCADIA
-        </Link>
+        <div className="flex items-center gap-4 md:gap-7">
+          <Link
+            to="/"
+            className="font-arcade text-base text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.6)] md:text-xl"
+          >
+            ARCADIA
+          </Link>
+          <Link
+            to="/leaderboard"
+            className="flex items-center gap-1.5 font-arcade text-[10px] text-white/65 transition hover:text-neon-cyan md:text-xs"
+          >
+            <span aria-hidden="true">🏆</span>
+            <span className="hidden sm:inline">HALL OF FAME</span>
+          </Link>
+        </div>
 
         <div className="flex items-center gap-3 md:gap-5">
           <span

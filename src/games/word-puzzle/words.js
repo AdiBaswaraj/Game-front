@@ -68,11 +68,13 @@ roast aroma plane chant aside scary serum tally chunk creep
 forge ditch viral viola yield yowls weary axion fizzy gobby
 `
 
+import validGuessesRaw from './valid-guesses.txt?raw'
+
 function toList(raw) {
   return raw
     .split(/\s+/)
     .map((s) => s.trim().toLowerCase())
-    .filter((s) => s.length === 5)
+    .filter((s) => s.length === 5 && /^[a-z]+$/.test(s))
 }
 
 export const DAILY_WORDS = Array.from(new Set(toList(DAILY_RAW)))
@@ -80,6 +82,7 @@ export const DAILY_WORDS = Array.from(new Set(toList(DAILY_RAW)))
 export const VALID_GUESSES = new Set([
   ...DAILY_WORDS,
   ...toList(EXTRA_VALID_RAW),
+  ...toList(validGuessesRaw),
 ])
 
 export function isValidGuess(word) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { postScore } from '../../lib/api'
+import Leaderboard from '../../components/Leaderboard'
 
 const DIFFICULTIES = {
   easy: { rows: 9, cols: 9, mines: 10, label: 'EASY', cell: 32 },
@@ -302,6 +303,17 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
           difficulty={diff}
           onReset={() => newGame()}
         />
+      )}
+
+      {status === 'won' && (
+        <div className="lb-slide-in w-full max-w-md">
+          <Leaderboard
+            gameId={`minesweeper-${diff}`}
+            scoreFormat="time"
+            lowerIsBetter
+            title={`MINESWEEPER · ${diff.toUpperCase()}`}
+          />
+        </div>
       )}
     </div>
   )
