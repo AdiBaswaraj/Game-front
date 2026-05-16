@@ -2,6 +2,7 @@ import Navbar from '../components/Navbar'
 import Hero from '../components/Hero'
 import GameCard from '../components/GameCard'
 import Footer from '../components/Footer'
+import JoinRoomCard from '../components/JoinRoomCard'
 import { games } from '../data/games'
 
 export default function Lobby() {
@@ -11,6 +12,8 @@ export default function Lobby() {
       <Hero />
 
       <main className="mx-auto max-w-7xl px-4 pb-12 pt-14 md:px-8">
+        <JoinRoomCard />
+
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <h2 className="font-arcade text-lg text-white md:text-2xl">

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
-import { postScore } from '../../lib/api'
+import { createRoom, postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
 import {
   getDailyDateKey,
@@ -90,7 +90,7 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
   const isFree = mode === 'free'
   const COLS = length
 
-  const { user, openLogin } = useAuth()
+  const { user, displayName, openLogin } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
 
@@ -389,7 +389,7 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
     }
   }, [board, currentRow, dateKey, isDaily, status, toast])
 
-  const handleBattle = useCallback(() => {
+  const handleBattle = useCallback(async () => {
     if (!user) {
       toast.show({
         message: 'Login required for multiplayer.',
@@ -397,8 +397,21 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
       })
       return
     }
-    navigate('/room/create?game=word-puzzle')
-  }, [navigate, openLogin, toast, user])
+    try {
+      const res = await createRoom({
+        gameId: 'word-puzzle',
+        username: displayName,
+      })
+      const code = res?.roomCode ?? res?.room_code ?? res?.code
+      if (!code) {
+        toast.show({ message: 'Could not create room.', duration: 2500 })
+        return
+      }
+      navigate(`/room/${code}`)
+    } catch {
+      toast.show({ message: 'Could not create room.', duration: 2500 })
+    }
+  }, [displayName, navigate, openLogin, toast, user])
 
   // Compose display board: overlay current guess into the active row
   const displayBoard = useMemo(() => {

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
+import { createRoom } from '../lib/api'
 
 const ACCENTS = {
   'neon-green': {
@@ -34,11 +36,12 @@ const ACCENTS = {
 
 export default function GameCard({ game }) {
   const navigate = useNavigate()
-  const { user, openLogin } = useAuth()
+  const { user, displayName, openLogin } = useAuth()
   const toast = useToast()
+  const [creating, setCreating] = useState(false)
   const a = ACCENTS[game.accent] ?? ACCENTS['neon-green']
 
-  const handlePlay = () => {
+  const handlePlay = async () => {
     if (game.multiplayer) {
       if (!user) {
         toast.show({
@@ -47,8 +50,27 @@ export default function GameCard({ game }) {
         })
         return
       }
-      navigate(`/room/create?game=${game.id}`)
-    } else if (game.hasDifficulty) {
+      if (creating) return
+      setCreating(true)
+      try {
+        const res = await createRoom({
+          gameId: game.id,
+          username: displayName,
+        })
+        const code = res?.roomCode ?? res?.room_code ?? res?.code
+        if (!code) {
+          toast.show({ message: 'Could not create room.', duration: 2500 })
+          return
+        }
+        navigate(`/room/${code}`)
+      } catch {
+        toast.show({ message: 'Could not create room.', duration: 2500 })
+      } finally {
+        setCreating(false)
+      }
+      return
+    }
+    if (game.hasDifficulty) {
       navigate(`/game/${game.id}/difficulty`)
     } else {
       navigate(`/game/${game.id}`)
@@ -83,9 +105,10 @@ export default function GameCard({ game }) {
       <button
         type="button"
         onClick={handlePlay}
-        className={`mt-6 w-full rounded-md border bg-transparent py-2.5 font-arcade text-[11px] transition-all duration-200 ${a.btn}`}
+        disabled={creating}
+        className={`mt-6 w-full rounded-md border bg-transparent py-2.5 font-arcade text-[11px] transition-all duration-200 disabled:opacity-60 ${a.btn}`}
       >
-        ▶ PLAY
+        {creating ? 'CREATING…' : '▶ PLAY'}
       </button>
     </article>
   )
