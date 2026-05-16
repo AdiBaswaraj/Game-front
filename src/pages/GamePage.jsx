@@ -5,11 +5,12 @@ import SnakeGame from '../games/snake/SnakeGame'
 import SudokuGame from '../games/sudoku/SudokuGame'
 import MinesweeperGame from '../games/minesweeper/MinesweeperGame'
 import WordPuzzleGame from '../games/word-puzzle/WordPuzzleGame'
+import WordPuzzleModeSelect from '../games/word-puzzle/WordPuzzleModeSelect'
+import WordPuzzleLengthSelect from '../games/word-puzzle/WordPuzzleLengthSelect'
 import { games } from '../data/games'
 
 const SIMPLE_GAMES = {
   snake: SnakeGame,
-  'word-puzzle': WordPuzzleGame,
 }
 
 const DIFFICULTY_GAMES = {
@@ -18,12 +19,46 @@ const DIFFICULTY_GAMES = {
 }
 
 const VALID_DIFFICULTIES = new Set(['easy', 'medium', 'hard'])
+const VALID_WP_LENGTHS = new Set(['4', '5', '6'])
 
 export default function GamePage() {
-  const { gameId, difficulty } = useParams()
+  const { gameId, difficulty, variant } = useParams()
   const game = games.find((g) => g.id === gameId)
   const title = game?.name?.toUpperCase() ?? gameId?.toUpperCase() ?? 'GAME'
   const icon = game?.icon
+
+  // Word Puzzle has its own routing: mode select → daily | free → (free) length select → game
+  if (gameId === 'word-puzzle') {
+    if (!difficulty) return <WordPuzzleModeSelect />
+    if (difficulty === 'daily') {
+      return (
+        <GameLayout
+          title={`${title} · DAILY`}
+          icon={icon}
+          backTo="/game/word-puzzle"
+          backLabel="MODE"
+        >
+          <WordPuzzleGame mode="daily" length={5} />
+        </GameLayout>
+      )
+    }
+    if (difficulty === 'free') {
+      if (!variant) return <WordPuzzleLengthSelect />
+      if (!VALID_WP_LENGTHS.has(variant)) return <WordPuzzleLengthSelect />
+      const len = Number(variant)
+      return (
+        <GameLayout
+          title={`${title} · FREE ${len}`}
+          icon={icon}
+          backTo="/game/word-puzzle/free"
+          backLabel="LENGTH"
+        >
+          <WordPuzzleGame mode="free" length={len} />
+        </GameLayout>
+      )
+    }
+    return <WordPuzzleModeSelect />
+  }
 
   if (gameId in DIFFICULTY_GAMES) {
     if (!difficulty || !VALID_DIFFICULTIES.has(difficulty)) {

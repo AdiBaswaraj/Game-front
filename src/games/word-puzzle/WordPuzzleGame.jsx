@@ -5,42 +5,42 @@ import { useToast } from '../../context/ToastContext'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
 import {
-  epochDayUTC,
   getDailyDateKey,
   getDailyWord,
+  getRandomWord,
   isValidGuess,
+  loadDictionary,
 } from './words'
 
 const ROWS = 6
-const COLS = 5
 const KEY_ROWS = [
   ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
   ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫'],
 ]
-
 const STATE_PRIORITY = { correct: 3, present: 2, absent: 1 }
 
-function makeEmptyBoard() {
+function makeEmptyBoard(cols) {
   return Array.from({ length: ROWS }, () =>
-    Array.from({ length: COLS }, () => ({ letter: '', state: 'empty' })),
+    Array.from({ length: cols }, () => ({ letter: '', state: 'empty' })),
   )
 }
 
 function evaluate(guess, answer) {
   const g = guess.toLowerCase()
   const a = answer.toLowerCase()
-  const result = Array(COLS).fill('absent')
-  const used = Array(COLS).fill(false)
-  for (let i = 0; i < COLS; i++) {
+  const n = g.length
+  const result = Array(n).fill('absent')
+  const used = Array(n).fill(false)
+  for (let i = 0; i < n; i++) {
     if (g[i] === a[i]) {
       result[i] = 'correct'
       used[i] = true
     }
   }
-  for (let i = 0; i < COLS; i++) {
+  for (let i = 0; i < n; i++) {
     if (result[i] === 'correct') continue
-    for (let j = 0; j < COLS; j++) {
+    for (let j = 0; j < n; j++) {
       if (!used[j] && g[i] === a[j]) {
         result[i] = 'present'
         used[j] = true
@@ -52,16 +52,17 @@ function evaluate(guess, answer) {
 }
 
 function loadSavedState(dateKey) {
+  if (!dateKey) return null
   try {
     const raw = localStorage.getItem(`arcadia:wordpuzzle:${dateKey}`)
-    if (!raw) return null
-    return JSON.parse(raw)
+    return raw ? JSON.parse(raw) : null
   } catch {
     return null
   }
 }
 
 function persistState(dateKey, state) {
+  if (!dateKey) return
   try {
     localStorage.setItem(
       `arcadia:wordpuzzle:${dateKey}`,
@@ -84,17 +85,65 @@ function timeUntilMidnight() {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-export default function WordPuzzleGame() {
+export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
+  const isDaily = mode === 'daily'
+  const isFree = mode === 'free'
+  const COLS = length
+
   const { user, openLogin } = useAuth()
   const toast = useToast()
   const navigate = useNavigate()
 
-  const dateKey = useMemo(() => getDailyDateKey(), [])
-  const answer = useMemo(() => getDailyWord(), [])
-  const saved = useMemo(() => loadSavedState(dateKey), [dateKey])
+  const dateKey = useMemo(
+    () => (isDaily ? getDailyDateKey() : null),
+    [isDaily],
+  )
+  const saved = useMemo(
+    () => (isDaily ? loadSavedState(dateKey) : null),
+    [isDaily, dateKey],
+  )
+
+  // Dictionary readiness — lazy load 4/6 letter dicts
+  const [dictReady, setDictReady] = useState(length === 5)
+  useEffect(() => {
+    if (length === 5) {
+      setDictReady(true)
+      return
+    }
+    let cancelled = false
+    setDictReady(false)
+    loadDictionary(length)
+      .then(() => {
+        if (!cancelled) setDictReady(true)
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast.show({
+            message: 'Could not load dictionary.',
+            duration: 3000,
+          })
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [length, toast])
+
+  const [answer, setAnswer] = useState(() => {
+    if (isDaily) return getDailyWord()
+    if (length === 5) return getRandomWord(5)
+    return null
+  })
+
+  // Once dict is ready in free mode, pick an answer if we don't have one
+  useEffect(() => {
+    if (isFree && dictReady && !answer) {
+      setAnswer(getRandomWord(length))
+    }
+  }, [isFree, dictReady, answer, length])
 
   const [board, setBoard] = useState(
-    () => saved?.board ?? makeEmptyBoard(),
+    () => saved?.board ?? makeEmptyBoard(COLS),
   )
   const [currentRow, setCurrentRow] = useState(saved?.currentRow ?? 0)
   const [currentGuess, setCurrentGuess] = useState('')
@@ -102,29 +151,30 @@ export default function WordPuzzleGame() {
   const [keyStates, setKeyStates] = useState(saved?.keyStates ?? {})
   const [shakeRow, setShakeRow] = useState(false)
   const [revealing, setRevealing] = useState(false)
+  const [revealed, setRevealed] = useState(saved?.revealed ?? false)
   const [countdown, setCountdown] = useState(timeUntilMidnight)
-  const submittedRef = useRef(saved?.status === 'won' || saved?.status === 'lost')
 
-  // Countdown timer when complete
+  // Countdown when finished (daily only)
   useEffect(() => {
-    if (status === 'playing') return
+    if (!isDaily || status === 'playing') return
     setCountdown(timeUntilMidnight())
     const id = setInterval(() => setCountdown(timeUntilMidnight()), 1000)
     return () => clearInterval(id)
-  }, [status])
+  }, [isDaily, status])
 
-  // Re-detect day change (e.g. user keeps tab open past midnight)
+  // Day rollover check (daily only)
   useEffect(() => {
+    if (!isDaily) return
     const id = setInterval(() => {
       if (getDailyDateKey() !== dateKey) window.location.reload()
     }, 60000)
     return () => clearInterval(id)
-  }, [dateKey])
+  }, [isDaily, dateKey])
 
   const updateKeyStates = useCallback((states, guess) => {
     setKeyStates((prev) => {
       const next = { ...prev }
-      for (let i = 0; i < COLS; i++) {
+      for (let i = 0; i < guess.length; i++) {
         const letter = guess[i].toUpperCase()
         const s = states[i]
         const existing = next[letter]
@@ -140,41 +190,41 @@ export default function WordPuzzleGame() {
     (finalBoard, row, won) => {
       const finalStatus = won ? 'won' : 'lost'
       setStatus(finalStatus)
-      submittedRef.current = true
 
-      // setKeyStates callback reads the latest keyStates (already updated
-      // synchronously via updateKeyStates earlier in this tick)
-      setKeyStates((current) => {
-        persistState(dateKey, {
-          board: finalBoard,
-          currentRow: row,
-          status: finalStatus,
-          keyStates: current,
-          answer,
+      if (isDaily) {
+        setKeyStates((current) => {
+          persistState(dateKey, {
+            board: finalBoard,
+            currentRow: row,
+            status: finalStatus,
+            keyStates: current,
+            revealed: false,
+            answer,
+          })
+          return current
         })
-        return current
-      })
-
-      if (user) {
-        postScore({
-          userId: user.id,
-          gameId: 'word-puzzle',
-          score: won ? row + 1 : 7,
-        }).catch(() => {})
+        if (user) {
+          postScore({
+            userId: user.id,
+            gameId: 'word-puzzle',
+            score: won ? row + 1 : 7,
+          }).catch(() => {})
+        }
       }
     },
-    [answer, dateKey, user],
+    [answer, dateKey, isDaily, user],
   )
 
   const submitGuess = useCallback(() => {
     if (status !== 'playing' || revealing) return
+    if (!answer) return
     if (currentGuess.length !== COLS) {
-      toast.show({ message: 'NEED 5 LETTERS', duration: 1500 })
+      toast.show({ message: `NEED ${COLS} LETTERS`, duration: 1500 })
       setShakeRow(true)
       setTimeout(() => setShakeRow(false), 450)
       return
     }
-    if (!isValidGuess(currentGuess)) {
+    if (!isValidGuess(currentGuess, COLS)) {
       toast.show({ message: 'NOT IN DICTIONARY', duration: 1500 })
       setShakeRow(true)
       setTimeout(() => setShakeRow(false), 450)
@@ -204,27 +254,31 @@ export default function WordPuzzleGame() {
         finishGame(nextBoard, currentRow, false)
       } else {
         setCurrentRow(currentRow + 1)
-        // Persist progress mid-game
-        setKeyStates((current) => {
-          persistState(dateKey, {
-            board: nextBoard,
-            currentRow: currentRow + 1,
-            status: 'playing',
-            keyStates: current,
-            answer,
+        if (isDaily) {
+          setKeyStates((current) => {
+            persistState(dateKey, {
+              board: nextBoard,
+              currentRow: currentRow + 1,
+              status: 'playing',
+              keyStates: current,
+              revealed: false,
+              answer,
+            })
+            return current
           })
-          return current
-        })
+        }
       }
       setCurrentGuess('')
     }, revealMs)
   }, [
     answer,
     board,
+    COLS,
     currentGuess,
     currentRow,
     dateKey,
     finishGame,
+    isDaily,
     revealing,
     status,
     toast,
@@ -234,6 +288,7 @@ export default function WordPuzzleGame() {
   const handleKeyInput = useCallback(
     (key) => {
       if (status !== 'playing' || revealing) return
+      if (!dictReady) return
       if (key === 'ENTER') {
         submitGuess()
         return
@@ -246,10 +301,9 @@ export default function WordPuzzleGame() {
         setCurrentGuess((g) => g + key.toUpperCase())
       }
     },
-    [currentGuess.length, revealing, status, submitGuess],
+    [COLS, currentGuess.length, dictReady, revealing, status, submitGuess],
   )
 
-  // Physical keyboard
   useEffect(() => {
     const handler = (e) => {
       const tag = e.target?.tagName
@@ -270,9 +324,44 @@ export default function WordPuzzleGame() {
     return () => window.removeEventListener('keydown', handler)
   }, [handleKeyInput])
 
+  const newWord = useCallback(() => {
+    if (!isFree) return
+    setAnswer(getRandomWord(length))
+    setBoard(makeEmptyBoard(COLS))
+    setCurrentRow(0)
+    setCurrentGuess('')
+    setKeyStates({})
+    setStatus('playing')
+    setRevealed(false)
+  }, [isFree, length, COLS])
+
+  const handleReveal = useCallback(() => {
+    if (!isDaily) return
+    const ok = window.confirm(
+      'Are you sure? This will end today’s challenge.',
+    )
+    if (!ok) return
+    setRevealed(true)
+    setKeyStates((current) => {
+      persistState(dateKey, {
+        board,
+        currentRow,
+        status: 'lost',
+        keyStates: current,
+        revealed: true,
+        answer,
+      })
+      return current
+    })
+  }, [isDaily, dateKey, board, currentRow, answer])
+
   const handleShare = useCallback(async () => {
+    if (!isDaily) return
     const guessCount = status === 'won' ? currentRow + 1 : 'X'
-    const lines = [`Arcadia Word Puzzle · ${dateKey} · ${guessCount}/6`, '']
+    const lines = [
+      `Arcadia Word Puzzle · ${dateKey} · ${guessCount}/6`,
+      '',
+    ]
     for (let r = 0; r <= currentRow; r++) {
       if (board[r][0].state === 'empty') break
       const line = board[r]
@@ -293,9 +382,12 @@ export default function WordPuzzleGame() {
         throw new Error('no clipboard')
       }
     } catch {
-      toast.show({ message: 'COPY FAILED — SELECT MANUALLY', duration: 2500 })
+      toast.show({
+        message: 'COPY FAILED — SELECT MANUALLY',
+        duration: 2500,
+      })
     }
-  }, [board, currentRow, dateKey, status, toast])
+  }, [board, currentRow, dateKey, isDaily, status, toast])
 
   const handleBattle = useCallback(() => {
     if (!user) {
@@ -320,30 +412,54 @@ export default function WordPuzzleGame() {
       }
     }
     return b
-  }, [board, currentGuess, currentRow, status])
+  }, [board, currentGuess, currentRow, status, COLS])
+
+  if (!dictReady || (isFree && !answer)) {
+    return (
+      <div className="mx-auto flex max-w-xl flex-col items-center gap-3 py-16 text-center">
+        <p className="font-arcade text-[11px] text-neon-cyan">
+          LOADING DICTIONARY…
+        </p>
+        <p className="text-xs text-white/50">
+          Fetching {length}-letter words.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-6">
       <div className="flex w-full items-center justify-between text-[10px] text-white/45">
-        <span className="font-arcade">DAILY · {dateKey}</span>
-        <button
-          type="button"
-          onClick={handleBattle}
-          className="rounded-md border border-neon-pink/60 bg-neon-pink/10 px-3 py-1.5 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink"
-        >
-          ⚔ 2P BATTLE
-        </button>
+        <span className="font-arcade">
+          {isDaily ? `DAILY · ${dateKey}` : `FREE PLAY · ${COLS} LETTERS`}
+        </span>
+        {isDaily && (
+          <button
+            type="button"
+            onClick={handleBattle}
+            className="rounded-md border border-neon-pink/60 bg-neon-pink/10 px-3 py-1.5 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink"
+          >
+            ⚔ 2P BATTLE
+          </button>
+        )}
       </div>
 
-      <Board board={displayBoard} activeRow={currentRow} shakeRow={shakeRow} />
+      <Board
+        board={displayBoard}
+        cols={COLS}
+        activeRow={currentRow}
+        shakeRow={shakeRow}
+      />
 
       {status === 'won' && (
         <Overlay
           tone="green"
           title="GENIUS!"
           subtitle={`Solved in ${currentRow + 1} / 6`}
+          isDaily={isDaily}
           countdown={countdown}
           onShare={handleShare}
+          onNewWord={newWord}
         />
       )}
 
@@ -351,46 +467,63 @@ export default function WordPuzzleGame() {
         <Overlay
           tone="pink"
           title="GAME OVER"
-          subtitle={`The word was ${answer.toUpperCase()}`}
+          subtitle={
+            isDaily
+              ? revealed
+                ? `The word was ${answer.toUpperCase()}`
+                : null
+              : `The word was ${answer.toUpperCase()}`
+          }
+          isDaily={isDaily}
+          revealed={revealed}
+          onReveal={isDaily && !revealed ? handleReveal : null}
           countdown={countdown}
           onShare={handleShare}
+          onNewWord={newWord}
         />
       )}
 
-      <Keyboard keyStates={keyStates} onKey={handleKeyInput} />
+      <Keyboard keyStates={keyStates} onKey={handleKeyInput} cols={COLS} />
 
-      {(status === 'won' || status === 'lost') && (
+      {isDaily && (status === 'won' || status === 'lost') && (
         <div className="lb-slide-in w-full max-w-md">
           <Leaderboard
             gameId="word-puzzle"
             scoreFormat="guesses"
             lowerIsBetter
-            title="WORD PUZZLE"
+            title="WORD PUZZLE · DAILY"
           />
         </div>
       )}
 
-      {!user && status === 'playing' && (
+      {isDaily && !user && status === 'playing' && (
         <p className="text-center text-[10px] text-white/40">
           Log in to save your daily score.
+        </p>
+      )}
+
+      {isFree && status === 'playing' && (
+        <p className="text-center text-[10px] text-white/40">
+          Free play is unranked — scores aren&rsquo;t saved.
         </p>
       )}
     </div>
   )
 }
 
-function Board({ board, activeRow, shakeRow }) {
+function Board({ board, cols, activeRow, shakeRow }) {
   return (
     <div className="flex flex-col gap-1.5" style={{ perspective: '600px' }}>
       {board.map((row, r) => (
         <div
           key={r}
-          className={`grid grid-cols-5 gap-1.5 ${
+          className={`grid gap-1.5 ${
             shakeRow && r === activeRow ? 'wp-row-shake' : ''
           }`}
+          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
         >
           {row.map((tile, c) => (
-            <Tile key={c} tile={tile} index={c} />
+            <Tile key={c} tile={tile} index={c} cols={cols} />
           ))}
         </div>
       ))}
@@ -398,7 +531,7 @@ function Board({ board, activeRow, shakeRow }) {
   )
 }
 
-function Tile({ tile, index }) {
+function Tile({ tile, index, cols }) {
   const animClass =
     tile.state === 'correct'
       ? 'wp-tile-correct'
@@ -411,9 +544,18 @@ function Tile({ tile, index }) {
   const popClass = tile.state === 'typed' ? 'wp-tile-pop' : ''
   const baseBg = tile.state === 'typed' ? 'border-white/35' : 'border-white/15'
 
+  // Scale tile size slightly down when cols=6 to keep the row from
+  // overflowing on narrow viewports
+  const sizeClass =
+    cols >= 6
+      ? 'h-12 w-12 text-base sm:h-14 sm:w-14 sm:text-lg'
+      : cols === 4
+        ? 'h-16 w-16 text-xl sm:h-20 sm:w-20 sm:text-2xl'
+        : 'h-14 w-14 text-lg sm:h-16 sm:w-16 sm:text-xl'
+
   return (
     <div
-      className={`flex h-14 w-14 items-center justify-center rounded-md border-2 bg-arcadia-surface font-arcade text-lg uppercase tracking-wider text-white sm:h-16 sm:w-16 sm:text-xl ${baseBg} ${animClass} ${popClass}`}
+      className={`flex items-center justify-center rounded-md border-2 bg-arcadia-surface font-arcade uppercase tracking-wider text-white ${sizeClass} ${baseBg} ${animClass} ${popClass}`}
       style={{ animationDelay: animClass ? `${index * 0.3}s` : undefined }}
     >
       {tile.letter}
@@ -442,9 +584,9 @@ function Keyboard({ keyStates, onKey }) {
 }
 
 function KeyButton({ label, state, onClick, wide }) {
-  let cls =
-    'border-white/15 bg-arcadia-surface text-white hover:bg-white/5'
-  if (state === 'correct') cls = 'border-neon-green bg-neon-green text-arcadia-bg'
+  let cls = 'border-white/15 bg-arcadia-surface text-white hover:bg-white/5'
+  if (state === 'correct')
+    cls = 'border-neon-green bg-neon-green text-arcadia-bg'
   else if (state === 'present')
     cls = 'border-yellow-500 bg-yellow-500 text-arcadia-bg'
   else if (state === 'absent')
@@ -463,7 +605,17 @@ function KeyButton({ label, state, onClick, wide }) {
   )
 }
 
-function Overlay({ tone, title, subtitle, countdown, onShare }) {
+function Overlay({
+  tone,
+  title,
+  subtitle,
+  isDaily,
+  revealed,
+  onReveal,
+  countdown,
+  onShare,
+  onNewWord,
+}) {
   const accent =
     tone === 'green'
       ? 'border-neon-green/60 shadow-neon-green text-neon-green'
@@ -476,20 +628,45 @@ function Overlay({ tone, title, subtitle, countdown, onShare }) {
       <p className="font-arcade text-base drop-shadow-[0_0_10px_currentColor] md:text-lg">
         ★ {title} ★
       </p>
-      <p className="mt-2 text-sm text-white/70">{subtitle}</p>
-      <p className="mt-4 font-arcade text-[10px] text-white/50">
-        NEXT WORD IN
-      </p>
-      <p className="font-arcade text-base text-neon-cyan">{countdown}</p>
+      {subtitle && <p className="mt-2 text-sm text-white/70">{subtitle}</p>}
 
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+      {isDaily && onReveal && (
         <button
           type="button"
-          onClick={onShare}
-          className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+          onClick={onReveal}
+          className="mt-4 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
         >
-          📋 SHARE RESULT
+          👁 REVEAL ANSWER
         </button>
+      )}
+
+      {isDaily && (
+        <>
+          <p className="mt-4 font-arcade text-[10px] text-white/50">
+            NEXT WORD IN
+          </p>
+          <p className="font-arcade text-base text-neon-cyan">{countdown}</p>
+        </>
+      )}
+
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+        {isDaily ? (
+          <button
+            type="button"
+            onClick={onShare}
+            className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+          >
+            📋 SHARE RESULT
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={onNewWord}
+            className="rounded-md border border-neon-green/60 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
+          >
+            ▶ NEW WORD
+          </button>
+        )}
         <Link
           to="/"
           className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
@@ -497,7 +674,9 @@ function Overlay({ tone, title, subtitle, countdown, onShare }) {
           BACK TO LOBBY
         </Link>
       </div>
-      <p className="mt-3 text-[10px] text-white/35">Come back tomorrow.</p>
+      {isDaily && (
+        <p className="mt-3 text-[10px] text-white/35">Come back tomorrow.</p>
+      )}
     </div>
   )
 }

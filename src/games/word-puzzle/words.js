@@ -85,8 +85,46 @@ export const VALID_GUESSES = new Set([
   ...toList(validGuessesRaw),
 ])
 
-export function isValidGuess(word) {
-  return VALID_GUESSES.has(word.toLowerCase())
+export function isValidGuess(word, length = 5) {
+  const w = word.toLowerCase()
+  if (w.length !== length) return false
+  if (length === 5) return VALID_GUESSES.has(w)
+  const dict = DICT_CACHE.get(length)
+  return dict ? dict.has(w) : false
+}
+
+const DICT_CACHE = new Map()
+DICT_CACHE.set(5, VALID_GUESSES)
+
+export async function loadDictionary(length) {
+  if (DICT_CACHE.has(length)) return DICT_CACHE.get(length)
+  let raw
+  if (length === 4) {
+    raw = (await import('./valid-guesses-4.txt?raw')).default
+  } else if (length === 6) {
+    raw = (await import('./valid-guesses-6.txt?raw')).default
+  } else {
+    throw new Error(`No dictionary for length ${length}`)
+  }
+  const set = new Set(
+    raw
+      .split(/\s+/)
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length === length && /^[a-z]+$/.test(s)),
+  )
+  DICT_CACHE.set(length, set)
+  return set
+}
+
+export function getRandomWord(length) {
+  const dict = DICT_CACHE.get(length)
+  if (!dict || dict.size === 0) return null
+  if (length === 5) {
+    // Use curated common pool for nicer free-play experience
+    return DAILY_WORDS[Math.floor(Math.random() * DAILY_WORDS.length)]
+  }
+  const arr = Array.from(dict)
+  return arr[Math.floor(Math.random() * arr.length)]
 }
 
 export function epochDayUTC(d = new Date()) {
