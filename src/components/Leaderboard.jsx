@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getLeaderboard } from '../lib/api'
 import { profileNameFor } from '../lib/profile'
@@ -145,13 +146,24 @@ function Row({ rank, name, score, date, isMe }) {
       <span className={`font-arcade text-[10px] ${rankColor}`}>
         {String(rank).padStart(2, '0')}
       </span>
-      <span
-        className={`truncate font-arcade text-[10px] ${
-          isMe ? 'text-neon-green' : 'text-white'
-        }`}
-      >
-        {isMe ? `YOU · ${name}` : name}
-      </span>
+      {name ? (
+        <Link
+          to={`/profile/${encodeURIComponent(name)}`}
+          className={`truncate font-arcade text-[10px] transition hover:underline ${
+            isMe ? 'text-neon-green' : 'text-white hover:text-neon-cyan'
+          }`}
+        >
+          {isMe ? `YOU · ${name}` : name}
+        </Link>
+      ) : (
+        <span
+          className={`truncate font-arcade text-[10px] ${
+            isMe ? 'text-neon-green' : 'text-white'
+          }`}
+        >
+          {isMe ? 'YOU' : '—'}
+        </span>
+      )}
       <span
         className={`text-right font-arcade text-[10px] ${
           isMe ? 'text-neon-green' : 'text-neon-cyan'
