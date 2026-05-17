@@ -7,25 +7,28 @@ import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
 import JoinByCodePage from './pages/JoinByCodePage'
 import { FriendsProvider } from './context/FriendsContext'
+import { LeaveGuardProvider } from './context/LeaveGuardContext'
 
 export default function App() {
   return (
     <BrowserRouter>
       <FriendsProvider>
-        <Routes>
-          <Route path="/" element={<Lobby />} />
-          <Route path="/game/:gameId" element={<GamePage />} />
-          <Route path="/game/:gameId/:difficulty" element={<GamePage />} />
-          <Route
-            path="/game/:gameId/:difficulty/:variant"
-            element={<GamePage />}
-          />
-          <Route path="/room/:roomCode" element={<RoomPage />} />
-          <Route path="/leaderboard" element={<LeaderboardPage />} />
-          <Route path="/profile/:username" element={<ProfilePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/join/:roomCode" element={<JoinByCodePage />} />
-        </Routes>
+        <LeaveGuardProvider>
+          <Routes>
+            <Route path="/" element={<Lobby />} />
+            <Route path="/game/:gameId" element={<GamePage />} />
+            <Route path="/game/:gameId/:difficulty" element={<GamePage />} />
+            <Route
+              path="/game/:gameId/:difficulty/:variant"
+              element={<GamePage />}
+            />
+            <Route path="/room/:roomCode" element={<RoomPage />} />
+            <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/profile/:username" element={<ProfilePage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/join/:roomCode" element={<JoinByCodePage />} />
+          </Routes>
+        </LeaveGuardProvider>
       </FriendsProvider>
     </BrowserRouter>
   )

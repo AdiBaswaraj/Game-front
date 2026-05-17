@@ -1,5 +1,6 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { useLeaveGuardContext } from '../context/LeaveGuardContext'
 
 export default function GameLayout({
   title,
@@ -9,12 +10,25 @@ export default function GameLayout({
   backLabel = 'LOBBY',
 }) {
   useDocumentTitle(title ?? null)
+  const navigate = useNavigate()
+  const guardCtx = useLeaveGuardContext()
+
+  const handleBack = (e) => {
+    if (!guardCtx) return
+    const ok = guardCtx.requestLeave({
+      target: backTo,
+      commit: () => navigate(backTo),
+    })
+    if (ok === false) e.preventDefault()
+  }
+
   return (
     <div className="scanlines relative min-h-screen bg-arcadia-bg text-white">
       <header className="sticky top-0 z-30 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-4 py-4 md:px-8">
           <Link
             to={backTo}
+            onClick={handleBack}
             className="flex items-center gap-2 justify-self-start font-arcade text-[10px] text-neon-cyan transition hover:text-neon-green md:text-xs"
           >
             <span aria-hidden="true">◀</span>

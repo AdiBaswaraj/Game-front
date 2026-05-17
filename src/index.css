@@ -110,3 +110,9 @@ body,
   100% { background-color: transparent; transform: scale(1); }
 }
 .mode-card:active { animation: mode-card-flash 0.35s ease-out; }
+
+@keyframes chess-clock-low {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.chess-clock-low { animation: chess-clock-low 0.9s ease-in-out infinite; }
