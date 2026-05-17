@@ -2,65 +2,106 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useToast } from '../context/ToastContext'
-
-const PROMPT_PREFIX = 'arcadia:usernamePrompted:'
+import { profileNameFor } from '../lib/profile'
 
 export default function UsernamePromptModal() {
-  const { user, displayName, loading } = useAuth()
+  const { user, loading } = useAuth()
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [value, setValue] = useState('')
   const [saving, setSaving] = useState(false)
+  const checkedForRef = useRef(null)
   const inputRef = useRef(null)
 
+  // Decide whether to show the prompt by querying the profiles table.
+  // We only check once per user.id — if the row has a non-empty
+  // username, the prompt is suppressed forever for that user.
   useEffect(() => {
-    if (loading || !user) return
-    const key = `${PROMPT_PREFIX}${user.id}`
-    if (localStorage.getItem(key)) return
-    setValue(displayName ?? '')
-    setOpen(true)
-    setTimeout(() => inputRef.current?.focus(), 60)
-  }, [user, displayName, loading])
-
-  const close = (rememberSkip) => {
-    if (rememberSkip && user) {
-      try {
-        localStorage.setItem(`${PROMPT_PREFIX}${user.id}`, '1')
-      } catch {}
+    if (loading) return
+    if (!user) {
+      setOpen(false)
+      checkedForRef.current = null
+      return
     }
-    setOpen(false)
-  }
+    if (checkedForRef.current === user.id) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('username')
+          .eq('id', user.id)
+          .maybeSingle()
+        if (cancelled) return
+        checkedForRef.current = user.id
+
+        if (error) {
+          console.warn('[username-prompt] profile fetch failed', error)
+          return
+        }
+        const existing = (data?.username ?? '').trim()
+        if (existing) {
+          // Already has a username — nothing to prompt.
+          setOpen(false)
+          return
+        }
+        // No username yet — prefill with whatever metadata we have,
+        // never show an empty input.
+        const fallback = profileNameFor(user) ?? ''
+        setValue(fallback)
+        setOpen(true)
+        setTimeout(() => inputRef.current?.focus(), 60)
+      } catch (err) {
+        console.warn('[username-prompt] exception', err)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [user, loading])
+
+  // ESC closes
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open])
+
+  const close = () => setOpen(false)
 
   const save = async (e) => {
     e?.preventDefault()
     const trimmed = value.trim()
     if (!trimmed || !user) {
-      close(true)
-      return
-    }
-    if (trimmed === displayName) {
-      close(true)
+      close()
       return
     }
     setSaving(true)
     try {
-      const { error: pErr } = await supabase
-        .from('profiles')
-        .update({ username: trimmed })
-        .eq('id', user.id)
+      const { error: pErr } = await supabase.from('profiles').upsert(
+        {
+          id: user.id,
+          username: trimmed,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'id' },
+      )
       if (pErr) throw pErr
+      // Keep auth metadata in sync so profileNameFor returns the chosen
+      // name without an extra round-trip.
       const { error: aErr } = await supabase.auth.updateUser({
         data: { full_name: trimmed },
       })
       if (aErr) throw aErr
       toast.show({ message: 'Username set.', duration: 2500 })
-      close(true)
+      close()
     } catch (err) {
-      console.error('[username-prompt] update failed', err)
-      toast.show({
-        message: 'Could not save username.',
-        duration: 3000,
-      })
+      console.error('[username-prompt] save failed', err)
+      toast.show({ message: 'Could not save username.', duration: 3000 })
     } finally {
       setSaving(false)
     }
@@ -70,7 +111,7 @@ export default function UsernamePromptModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label="Choose username"
@@ -102,7 +143,7 @@ export default function UsernamePromptModal() {
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
-            onClick={() => close(true)}
+            onClick={close}
             className="rounded-md border border-white/15 px-4 py-2 font-arcade text-[10px] text-white/60 hover:border-neon-pink/60 hover:text-neon-pink"
           >
             SKIP

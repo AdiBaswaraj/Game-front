@@ -24,9 +24,15 @@ async function upsertProfile(user) {
   const avatar_url =
     user.user_metadata?.avatar_url || user.user_metadata?.picture || null
   try {
+    // Insert a row for first-time users; never overwrite an existing
+    // row, which would clobber a username the user already chose.
+    // UsernamePromptModal owns updates from here on.
     await supabase
       .from('profiles')
-      .upsert({ id: user.id, username, avatar_url }, { onConflict: 'id' })
+      .upsert(
+        { id: user.id, username, avatar_url },
+        { onConflict: 'id', ignoreDuplicates: true },
+      )
   } catch {
     // profile upsert is best-effort — auth still works
   }

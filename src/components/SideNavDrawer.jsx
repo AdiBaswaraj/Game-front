@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Avatar from './Avatar'
@@ -13,14 +14,18 @@ function formatJoinDate(s) {
   if (!s) return null
   const d = new Date(s)
   if (Number.isNaN(d.getTime())) return null
-  return d.toLocaleDateString(undefined, {
-    month: 'short',
-    year: 'numeric',
-  })
+  return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' })
 }
 
 export default function SideNavDrawer({ open, onClose }) {
-  const { user, isGuest, displayName, loading, openLogin, signOut } = useAuth()
+  // Be defensive — never let a missing/null auth context crash the drawer.
+  let auth = {}
+  try {
+    auth = useAuth() ?? {}
+  } catch {
+    auth = {}
+  }
+  const { user, isGuest, displayName, loading, openLogin, signOut } = auth
 
   useEffect(() => {
     if (!open) return
@@ -31,6 +36,9 @@ export default function SideNavDrawer({ open, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // SSR safety
+  if (typeof document === 'undefined') return null
+
   const handleLogin = () => {
     onClose()
     openLogin?.()
@@ -40,20 +48,23 @@ export default function SideNavDrawer({ open, onClose }) {
     signOut?.()
   }
 
-  return (
+  // Render via portal directly into <body>. Some ancestors (sticky nav,
+  // transformed wrappers) can create containing blocks that re-anchor
+  // position:fixed children — portaling sidesteps that entirely.
+  const drawer = (
     <>
       <div
-        className={`fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
+        onClick={onClose}
+        className={`fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
-        onClick={onClose}
       />
       <aside
-        className={`fixed inset-y-0 left-0 z-[80] flex w-72 max-w-[85vw] flex-col border-r-2 border-neon-green/50 bg-arcadia-bg text-white shadow-[0_0_40px_-10px_rgba(0,255,136,0.5)] transition-transform duration-300 ${
-          open ? 'translate-x-0' : '-translate-x-full'
-        }`}
         aria-label="Navigation"
         aria-hidden={!open}
+        className={`fixed inset-y-0 left-0 z-[1010] flex w-72 max-w-[85vw] flex-col border-r-2 border-neon-green/50 bg-arcadia-bg text-white shadow-[0_0_40px_-10px_rgba(0,255,136,0.5)] transition-transform duration-300 ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
         <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
           <span className="font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.5)]">
@@ -63,13 +74,29 @@ export default function SideNavDrawer({ open, onClose }) {
             type="button"
             onClick={onClose}
             className="rounded p-1 font-arcade text-xs text-white/50 transition hover:text-neon-pink"
-            aria-label="Close nav"
+            aria-label="Close navigation"
           >
             ✕
           </button>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
+          {/* TEMP DEBUG MARKER — remove once panel is verified */}
+          <div
+            data-debug="sidenav-marker"
+            style={{
+              background: '#ff006e',
+              color: '#0a0a0f',
+              padding: '6px 12px',
+              fontSize: 10,
+              textAlign: 'center',
+              fontFamily: '"Press Start 2P", monospace',
+              letterSpacing: 1,
+            }}
+          >
+            PANEL CONTENT TEST
+          </div>
+
           {loading ? (
             <ProfileSkeleton />
           ) : user ? (
@@ -102,20 +129,18 @@ export default function SideNavDrawer({ open, onClose }) {
               ))}
             </ul>
           </nav>
-
-          {user && (
-            <div className="border-t border-white/5">
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="flex w-full items-center gap-4 px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-white/5"
-              >
-                <span className="text-lg" aria-hidden="true">↩</span>
-                <span>SIGN OUT</span>
-              </button>
-            </div>
-          )}
         </div>
+
+        {user && (
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="flex shrink-0 items-center gap-4 border-t border-white/10 px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-white/5"
+          >
+            <span className="text-lg" aria-hidden="true">↩</span>
+            <span>SIGN OUT</span>
+          </button>
+        )}
 
         <footer className="shrink-0 border-t border-white/5 px-5 py-3 text-center font-arcade text-[9px] text-white/30">
           © ARCADIA 2026
@@ -123,6 +148,8 @@ export default function SideNavDrawer({ open, onClose }) {
       </aside>
     </>
   )
+
+  return createPortal(drawer, document.body)
 }
 
 function SignedInCard({ name, joinDate, onClose }) {
