@@ -240,8 +240,6 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
     handleFlag(r, c)
   }
 
-  const smiley = status === 'lost' ? '😵' : status === 'won' ? '😎' : '🙂'
-
   return (
     <div className="flex flex-col items-center gap-6">
       <div className="rounded-lg border-2 border-neon-green/60 bg-arcadia-surface p-3 shadow-neon-green">
@@ -252,14 +250,6 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
             label="MINES"
           />
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => newGame()}
-              className="grid h-10 w-10 place-items-center rounded-md border border-white/15 bg-arcadia-bg text-2xl transition hover:border-neon-cyan/60"
-              aria-label="Reset game"
-            >
-              {smiley}
-            </button>
             <button
               type="button"
               onClick={() => setFlagMode((f) => !f)}
