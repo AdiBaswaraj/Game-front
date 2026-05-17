@@ -2,6 +2,9 @@ import { useParams, useSearchParams } from 'react-router-dom'
 import GameLayout from '../components/GameLayout'
 import DifficultySelect from '../components/DifficultySelect'
 import GameErrorBoundary from '../components/GameErrorBoundary'
+import ModeSelect from '../components/ModeSelect'
+import MatchmakingScreen from './MatchmakingScreen'
+import PrivateRoomScreen from './PrivateRoomScreen'
 import SnakeGame from '../games/snake/SnakeGame'
 import SudokuGame from '../games/sudoku/SudokuGame'
 import MinesweeperGame from '../games/minesweeper/MinesweeperGame'
@@ -10,10 +13,8 @@ import WordPuzzleModeSelect from '../games/word-puzzle/WordPuzzleModeSelect'
 import WordPuzzleLengthSelect from '../games/word-puzzle/WordPuzzleLengthSelect'
 import WordPuzzleBattle from '../games/word-puzzle/WordPuzzleBattle'
 import SnakeAndLadderGame from '../games/snake-and-ladder/SnakeAndLadderGame'
-import SnakeAndLadderModeSelect from '../games/snake-and-ladder/SnakeAndLadderModeSelect'
 import SnakeAndLadderLocalSelect from '../games/snake-and-ladder/SnakeAndLadderLocalSelect'
 import SnakeAndLadderLocalGame from '../games/snake-and-ladder/SnakeAndLadderLocalGame'
-import ChessModeSelect from '../games/chess/ChessModeSelect'
 import ChessDifficultySelect from '../games/chess/ChessDifficultySelect'
 import ChessGame from '../games/chess/ChessGame'
 import { games } from '../data/games'
@@ -29,6 +30,80 @@ const DIFFICULTY_GAMES = {
 
 const VALID_DIFFICULTIES = new Set(['easy', 'medium', 'hard'])
 const VALID_WP_LENGTHS = new Set(['4', '5', '6'])
+
+const CHESS_CARDS = [
+  {
+    id: 'computer',
+    to: '/game/chess/computer',
+    label: 'VS COMPUTER',
+    icon: '🤖',
+    accent: 'cyan',
+    tag: 'Play against Stockfish AI',
+    subItems: ['Easy', 'Medium', 'Hard'],
+  },
+  {
+    id: 'matchmaking',
+    to: '/game/chess/matchmaking',
+    label: 'QUICK MATCH',
+    icon: '⚡',
+    accent: 'green',
+    tag: 'Auto-match with a random opponent',
+  },
+  {
+    id: 'room',
+    to: '/game/chess/room',
+    label: 'PRIVATE ROOM',
+    icon: '🚪',
+    accent: 'pink',
+    tag: 'Play with a friend using a room code',
+  },
+]
+
+const SL_CARDS = [
+  {
+    id: 'computer',
+    to: '/game/snake-and-ladder/computer',
+    label: 'VS COMPUTER',
+    icon: '🤖',
+    accent: 'cyan',
+    tag: 'Pick 2–4 players · CPU fills the rest',
+  },
+  {
+    id: 'matchmaking',
+    to: '/game/snake-and-ladder/matchmaking',
+    label: 'QUICK MATCH',
+    icon: '⚡',
+    accent: 'green',
+    tag: 'Auto-match with a random opponent',
+  },
+  {
+    id: 'room',
+    to: '/game/snake-and-ladder/room',
+    label: 'PRIVATE ROOM',
+    icon: '🚪',
+    accent: 'pink',
+    tag: 'Play with a friend using a room code',
+  },
+]
+
+const WP_BATTLE_CARDS = [
+  {
+    id: 'matchmaking',
+    to: '/game/word-puzzle/matchmaking',
+    label: 'QUICK MATCH',
+    icon: '⚡',
+    accent: 'green',
+    tag: 'Auto-match with a random opponent',
+  },
+  {
+    id: 'room',
+    to: '/game/word-puzzle/room',
+    label: 'PRIVATE ROOM',
+    icon: '🚪',
+    accent: 'pink',
+    tag: 'Play with a friend using a room code',
+  },
+]
 
 function GamePageBody() {
   const { gameId, difficulty, variant } = useParams()
@@ -53,7 +128,9 @@ function GamePageBody() {
         </GameLayout>
       )
     }
-    if (!difficulty) return <ChessModeSelect />
+    if (!difficulty || difficulty === 'mode') {
+      return <ModeSelect title={title} icon={icon} cards={CHESS_CARDS} />
+    }
     if (difficulty === 'computer') {
       if (!variant) return <ChessDifficultySelect />
       if (!VALID_DIFFICULTIES.has(variant)) return <ChessDifficultySelect />
@@ -68,7 +145,9 @@ function GamePageBody() {
         </GameLayout>
       )
     }
-    return <ChessModeSelect />
+    if (difficulty === 'matchmaking') return <MatchmakingScreen />
+    if (difficulty === 'room') return <PrivateRoomScreen />
+    return <ModeSelect title={title} icon={icon} cards={CHESS_CARDS} />
   }
 
   // ===== Snake & Ladder =====
@@ -85,43 +164,51 @@ function GamePageBody() {
         </GameLayout>
       )
     }
-    if (!difficulty) return <SnakeAndLadderModeSelect />
+    if (!difficulty || difficulty === 'mode') {
+      return <ModeSelect title={title} icon={icon} cards={SL_CARDS} />
+    }
     if (difficulty === 'computer') {
-      const cpuPlayers = ['You', 'CPU']
+      if (!variant) {
+        return (
+          <SnakeAndLadderLocalSelect
+            title={`${title} · VS CPU`}
+            basePath="/game/snake-and-ladder/computer"
+            backTo="/game/snake-and-ladder/mode"
+          />
+        )
+      }
+      const count = Number(variant)
+      if (![2, 3, 4].includes(count)) {
+        return (
+          <SnakeAndLadderLocalSelect
+            title={`${title} · VS CPU`}
+            basePath="/game/snake-and-ladder/computer"
+            backTo="/game/snake-and-ladder/mode"
+          />
+        )
+      }
+      const names = ['You']
+      for (let i = 1; i < count; i++) names.push(`CPU ${i}`)
+      const cpuIndices = new Set(
+        Array.from({ length: count - 1 }, (_, i) => i + 1),
+      )
       return (
         <GameLayout
-          title={`${title} · VS CPU`}
+          title={`${title} · CPU ${count}P`}
           icon={icon}
-          backTo="/game/snake-and-ladder"
-          backLabel="MODE"
+          backTo="/game/snake-and-ladder/computer"
+          backLabel="PLAYERS"
         >
           <SnakeAndLadderLocalGame
-            playerNames={cpuPlayers}
-            cpuIndices={new Set([1])}
+            playerNames={names}
+            cpuIndices={cpuIndices}
           />
         </GameLayout>
       )
     }
-    if (difficulty === 'local') {
-      if (!variant) return <SnakeAndLadderLocalSelect />
-      const count = Number(variant)
-      if (![2, 3, 4].includes(count)) return <SnakeAndLadderLocalSelect />
-      const names = Array.from(
-        { length: count },
-        (_, i) => `Player ${i + 1}`,
-      )
-      return (
-        <GameLayout
-          title={`${title} · LOCAL ${count}P`}
-          icon={icon}
-          backTo="/game/snake-and-ladder/local"
-          backLabel="PLAYERS"
-        >
-          <SnakeAndLadderLocalGame playerNames={names} />
-        </GameLayout>
-      )
-    }
-    return <SnakeAndLadderModeSelect />
+    if (difficulty === 'matchmaking') return <MatchmakingScreen />
+    if (difficulty === 'room') return <PrivateRoomScreen />
+    return <ModeSelect title={title} icon={icon} cards={SL_CARDS} />
   }
 
   // ===== Word Puzzle =====
@@ -166,6 +253,19 @@ function GamePageBody() {
         </GameLayout>
       )
     }
+    if (difficulty === 'mode') {
+      return (
+        <ModeSelect
+          title={`${title} BATTLE`}
+          icon={icon}
+          cards={WP_BATTLE_CARDS}
+          backTo="/game/word-puzzle"
+          backLabel="MODE"
+        />
+      )
+    }
+    if (difficulty === 'matchmaking') return <MatchmakingScreen />
+    if (difficulty === 'room') return <PrivateRoomScreen />
     return <WordPuzzleModeSelect />
   }
 

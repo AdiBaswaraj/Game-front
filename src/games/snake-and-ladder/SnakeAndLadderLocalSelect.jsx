@@ -13,22 +13,28 @@ const ACCENTS = {
   pink: 'border-neon-pink/60 hover:border-neon-pink hover:shadow-neon-pink text-neon-pink',
 }
 
-export default function SnakeAndLadderLocalSelect() {
+export default function SnakeAndLadderLocalSelect({
+  title = 'LOCAL PLAY',
+  icon = '👥',
+  basePath = '/game/snake-and-ladder/local',
+  backTo = '/game/snake-and-ladder',
+  backLabel = 'MODE',
+}) {
   const navigate = useNavigate()
   return (
     <div className="scanlines relative min-h-screen bg-arcadia-bg text-white">
       <header className="sticky top-0 z-30 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-4 py-4 md:px-8">
           <Link
-            to="/game/snake-and-ladder"
+            to={backTo}
             className="flex items-center gap-2 justify-self-start font-arcade text-[10px] text-neon-cyan transition hover:text-neon-green md:text-xs"
           >
             <span aria-hidden="true">◀</span>
-            MODE
+            {backLabel}
           </Link>
           <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">👥</span>
-            LOCAL PLAY
+            <span className="mr-2">{icon}</span>
+            {title}
           </h1>
           <span className="justify-self-end" />
         </div>
@@ -42,14 +48,12 @@ export default function SnakeAndLadderLocalSelect() {
             <button
               key={opt.n}
               type="button"
-              onClick={() =>
-                navigate(`/game/snake-and-ladder/local/${opt.n}`)
-              }
-              className={`group flex flex-col items-center gap-3 rounded-xl border-2 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 ${ACCENTS[opt.accent]}`}
+              onClick={() => navigate(`${basePath}/${opt.n}`)}
+              className={`mode-card group flex flex-col items-center gap-3 rounded-xl border-2 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 ${ACCENTS[opt.accent]}`}
             >
               <span className="font-arcade text-lg">{opt.label}</span>
               <span className="text-xs uppercase tracking-widest text-white/45">
-                Same device · take turns
+                CPU fills the rest
               </span>
             </button>
           ))}

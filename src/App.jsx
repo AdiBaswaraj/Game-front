@@ -5,6 +5,7 @@ import RoomPage from './pages/RoomPage'
 import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
+import JoinByCodePage from './pages/JoinByCodePage'
 import { FriendsProvider } from './context/FriendsContext'
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/leaderboard" element={<LeaderboardPage />} />
           <Route path="/profile/:username" element={<ProfilePage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/join/:roomCode" element={<JoinByCodePage />} />
         </Routes>
       </FriendsProvider>
     </BrowserRouter>

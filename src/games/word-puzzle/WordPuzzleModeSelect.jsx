@@ -26,11 +26,11 @@ export default function WordPuzzleModeSelect() {
         <p className="font-arcade text-[10px] text-white/45 md:text-xs">
           SELECT MODE
         </p>
-        <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
           <button
             type="button"
             onClick={() => navigate('/game/word-puzzle/daily')}
-            className="group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-cyan/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-cyan hover:shadow-neon-cyan"
+            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-cyan/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-cyan hover:shadow-neon-cyan"
           >
             <span className="text-3xl">📅</span>
             <span className="font-arcade text-base text-neon-cyan">
@@ -43,14 +43,27 @@ export default function WordPuzzleModeSelect() {
           <button
             type="button"
             onClick={() => navigate('/game/word-puzzle/free')}
-            className="group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-pink/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-pink hover:shadow-neon-pink"
+            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-green/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-green hover:shadow-neon-green"
           >
             <span className="text-3xl">∞</span>
-            <span className="font-arcade text-base text-neon-pink">
+            <span className="font-arcade text-base text-neon-green">
               FREE PLAY
             </span>
             <span className="text-xs uppercase tracking-widest text-white/45">
               Unlimited rounds · unranked
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/game/word-puzzle/mode')}
+            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-pink/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-pink hover:shadow-neon-pink"
+          >
+            <span className="text-3xl">⚔</span>
+            <span className="font-arcade text-base text-neon-pink">
+              BATTLE
+            </span>
+            <span className="text-xs uppercase tracking-widest text-white/45">
+              Head-to-head · same word
             </span>
           </button>
         </div>
