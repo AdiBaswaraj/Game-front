@@ -11,6 +11,7 @@ import {
   LADDERS,
   SIZE,
   SNAKES,
+  computeStages,
   pathBetween,
   squareCenter,
   squareToCell,
@@ -61,6 +62,9 @@ export default function SnakeAndLadderGame({ roomCode }) {
   const [animating, setAnimating] = useState(false)
   const [winner, setWinner] = useState(null)
   const [reconnecting, setReconnecting] = useState(false)
+  const [flash, setFlash] = useState(null) // { square, kind, key }
+  const [log, setLog] = useState([])
+  const flashTimerRef = useRef(null)
 
   // Refs mirror state so stable socket handlers can read current values
   // without going stale through closures.
@@ -154,6 +158,81 @@ export default function SnakeAndLadderGame({ roomCode }) {
     setAnimating(false)
   }, [])
 
+  const triggerFlash = useCallback((square, kind) => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    // Clear first so re-flashing the same square re-runs the animation
+    setFlash(null)
+    setTimeout(() => {
+      setFlash({ square, kind, key: Date.now() })
+      flashTimerRef.current = setTimeout(() => setFlash(null), 650)
+    }, 16)
+  }, [])
+
+  const pushLog = useCallback((entry) => {
+    setLog((prev) => [...prev, entry].slice(-5))
+  }, [])
+
+  // Play one chain (dice roll + any ladder/snake triggers) for a player.
+  const playStages = useCallback(
+    async (playerIdx, roll, finalAt) => {
+      const room = roomRef.current
+      const playerName = room?.players?.[playerIdx]?.username ?? 'Player'
+      const start = positionsRef.current[playerIdx]
+      const stages = computeStages({ start, roll, finalAt })
+
+      if (stages.length === 0) {
+        pushLog({
+          playerIdx,
+          name: playerName,
+          text: `rolled a ${roll} — overshoot, stays on ${start}`,
+        })
+        return
+      }
+
+      const parts = [`rolled a ${roll}`]
+      for (const stage of stages) {
+        if (stage.kind === 'ladder') {
+          parts.push(`LADDER! ${stage.from}→${stage.at}`)
+        } else if (stage.kind === 'snake') {
+          const drop = stage.from - stage.at
+          const drama = drop >= 50 ? ' 😱' : ''
+          parts.push(`SNAKE! ${stage.from}→${stage.at}${drama}`)
+        }
+      }
+      pushLog({
+        playerIdx,
+        name: playerName,
+        text: parts.join(' → '),
+      })
+
+      for (let i = 0; i < stages.length; i++) {
+        const stage = stages[i]
+        if (i === 0) {
+          // eslint-disable-next-line no-await-in-loop
+          await animateMove(playerIdx, stage.at)
+          if (stages.length > 1) {
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((res) => setTimeout(res, 300))
+          }
+        } else {
+          // Flash the square the token currently sits on (the source of
+          // this snake/ladder), pause, then slide to the destination.
+          triggerFlash(stage.from, stage.kind)
+          const dropSize = Math.abs(stage.from - stage.at)
+          const pauseMs =
+            stage.kind === 'snake'
+              ? 450 + Math.min(550, dropSize * 4)
+              : 450
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((res) => setTimeout(res, pauseMs))
+          // eslint-disable-next-line no-await-in-loop
+          await animateMove(playerIdx, stage.at)
+        }
+      }
+    },
+    [animateMove, pushLog, triggerFlash],
+  )
+
   // Socket handlers — depend only on stable identities so they don't
   // need to re-register on every state change.
   useEffect(() => {
@@ -177,7 +256,12 @@ export default function SnakeAndLadderGame({ roomCode }) {
           : (turnUserIdToIndex(room, movingIdent) ?? turnIdxRef.current)
 
       if (typeof roll === 'number') setDiceFace(roll)
-      animateMove(playerIndex, newPosition).then(() => {
+      const rollNum = typeof roll === 'number' ? roll : null
+      const playOut =
+        rollNum != null
+          ? playStages(playerIndex, rollNum, newPosition)
+          : animateMove(playerIndex, newPosition)
+      playOut.then(() => {
         const nextIdx = turnUserIdToIndex(room, nextTurn)
         if (nextIdx != null) {
           turnIdxRef.current = nextIdx
@@ -246,7 +330,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
       socket.off('state_sync', onStateSync)
       socket.off('opponent_left', onOpponentLeft)
     }
-  }, [animateMove, toast])
+  }, [animateMove, playStages, toast])
 
   // Derive my identity + whose turn from refs / state
   const myIdx = useMemo(() => {
@@ -323,7 +407,12 @@ export default function SnakeAndLadderGame({ roomCode }) {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_18rem]">
-      <Board positions={positions} winner={winner} room={room} />
+      <Board
+        positions={positions}
+        winner={winner}
+        room={room}
+        flash={flash}
+      />
       <Sidebar
         room={room}
         myIdx={myIdx}
@@ -334,6 +423,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
         animating={animating}
         winner={winner}
         myTurn={myTurn}
+        log={log}
         onRoll={handleRoll}
         onSync={handleSync}
         reconnecting={reconnecting}
@@ -345,7 +435,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
   )
 }
 
-function Board({ positions, winner, room }) {
+function Board({ positions, winner, room, flash }) {
   const cells = []
   for (let row = 0; row < SIZE; row++) {
     for (let col = 0; col < SIZE; col++) {
@@ -380,11 +470,17 @@ function Board({ positions, winner, room }) {
           let bg = checker ? 'bg-arcadia-bg' : 'bg-white/[0.025]'
           if (n === GOAL) bg = 'bg-neon-green/20'
           if (n === 1) bg = 'bg-white/5'
+          const flashCls =
+            flash && flash.square === n
+              ? flash.kind === 'snake'
+                ? 'sl-flash-snake'
+                : 'sl-flash-ladder'
+              : ''
           return (
             <div
               key={n}
               data-square={n}
-              className={`relative flex items-end justify-end p-1 font-arcade text-[9px] text-white/45 sm:text-[10px] ${bg}`}
+              className={`relative flex items-end justify-end p-1 font-arcade text-[9px] text-white/45 sm:text-[10px] ${bg} ${flashCls}`}
             >
               <span>{n}</span>
               {isLadderStart && (
@@ -401,6 +497,11 @@ function Board({ positions, winner, room }) {
                   title={`Snake → ${SNAKES[n]}`}
                 >
                   ↓
+                </span>
+              )}
+              {flashCls && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center font-arcade text-sm text-white drop-shadow-[0_0_6px_currentColor] sm:text-base">
+                  {flash.kind === 'snake' ? '🐍' : '🪜'}
                 </span>
               )}
             </div>
@@ -442,16 +543,18 @@ function Board({ positions, winner, room }) {
           const a = squareCenter(Number(from), VIRTUAL / SIZE)
           const b = squareCenter(Number(to), VIRTUAL / SIZE)
           if (!a || !b) return null
+          // Bend toward the side opposite to the slope so multiple
+          // ladders/snakes don't overlap at shared endpoints (eg. 63).
+          const cx = (a.x + b.x) / 2 - 18
+          const cy = (a.y + b.y) / 2 - 8
           return (
-            <line
+            <path
               key={`L${from}`}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
+              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
               stroke="#00ff88"
-              strokeWidth="6"
-              strokeOpacity="0.7"
+              strokeWidth="3.5"
+              strokeOpacity="0.75"
+              fill="none"
               markerEnd="url(#ladderArrow)"
             />
           )
@@ -460,15 +563,15 @@ function Board({ positions, winner, room }) {
           const a = squareCenter(Number(from), VIRTUAL / SIZE)
           const b = squareCenter(Number(to), VIRTUAL / SIZE)
           if (!a || !b) return null
-          const mx = (a.x + b.x) / 2 + 20
-          const my = (a.y + b.y) / 2 + 20
+          const cx = (a.x + b.x) / 2 + 22
+          const cy = (a.y + b.y) / 2 + 8
           return (
             <path
               key={`S${from}`}
-              d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
               stroke="#ff006e"
-              strokeWidth="6"
-              strokeOpacity="0.7"
+              strokeWidth="3.5"
+              strokeOpacity="0.75"
               fill="none"
               markerEnd="url(#snakeArrow)"
             />
@@ -536,6 +639,7 @@ function Sidebar({
   animating,
   winner,
   myTurn,
+  log,
   onRoll,
   onSync,
   reconnecting,
@@ -543,6 +647,10 @@ function Sidebar({
   opponentDcUsername,
   opponentDcSeconds,
 }) {
+  const logRef = useRef(null)
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
+  }, [log?.length])
   return (
     <aside className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -580,6 +688,8 @@ function Sidebar({
           )
         })}
       </div>
+
+      <EventLog log={log} room={room} scrollRef={logRef} />
 
       <div className="rounded-lg border border-white/10 bg-arcadia-surface/70 p-4 text-center">
         <p className="font-arcade text-[9px] text-white/45">DICE</p>
@@ -628,5 +738,35 @@ function Sidebar({
         ↑ Ladders climb · ↓ Snakes slide
       </p>
     </aside>
+  )
+}
+
+function EventLog({ log, room, scrollRef }) {
+  return (
+    <div className="rounded-md border border-white/10 bg-arcadia-bg/60 p-2">
+      <p className="font-arcade text-[9px] text-white/45">LOG</p>
+      <div
+        ref={scrollRef}
+        className="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed"
+      >
+        {!log || log.length === 0 ? (
+          <p className="text-white/30">Waiting on first roll…</p>
+        ) : (
+          log.map((e, i) => {
+            const me = e.playerIdx === 0
+            const dotColor = TOKEN_COLORS[e.playerIdx % TOKEN_COLORS.length]
+            const name =
+              e.name ?? room?.players?.[e.playerIdx]?.username ?? 'Player'
+            return (
+              <div key={i} className="flex items-start gap-1.5">
+                <span style={{ color: dotColor }}>●</span>
+                <span className="text-white">{name}</span>
+                <span className="text-white/70">{e.text}</span>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
   )
 }

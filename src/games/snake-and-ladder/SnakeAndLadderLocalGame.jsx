@@ -6,6 +6,7 @@ import {
   LADDERS,
   SIZE,
   SNAKES,
+  computeStages,
   pathBetween,
   squareCenter,
   squareToCell,
@@ -15,12 +16,6 @@ const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
 const TOKEN_COLORS = ['#00ff88', '#ff006e', '#00d4ff', '#ffaa00']
 const STEP_MS = 200
 const CPU_THINK_MS = 700
-
-function applySnakesAndLadders(square) {
-  if (LADDERS[square] != null) return LADDERS[square]
-  if (SNAKES[square] != null) return SNAKES[square]
-  return square
-}
 
 export default function SnakeAndLadderLocalGame({
   playerNames,
@@ -34,7 +29,22 @@ export default function SnakeAndLadderLocalGame({
   const [animating, setAnimating] = useState(false)
   const [winner, setWinner] = useState(null)
   const [log, setLog] = useState([])
+  const [flash, setFlash] = useState(null)
   const spinRef = useRef(null)
+  const flashTimerRef = useRef(null)
+
+  const triggerFlash = useCallback((square, kind) => {
+    if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+    setFlash(null)
+    setTimeout(() => {
+      setFlash({ square, kind, key: Date.now() })
+      flashTimerRef.current = setTimeout(() => setFlash(null), 650)
+    }, 16)
+  }, [])
+
+  const pushLog = useCallback((entry) => {
+    setLog((prev) => [...prev, entry].slice(-5))
+  }, [])
 
   const isCpuTurn = cpuIndices.has(turnIdx) && winner == null && !animating
 
@@ -76,41 +86,70 @@ export default function SnakeAndLadderLocalGame({
 
     const idx = turnIdx
     const cur = positions[idx]
-    let target = cur + roll
-    let entry
-    if (target > GOAL) {
-      // Overshoot rule: stay put
-      target = cur
-      entry = { idx, roll, note: 'overshoot — stayed put' }
-    } else {
-      const after = applySnakesAndLadders(target)
-      entry = {
-        idx,
-        roll,
-        note:
-          after !== target
-            ? after > target
-              ? `↑ ladder to ${after}`
-              : `↓ snake to ${after}`
-            : null,
-      }
-      await animateMove(idx, cur, target)
-      if (after !== target) {
-        // Brief pause before snake/ladder slide
-        await new Promise((res) => setTimeout(res, 200))
-        await animateMove(idx, target, after)
-      }
-      target = after
+    const stages = computeStages({ start: cur, roll })
+
+    if (stages.length === 0) {
+      pushLog({
+        playerIdx: idx,
+        name: players[idx],
+        text: `rolled a ${roll} — overshoot, stays on ${cur}`,
+      })
+      setTurnIdx((idx + 1) % players.length)
+      return
     }
 
-    setLog((prev) => [...prev, entry].slice(-6))
+    const parts = [`rolled a ${roll}`]
+    for (const stage of stages) {
+      if (stage.kind === 'ladder') {
+        parts.push(`LADDER! ${stage.from}→${stage.at}`)
+      } else if (stage.kind === 'snake') {
+        const drop = stage.from - stage.at
+        const drama = drop >= 50 ? ' 😱' : ''
+        parts.push(`SNAKE! ${stage.from}→${stage.at}${drama}`)
+      }
+    }
+    pushLog({ playerIdx: idx, name: players[idx], text: parts.join(' → ') })
 
-    if (target === GOAL) {
+    let curSquare = cur
+    for (let i = 0; i < stages.length; i++) {
+      const stage = stages[i]
+      if (i === 0) {
+        // eslint-disable-next-line no-await-in-loop
+        await animateMove(idx, curSquare, stage.at)
+        if (stages.length > 1) {
+          // eslint-disable-next-line no-await-in-loop
+          await new Promise((res) => setTimeout(res, 280))
+        }
+      } else {
+        triggerFlash(stage.from, stage.kind)
+        const dropSize = Math.abs(stage.from - stage.at)
+        const pauseMs =
+          stage.kind === 'snake'
+            ? 450 + Math.min(550, dropSize * 4)
+            : 450
+        // eslint-disable-next-line no-await-in-loop
+        await new Promise((res) => setTimeout(res, pauseMs))
+        // eslint-disable-next-line no-await-in-loop
+        await animateMove(idx, curSquare, stage.at)
+      }
+      curSquare = stage.at
+    }
+
+    if (curSquare === GOAL) {
       setWinner(idx)
       return
     }
     setTurnIdx((idx + 1) % players.length)
-  }, [animating, animateMove, players.length, positions, turnIdx, winner])
+  }, [
+    animating,
+    animateMove,
+    players,
+    positions,
+    pushLog,
+    triggerFlash,
+    turnIdx,
+    winner,
+  ])
 
   // Auto-roll for CPU
   useEffect(() => {
@@ -133,7 +172,12 @@ export default function SnakeAndLadderLocalGame({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_18rem]">
-      <Board positions={positions} winner={winner} players={players} />
+      <Board
+        positions={positions}
+        winner={winner}
+        players={players}
+        flash={flash}
+      />
       <Sidebar
         players={players}
         cpuIndices={cpuIndices}
@@ -151,7 +195,7 @@ export default function SnakeAndLadderLocalGame({
   )
 }
 
-function Board({ positions, winner, players }) {
+function Board({ positions, winner, players, flash }) {
   const cells = []
   for (let row = 0; row < SIZE; row++) {
     for (let col = 0; col < SIZE; col++) {
@@ -183,10 +227,16 @@ function Board({ positions, winner, players }) {
           let bg = checker ? 'bg-arcadia-bg' : 'bg-white/[0.025]'
           if (n === GOAL) bg = 'bg-neon-green/20'
           if (n === 1) bg = 'bg-white/5'
+          const flashCls =
+            flash && flash.square === n
+              ? flash.kind === 'snake'
+                ? 'sl-flash-snake'
+                : 'sl-flash-ladder'
+              : ''
           return (
             <div
               key={n}
-              className={`relative flex items-end justify-end p-1 font-arcade text-[9px] text-white/45 sm:text-[10px] ${bg}`}
+              className={`relative flex items-end justify-end p-1 font-arcade text-[9px] text-white/45 sm:text-[10px] ${bg} ${flashCls}`}
             >
               <span>{n}</span>
               {LADDERS[n] != null && (
@@ -197,6 +247,11 @@ function Board({ positions, winner, players }) {
               {SNAKES[n] != null && (
                 <span className="absolute left-1 top-1 text-[9px] text-neon-pink">
                   ↓
+                </span>
+              )}
+              {flashCls && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center font-arcade text-sm text-white drop-shadow-[0_0_6px_currentColor] sm:text-base">
+                  {flash.kind === 'snake' ? '🐍' : '🪜'}
                 </span>
               )}
             </div>
@@ -222,16 +277,16 @@ function Board({ positions, winner, players }) {
           const a = squareCenter(Number(from), VIRTUAL / SIZE)
           const b = squareCenter(Number(to), VIRTUAL / SIZE)
           if (!a || !b) return null
+          const cx = (a.x + b.x) / 2 - 18
+          const cy = (a.y + b.y) / 2 - 8
           return (
-            <line
+            <path
               key={`L${from}`}
-              x1={a.x}
-              y1={a.y}
-              x2={b.x}
-              y2={b.y}
+              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
               stroke="#00ff88"
-              strokeWidth="6"
-              strokeOpacity="0.7"
+              strokeWidth="3.5"
+              strokeOpacity="0.75"
+              fill="none"
               markerEnd="url(#ladderArrowL)"
             />
           )
@@ -240,15 +295,15 @@ function Board({ positions, winner, players }) {
           const a = squareCenter(Number(from), VIRTUAL / SIZE)
           const b = squareCenter(Number(to), VIRTUAL / SIZE)
           if (!a || !b) return null
-          const mx = (a.x + b.x) / 2 + 20
-          const my = (a.y + b.y) / 2 + 20
+          const cx = (a.x + b.x) / 2 + 22
+          const cy = (a.y + b.y) / 2 + 8
           return (
             <path
               key={`S${from}`}
-              d={`M ${a.x} ${a.y} Q ${mx} ${my} ${b.x} ${b.y}`}
+              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
               stroke="#ff006e"
-              strokeWidth="6"
-              strokeOpacity="0.7"
+              strokeWidth="3.5"
+              strokeOpacity="0.75"
               fill="none"
               markerEnd="url(#snakeArrowL)"
             />
@@ -378,19 +433,28 @@ function Sidebar({
         </button>
       </div>
 
-      {log.length > 0 && (
-        <div className="rounded-lg border border-white/10 bg-arcadia-surface/60 p-3">
-          <p className="font-arcade text-[9px] text-white/45">LOG</p>
-          <ul className="mt-2 space-y-1 text-[10px] text-white/65">
-            {log.slice().reverse().map((e, i) => (
-              <li key={i}>
-                {players[e.idx]} rolled {e.roll}
-                {e.note ? ` · ${e.note}` : ''}
-              </li>
-            ))}
-          </ul>
+      <div className="rounded-md border border-white/10 bg-arcadia-bg/60 p-2">
+        <p className="font-arcade text-[9px] text-white/45">LOG</p>
+        <div className="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed">
+          {log.length === 0 ? (
+            <p className="text-white/30">First roll up to {players[turnIdx]}.</p>
+          ) : (
+            log.map((e, i) => (
+              <div key={i} className="flex items-start gap-1.5">
+                <span
+                  style={{
+                    color: TOKEN_COLORS[e.playerIdx % TOKEN_COLORS.length],
+                  }}
+                >
+                  ●
+                </span>
+                <span className="text-white">{e.name}</span>
+                <span className="text-white/70">{e.text}</span>
+              </div>
+            ))
+          )}
         </div>
-      )}
+      </div>
 
       {winner != null && (
         <div className="flex flex-col gap-2">
