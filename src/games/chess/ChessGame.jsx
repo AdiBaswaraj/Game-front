@@ -40,10 +40,39 @@ function fmtClock(ms) {
 
 function readClocks(source) {
   if (!source || typeof source !== 'object') return null
-  // Accept { white, black } or { w, b } or { whiteMs, blackMs }
-  const w = pick(source, 'white', 'w', 'whiteMs', 'white_ms')
-  const b = pick(source, 'black', 'b', 'blackMs', 'black_ms')
-  if (typeof w !== 'number' || typeof b !== 'number') return null
+  // Accept many shapes the backend may have used over its lifetime.
+  const w = pick(
+    source,
+    'white',
+    'w',
+    'whiteMs',
+    'white_ms',
+    'whiteTime',
+    'white_time',
+    'whiteClock',
+    'white_clock',
+    'whiteRemaining',
+    'white_remaining',
+  )
+  const b = pick(
+    source,
+    'black',
+    'b',
+    'blackMs',
+    'black_ms',
+    'blackTime',
+    'black_time',
+    'blackClock',
+    'black_clock',
+    'blackRemaining',
+    'black_remaining',
+  )
+  if (typeof w !== 'number' || typeof b !== 'number') {
+    if (source && Object.keys(source).length > 0) {
+      console.warn('[clock] could not parse', source)
+    }
+    return null
+  }
   return { w, b }
 }
 
@@ -79,6 +108,10 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [engineState, setEngineStateLocal] = useState('idle')
   const [reconnecting, setReconnecting] = useState(false)
   const [pendingLeave, setPendingLeave] = useState(null)
+  const [selectedSquare, setSelectedSquare] = useState(null)
+  const [legalMoves, setLegalMoves] = useState([]) // verbose moves
+  const [pendingPromotion, setPendingPromotion] = useState(null) // {from,to}
+  const [undosLeft, setUndosLeft] = useState(5)
 
   // Authoritative clock baseline from the server. We compute the live
   // display by subtracting elapsed wall-time since the baseline for the
@@ -137,7 +170,18 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             (p.username ?? p.name)?.toLowerCase() ===
               displayName?.toLowerCase(),
         )
-        setMyColor(idx === 0 ? 'w' : idx === 1 ? 'b' : null)
+        const myDerivedColor = idx === 0 ? 'w' : idx === 1 ? 'b' : null
+        console.log('[chess] mount', {
+          roomCode,
+          myUserId: user?.id,
+          myIndex: idx,
+          myColor: myDerivedColor,
+          players: players.map((p) => ({
+            id: p.userId ?? p.user_id ?? p.id,
+            username: p.username ?? p.name,
+          })),
+        })
+        setMyColor(myDerivedColor)
 
         const gs = data?.gameState ?? data?.game_state
         const startingFen = pick(gs, 'fen', 'position')
@@ -164,15 +208,23 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             }
           } catch {}
         }
-        const clocks = readClocks(pick(gs, 'clocks', 'clock'))
+        const rawClock = pick(gs, 'clocks', 'clock')
+        const clocks = readClocks(rawClock)
+        console.log('[clock] initial', {
+          raw: rawClock,
+          parsed: clocks,
+          fen: startingFen,
+        })
         if (clocks) {
+          const activeColor = fenTurn(startingFen ?? chessRef.current.fen())
           setClockBase({
             w: clocks.w,
             b: clocks.b,
-            activeColor: fenTurn(startingFen ?? chessRef.current.fen()),
+            activeColor,
             baseTime: Date.now(),
           })
           setLiveClocks({ w: clocks.w, b: clocks.b })
+          console.log('[clock] activeColor', activeColor)
         }
 
         // Tell the backend we are (re)entering the room so it pushes
@@ -210,7 +262,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         'checkmate',
       )
       const isCheck = pick(data, 'isCheck', 'is_check', 'check')
-      const clocks = readClocks(pick(data, 'clocks', 'clock'))
+      const rawClock = pick(data, 'clocks', 'clock')
+      const clocks = readClocks(rawClock)
+      console.log('[clock] move_accepted', { raw: rawClock, parsed: clocks })
 
       // Apply locally to keep our chess instance in sync and grab san
       let moved = null
@@ -350,7 +404,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           )
         } catch {}
       }
-      const clocks = readClocks(pick(data, 'clocks', 'clock'))
+      const rawClock = pick(data, 'clocks', 'clock')
+      const clocks = readClocks(rawClock)
+      console.log('[clock] state_sync', { raw: rawClock, parsed: clocks })
       if (clocks) {
         setClockBase({
           w: clocks.w,
@@ -473,18 +529,15 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     }
   }, [])
 
-  const onPieceDrop = useCallback(
-    ({ sourceSquare, targetSquare }) => {
+  // Returns true if move was accepted (locally or sent to server).
+  const trySubmit = useCallback(
+    (from, to, promotion = 'q') => {
       if (result || aiThinking) return false
-      if (!sourceSquare || !targetSquare) return false
-      // Block input while opponent is disconnected — clocks keep running.
       if (isMP && opponentDc.disconnected) return false
-
       const turn = fenTurn(chessRef.current.fen())
       if (myColor && turn !== myColor) return false
 
-      const move = { from: sourceSquare, to: targetSquare, promotion: 'q' }
-
+      const move = { from, to, promotion }
       if (isMP) {
         const trial = new Chess(chessRef.current.fen())
         const accepted = trial.move(move)
@@ -492,7 +545,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         socket.emit('chess_move', { roomCode, move })
         return true
       }
-
       const m = chessRef.current.move(move)
       if (!m) return false
       setFen(chessRef.current.fen())
@@ -517,6 +569,118 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       toast,
     ],
   )
+
+  // Drag-and-drop and click-to-move both route through trySubmit. They
+  // share the same promotion-detection logic: if any legal move from
+  // `from` → `to` requires a promotion, pop the picker; otherwise
+  // submit directly.
+  const attemptMove = useCallback(
+    (from, to) => {
+      if (!from || !to) return false
+      const legal = chessRef.current
+        .moves({ square: from, verbose: true })
+        .filter((m) => m.to === to)
+      if (legal.length === 0) return false
+      const needsPromotion = legal.some(
+        (m) => m.flags && m.flags.includes('p'),
+      )
+      if (needsPromotion) {
+        setPendingPromotion({ from, to })
+        return true
+      }
+      const ok = trySubmit(from, to, 'q')
+      if (ok) {
+        setSelectedSquare(null)
+        setLegalMoves([])
+      }
+      return ok
+    },
+    [trySubmit],
+  )
+
+  const onPieceDrop = useCallback(
+    ({ sourceSquare, targetSquare }) => {
+      if (!targetSquare) {
+        setSelectedSquare(null)
+        setLegalMoves([])
+        return false
+      }
+      return attemptMove(sourceSquare, targetSquare)
+    },
+    [attemptMove],
+  )
+
+  const onSquareClick = useCallback(
+    ({ piece, square }) => {
+      if (result || aiThinking) return
+      if (isMP && opponentDc.disconnected) return
+      const turn = fenTurn(chessRef.current.fen())
+      const myTurnNow = myColor ? turn === myColor : true
+
+      // Tap a destination square that was highlighted as legal
+      if (selectedSquare && legalMoves.some((m) => m.to === square)) {
+        attemptMove(selectedSquare, square)
+        return
+      }
+
+      // Tap one of my own pieces — start (or switch) selection
+      const pieceData = chessRef.current.get(square)
+      if (myTurnNow && pieceData && pieceData.color === (myColor ?? turn)) {
+        setSelectedSquare(square)
+        try {
+          const moves = chessRef.current.moves({ square, verbose: true })
+          setLegalMoves(moves)
+        } catch {
+          setLegalMoves([])
+        }
+        return
+      }
+
+      // Anything else — deselect
+      setSelectedSquare(null)
+      setLegalMoves([])
+    },
+    [
+      aiThinking,
+      attemptMove,
+      isMP,
+      legalMoves,
+      myColor,
+      opponentDc.disconnected,
+      result,
+      selectedSquare,
+    ],
+  )
+
+  const handlePromotionPick = useCallback(
+    (piece) => {
+      if (!pendingPromotion) return
+      const { from, to } = pendingPromotion
+      setPendingPromotion(null)
+      const ok = trySubmit(from, to, piece)
+      if (ok) {
+        setSelectedSquare(null)
+        setLegalMoves([])
+      }
+    },
+    [pendingPromotion, trySubmit],
+  )
+
+  // Single-player undo: undo last two plies (player + computer reply).
+  const handleUndo = useCallback(() => {
+    if (isMP) return
+    if (result) return
+    if (undosLeft <= 0) return
+    const c = chessRef.current
+    if (c.history().length < 2) return
+    c.undo()
+    c.undo()
+    setFen(c.fen())
+    setHistory((prev) => prev.slice(0, -2))
+    setSelectedSquare(null)
+    setLegalMoves([])
+    setUndosLeft((n) => n - 1)
+  }, [isMP, result, undosLeft])
 
   const handleResign = useCallback(() => {
     console.log('[chess] resign clicked', {
@@ -553,6 +717,45 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       reason: 'resign',
     })
   }, [displayName, isMP, myColor, room, roomCode, toast, user?.id])
+
+  const handleSync = useCallback(() => {
+    if (!isMP) return
+    if (reconnecting) return
+    setReconnecting(true)
+    if (socket.connected && user?.id) {
+      socket.emit('reconnect_to_room', { roomCode, username: displayName })
+    }
+    setTimeout(() => setReconnecting(false), 5000)
+  }, [displayName, isMP, reconnecting, roomCode, user?.id])
+
+  // ===== Click-to-move highlight styles =====
+  const squareStyles = useMemo(() => {
+    const styles = {}
+    if (selectedSquare) {
+      styles[selectedSquare] = {
+        background: 'rgba(0, 212, 255, 0.28)',
+      }
+    }
+    for (const m of legalMoves) {
+      if (m.captured) {
+        styles[m.to] = {
+          boxShadow: 'inset 0 0 0 4px rgba(255, 0, 110, 0.55)',
+        }
+      } else {
+        styles[m.to] = {
+          background:
+            'radial-gradient(circle, rgba(0,255,136,0.45) 22%, transparent 24%)',
+        }
+      }
+    }
+    return styles
+  }, [selectedSquare, legalMoves])
+
+  // Clear highlights whenever the board changes (e.g. opponent moves)
+  useEffect(() => {
+    setSelectedSquare(null)
+    setLegalMoves([])
+  }, [fen])
 
   // ===== Leave guard =====
   const gameActive = isMP && !result
@@ -655,6 +858,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
               position: fen,
               boardOrientation: myColor === 'b' ? 'black' : 'white',
               onPieceDrop,
+              onSquareClick,
+              squareStyles,
               allowDragging: myTurn,
               boardStyle: {
                 borderRadius: 4,
@@ -735,6 +940,28 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
 
         <MoveList history={sanHistory} scrollRef={moveListRef} />
 
+        {!isMP && !result && (
+          <button
+            type="button"
+            onClick={handleUndo}
+            disabled={undosLeft <= 0 || history.length < 2}
+            className="rounded-md border border-neon-cyan/50 px-3 py-2 font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/10 hover:shadow-neon-cyan disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none"
+          >
+            ↩ UNDO ({undosLeft} left)
+          </button>
+        )}
+
+        {isMP && !result && (
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={reconnecting}
+            className="rounded-md border border-white/15 px-3 py-2 font-arcade text-[9px] text-white/55 hover:border-neon-cyan/60 hover:text-neon-cyan disabled:opacity-50"
+          >
+            {reconnecting ? 'SYNCING…' : '↻ SYNC'}
+          </button>
+        )}
+
         {!result && (
           <button
             type="button"
@@ -747,9 +974,14 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       </aside>
 
       {pendingLeave && (
-        <LeaveConfirm
-          onStay={handleStay}
-          onForfeit={handleForfeit}
+        <LeaveConfirm onStay={handleStay} onForfeit={handleForfeit} />
+      )}
+
+      {pendingPromotion && (
+        <PromotionPicker
+          color={myColor ?? 'w'}
+          onPick={handlePromotionPick}
+          onCancel={() => setPendingPromotion(null)}
         />
       )}
     </div>
@@ -961,6 +1193,54 @@ function LeaveConfirm({ onStay, onForfeit }) {
           >
             🏳 FORFEIT
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const PROMOTION_OPTIONS = [
+  { piece: 'q', label: 'QUEEN', whiteIcon: '♕', blackIcon: '♛' },
+  { piece: 'r', label: 'ROOK', whiteIcon: '♖', blackIcon: '♜' },
+  { piece: 'b', label: 'BISHOP', whiteIcon: '♗', blackIcon: '♝' },
+  { piece: 'n', label: 'KNIGHT', whiteIcon: '♘', blackIcon: '♞' },
+]
+
+function PromotionPicker({ color, onPick, onCancel }) {
+  return (
+    <div
+      className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Pick promotion piece"
+      onClick={onCancel}
+    >
+      <div
+        className="w-full max-w-sm rounded-xl border border-neon-cyan/60 bg-arcadia-surface p-5 shadow-neon-cyan"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-arcade text-sm text-neon-cyan">
+          ★ PROMOTE TO
+        </h3>
+        <p className="mt-2 text-[10px] text-white/45">
+          Pick a piece for your pawn.
+        </p>
+        <div className="mt-4 grid grid-cols-4 gap-2">
+          {PROMOTION_OPTIONS.map((opt) => (
+            <button
+              key={opt.piece}
+              type="button"
+              onClick={() => onPick(opt.piece)}
+              className="flex flex-col items-center gap-1 rounded-md border-2 border-neon-cyan/50 bg-arcadia-bg/60 p-3 transition hover:border-neon-cyan hover:shadow-neon-cyan"
+            >
+              <span className="text-3xl">
+                {color === 'w' ? opt.whiteIcon : opt.blackIcon}
+              </span>
+              <span className="font-arcade text-[8px] text-white/65">
+                {opt.label}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
     </div>
