@@ -38,6 +38,48 @@ function normalizePlayer(p, fallbackPositions, idx) {
   }
 }
 
+function historyEntryToLog(entry, room) {
+  if (!entry || typeof entry.roll !== 'number') return null
+  const playerIdent = entry.player
+  const players = room?.players ?? []
+  const playerIdx =
+    typeof playerIdent === 'number'
+      ? playerIdent
+      : players.findIndex(
+          (p) =>
+            (p.userId ?? p.user_id ?? p.id) === playerIdent ||
+            p.username === playerIdent,
+        )
+  const name =
+    (playerIdx >= 0 && players[playerIdx]?.username) ||
+    (typeof playerIdent === 'string' ? playerIdent : 'Player')
+  const start = entry.from ?? 1
+  const final = entry.final ?? start
+  const stages = computeStages({ start, roll: entry.roll, finalAt: final })
+  if (stages.length === 0) {
+    return {
+      playerIdx: Math.max(playerIdx, 0),
+      name,
+      text: `rolled a ${entry.roll} — overshoot, stayed on ${start}`,
+    }
+  }
+  const parts = [`rolled a ${entry.roll}`]
+  for (const stage of stages) {
+    if (stage.kind === 'ladder') {
+      parts.push(`LADDER! ${stage.from}→${stage.at}`)
+    } else if (stage.kind === 'snake') {
+      const drop = stage.from - stage.at
+      const drama = drop >= 50 ? ' 😱' : ''
+      parts.push(`SNAKE! ${stage.from}→${stage.at}${drama}`)
+    }
+  }
+  return {
+    playerIdx: Math.max(playerIdx, 0),
+    name,
+    text: parts.join(' → '),
+  }
+}
+
 function turnUserIdToIndex(room, currentTurn) {
   if (currentTurn == null || !room?.players) return null
   if (typeof currentTurn === 'number') return currentTurn
@@ -64,6 +106,8 @@ export default function SnakeAndLadderGame({ roomCode }) {
   const [reconnecting, setReconnecting] = useState(false)
   const [flash, setFlash] = useState(null) // { square, kind, key }
   const [log, setLog] = useState([])
+  const [rollHistory, setRollHistory] = useState([])
+  const [showDiceDebug, setShowDiceDebug] = useState(false)
   const flashTimerRef = useRef(null)
 
   // Refs mirror state so stable socket handlers can read current values
@@ -257,6 +301,22 @@ export default function SnakeAndLadderGame({ roomCode }) {
 
       if (typeof roll === 'number') setDiceFace(roll)
       const rollNum = typeof roll === 'number' ? roll : null
+      if (rollNum != null) {
+        const fromSquare = positionsRef.current[playerIndex] ?? 1
+        const player =
+          room?.players?.[playerIndex]?.userId ??
+          room?.players?.[playerIndex]?.user_id ??
+          room?.players?.[playerIndex]?.username ??
+          playerIndex
+        setRollHistory((prev) =>
+          [...prev, {
+            player,
+            roll: rollNum,
+            from: fromSquare,
+            final: newPosition,
+          }].slice(-30),
+        )
+      }
       const playOut =
         rollNum != null
           ? playStages(playerIndex, rollNum, newPosition)
@@ -313,6 +373,19 @@ export default function SnakeAndLadderGame({ roomCode }) {
           typeof w === 'number' ? w : turnUserIdToIndex(roomRef.current, w)
         if (winnerIdx != null && winnerIdx >= 0) setWinner(winnerIdx)
       }
+
+      // Pre-populate event log + dice debug from server's rollHistory if
+      // present. Empty array on game start is normal.
+      const history = pick(data, 'rollHistory', 'roll_history')
+      if (Array.isArray(history)) {
+        setRollHistory(history)
+        const entries = history
+          .map((h) => historyEntryToLog(h, roomRef.current))
+          .filter(Boolean)
+          .slice(-5)
+        if (entries.length > 0) setLog(entries)
+      }
+
       setReconnecting(false)
     }
 
@@ -331,6 +404,17 @@ export default function SnakeAndLadderGame({ roomCode }) {
       socket.off('opponent_left', onOpponentLeft)
     }
   }, [animateMove, playStages, toast])
+
+  // D key toggles a debug dice distribution overlay
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'd' || e.key === 'D') setShowDiceDebug((v) => !v)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   // Derive my identity + whose turn from refs / state
   const myIdx = useMemo(() => {
@@ -407,6 +491,12 @@ export default function SnakeAndLadderGame({ roomCode }) {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_18rem]">
+      {showDiceDebug && (
+        <DiceDistribution
+          rollHistory={rollHistory}
+          onClose={() => setShowDiceDebug(false)}
+        />
+      )}
       <Board
         positions={positions}
         winner={winner}
@@ -767,6 +857,45 @@ function EventLog({ log, room, scrollRef }) {
           })
         )}
       </div>
+    </div>
+  )
+}
+
+function DiceDistribution({ rollHistory, onClose }) {
+  const counts = [0, 0, 0, 0, 0, 0]
+  for (const h of rollHistory ?? []) {
+    const r = h?.roll
+    if (typeof r === 'number' && r >= 1 && r <= 6) counts[r - 1] += 1
+  }
+  const max = Math.max(1, ...counts)
+  return (
+    <div className="fixed bottom-4 right-4 z-[1100] w-64 rounded-md border border-neon-cyan/50 bg-arcadia-bg/95 p-3 font-mono text-[10px] text-white/80 shadow-neon-cyan">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-arcade text-[9px] text-neon-cyan">
+          DICE DEBUG · n={rollHistory?.length ?? 0}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="font-arcade text-[9px] text-white/40 hover:text-neon-pink"
+          aria-label="Hide dice debug"
+        >
+          ✕
+        </button>
+      </div>
+      {counts.map((c, i) => {
+        const width = `${Math.round((c / max) * 100)}%`
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <span className="w-3 text-white/60">{i + 1}</span>
+            <span
+              className="inline-block h-2 rounded-sm bg-neon-green/70"
+              style={{ width }}
+            />
+            <span className="text-white/70">{c}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

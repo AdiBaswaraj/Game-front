@@ -20,6 +20,36 @@ import {
 const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
 const PIECE_ICON = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' }
 const DEFAULT_CLOCK_MS = 10 * 60 * 1000
+const SP_SAVE_KEY = 'arcadia:chess:sp'
+const SP_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+function readSPSave() {
+  try {
+    const raw = localStorage.getItem(SP_SAVE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw)
+    if (!data || typeof data.savedAt !== 'number') return null
+    if (Date.now() - data.savedAt > SP_MAX_AGE_MS) return null
+    return data
+  } catch {
+    return null
+  }
+}
+
+function clearSPSave() {
+  try {
+    localStorage.removeItem(SP_SAVE_KEY)
+  } catch {}
+}
+
+function formatElapsed(ms) {
+  const sec = Math.max(0, Math.floor(ms / 1000))
+  if (sec < 60) return `${sec} second${sec === 1 ? '' : 's'} ago`
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `${min} minute${min === 1 ? '' : 's'} ago`
+  const hr = Math.floor(min / 60)
+  return `${hr} hour${hr === 1 ? '' : 's'} ago`
+}
 
 function pick(o, ...keys) {
   for (const k of keys) if (o && o[k] != null) return o[k]
@@ -39,7 +69,11 @@ function fmtClock(ms) {
 }
 
 function readClocks(source) {
-  if (!source || typeof source !== 'object') return null
+  console.log('[clock] readClocks input:', source)
+  if (!source || typeof source !== 'object') {
+    console.log('[clock] readClocks output: null (no input)')
+    return null
+  }
   // Accept many shapes the backend may have used over its lifetime.
   const w = pick(
     source,
@@ -68,12 +102,15 @@ function readClocks(source) {
     'black_remaining',
   )
   if (typeof w !== 'number' || typeof b !== 'number') {
-    if (source && Object.keys(source).length > 0) {
-      console.warn('[clock] could not parse', source)
-    }
+    console.log(
+      '[clock] readClocks FAILED — keys:',
+      Object.keys(source || {}),
+    )
     return null
   }
-  return { w, b }
+  const parsed = { w, b }
+  console.log('[clock] readClocks output:', parsed)
+  return parsed
 }
 
 function capturedFromMoves(history) {
@@ -112,6 +149,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [legalMoves, setLegalMoves] = useState([]) // verbose moves
   const [pendingPromotion, setPendingPromotion] = useState(null) // {from,to}
   const [undosLeft, setUndosLeft] = useState(5)
+  const [resumeOffer, setResumeOffer] = useState(null) // saved snapshot offered for resume
+  const spLoadHandledRef = useRef(false)
 
   // Authoritative clock baseline from the server. We compute the live
   // display by subtracting elapsed wall-time since the baseline for the
@@ -152,6 +191,112 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     return unsubscribe
   }, [isMP])
 
+  // ===== Computer mode: offer resume if a recent save exists =====
+  useEffect(() => {
+    if (isMP) return
+    if (spLoadHandledRef.current) return
+    spLoadHandledRef.current = true
+    const saved = readSPSave()
+    if (!saved) return
+    // Different difficulty than the URL → don't prompt, treat as fresh.
+    if (saved.difficulty && saved.difficulty !== difficulty) {
+      clearSPSave()
+      return
+    }
+    setResumeOffer(saved)
+  }, [isMP, difficulty])
+
+  // ===== Computer mode: persist board state on every change =====
+  useEffect(() => {
+    if (isMP) return
+    if (resumeOffer) return // wait for user choice before saving
+    if (result) {
+      clearSPSave()
+      return
+    }
+    // Skip the initial empty position — no point saving "1. " with no moves.
+    if (history.length === 0) return
+    try {
+      const captured = capturedFromMoves(history)
+      localStorage.setItem(
+        SP_SAVE_KEY,
+        JSON.stringify({
+          fen: chessRef.current.fen(),
+          pgn: chessRef.current.pgn(),
+          playerColor: myColor,
+          difficulty,
+          capturedByWhite: captured.w,
+          capturedByBlack: captured.b,
+          undosLeft,
+          savedAt: Date.now(),
+        }),
+      )
+    } catch {
+      // private mode / quota — drop silently
+    }
+  }, [
+    isMP,
+    result,
+    resumeOffer,
+    fen,
+    history,
+    myColor,
+    difficulty,
+    undosLeft,
+  ])
+
+  const handleResumeSPGame = useCallback(() => {
+    const saved = resumeOffer
+    if (!saved) return
+    try {
+      const c = new Chess()
+      c.loadPgn(saved.pgn)
+      chessRef.current = c
+      setFen(c.fen())
+      const moves = c.history({ verbose: true })
+      setHistory(
+        moves.map((m) => ({
+          san: m.san,
+          color: m.color,
+          captured: m.captured,
+        })),
+      )
+      if (saved.playerColor === 'w' || saved.playerColor === 'b') {
+        setMyColor(saved.playerColor)
+      }
+      if (typeof saved.undosLeft === 'number') {
+        setUndosLeft(saved.undosLeft)
+      }
+      setSelectedSquare(null)
+      setLegalMoves([])
+      setPendingPromotion(null)
+    } catch (err) {
+      console.error('[chess SP] resume failed', err)
+      clearSPSave()
+    } finally {
+      setResumeOffer(null)
+    }
+  }, [resumeOffer])
+
+  const handleStartFreshSPGame = useCallback(() => {
+    clearSPSave()
+    chessRef.current = new Chess()
+    setFen(chessRef.current.fen())
+    setHistory([])
+    setUndosLeft(5)
+    setSelectedSquare(null)
+    setLegalMoves([])
+    setPendingPromotion(null)
+    setResult(null)
+    setResumeOffer(null)
+  }, [])
+
+  // Clear save on game over (chess SP only — MP uses socket reconnect)
+  useEffect(() => {
+    if (isMP) return
+    if (result) clearSPSave()
+  }, [isMP, result])
+
   // ===== Multiplayer: initial REST fetch + reconnect_to_room =====
   useEffect(() => {
     if (!isMP) return
@@ -171,16 +316,22 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
               displayName?.toLowerCase(),
         )
         const myDerivedColor = idx === 0 ? 'w' : idx === 1 ? 'b' : null
-        console.log('[chess] mount', {
+        console.log('[chess MP] mount state:', {
           roomCode,
           myUserId: user?.id,
-          myIndex: idx,
-          myColor: myDerivedColor,
           players: players.map((p) => ({
             id: p.userId ?? p.user_id ?? p.id,
             username: p.username ?? p.name,
           })),
+          myIndex: idx,
+          myColor: myDerivedColor,
+          gameState: data?.gameState ?? data?.game_state ?? null,
         })
+        console.log('[clock] initial raw:', data?.clock)
+        console.log(
+          '[clock] initial raw gameState:',
+          (data?.gameState ?? data?.game_state)?.clock,
+        )
         setMyColor(myDerivedColor)
 
         const gs = data?.gameState ?? data?.game_state
@@ -440,6 +591,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   //       has disconnected — per Note 1) =====
   useEffect(() => {
     if (!isMP || result || flagged) return
+    let lastDebugLog = 0
     const id = setInterval(() => {
       const now = Date.now()
       const elapsed = now - clockBase.baseTime
@@ -450,6 +602,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         ? Math.max(0, clockBase.b - elapsed)
         : clockBase.b
       setLiveClocks({ w: wRem, b: bRem })
+      if (now - lastDebugLog >= 5000) {
+        lastDebugLog = now
+        console.log('[clock] tick:', {
+          white: wRem,
+          black: bRem,
+          activeColor: clockBase.activeColor,
+          isMyTurn:
+            !!myColor && fenTurn(chessRef.current.fen()) === myColor,
+          myColor,
+        })
+      }
       if (wRem === 0 && clockBase.activeColor === 'w') {
         setFlagged('w')
         clearInterval(id)
@@ -460,7 +623,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       }
     }, 100)
     return () => clearInterval(id)
-  }, [isMP, clockBase, result, flagged])
+  }, [isMP, clockBase, result, flagged, myColor])
 
   // ===== Computer mode AI loop =====
   useEffect(() => {
@@ -984,6 +1147,56 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           onCancel={() => setPendingPromotion(null)}
         />
       )}
+
+      {resumeOffer && (
+        <ResumeModal
+          savedAt={resumeOffer.savedAt}
+          difficulty={resumeOffer.difficulty}
+          onResume={handleResumeSPGame}
+          onNewGame={handleStartFreshSPGame}
+        />
+      )}
+    </div>
+  )
+}
+
+function ResumeModal({ savedAt, difficulty, onResume, onNewGame }) {
+  const elapsed = formatElapsed(Date.now() - (savedAt ?? Date.now()))
+  return (
+    <div
+      className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Resume previous chess game"
+    >
+      <div className="w-full max-w-sm rounded-xl border border-neon-cyan/60 bg-arcadia-surface p-6 text-center shadow-neon-cyan">
+        <h3 className="font-arcade text-sm text-neon-cyan drop-shadow-[0_0_8px_rgba(0,212,255,0.5)]">
+          ★ CONTINUE PREVIOUS GAME?
+        </h3>
+        <p className="mt-3 text-xs text-white/65">
+          You have an in-progress chess game.
+        </p>
+        <p className="mt-1 font-arcade text-[10px] text-white/40">
+          Started {elapsed}
+          {difficulty ? ` · ${difficulty.toUpperCase()}` : ''}
+        </p>
+        <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <button
+            type="button"
+            onClick={onResume}
+            className="rounded-md border border-neon-green/70 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green hover:bg-neon-green/20 hover:shadow-neon-green"
+          >
+            ▶ RESUME
+          </button>
+          <button
+            type="button"
+            onClick={onNewGame}
+            className="rounded-md border border-neon-pink/70 bg-neon-pink/10 px-4 py-2 font-arcade text-[10px] text-neon-pink hover:bg-neon-pink/20 hover:shadow-neon-pink"
+          >
+            ✕ NEW GAME
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

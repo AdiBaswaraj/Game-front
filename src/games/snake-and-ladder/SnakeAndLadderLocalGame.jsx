@@ -30,8 +30,20 @@ export default function SnakeAndLadderLocalGame({
   const [winner, setWinner] = useState(null)
   const [log, setLog] = useState([])
   const [flash, setFlash] = useState(null)
+  const [rollHistory, setRollHistory] = useState([])
+  const [showDiceDebug, setShowDiceDebug] = useState(false)
   const spinRef = useRef(null)
   const flashTimerRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = e.target?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'd' || e.key === 'D') setShowDiceDebug((v) => !v)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
 
   const triggerFlash = useCallback((square, kind) => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
@@ -87,6 +99,14 @@ export default function SnakeAndLadderLocalGame({
     const idx = turnIdx
     const cur = positions[idx]
     const stages = computeStages({ start: cur, roll })
+    // Local rollHistory: same shape as the backend (player, roll, from,
+    // final). CPU + local rolls don't go server-side, so we maintain
+    // this purely client-side for the D-key debug overlay.
+    const finalLanding =
+      stages.length === 0 ? cur : stages[stages.length - 1].at
+    setRollHistory((prev) =>
+      [...prev, { player: idx, roll, from: cur, final: finalLanding }].slice(-30),
+    )
 
     if (stages.length === 0) {
       pushLog({
@@ -172,6 +192,12 @@ export default function SnakeAndLadderLocalGame({
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_18rem]">
+      {showDiceDebug && (
+        <DiceDistribution
+          rollHistory={rollHistory}
+          onClose={() => setShowDiceDebug(false)}
+        />
+      )}
       <Board
         positions={positions}
         winner={winner}
@@ -474,5 +500,44 @@ function Sidebar({
         </div>
       )}
     </aside>
+  )
+}
+
+function DiceDistribution({ rollHistory, onClose }) {
+  const counts = [0, 0, 0, 0, 0, 0]
+  for (const h of rollHistory ?? []) {
+    const r = h?.roll
+    if (typeof r === 'number' && r >= 1 && r <= 6) counts[r - 1] += 1
+  }
+  const max = Math.max(1, ...counts)
+  return (
+    <div className="fixed bottom-4 right-4 z-[1100] w-64 rounded-md border border-neon-cyan/50 bg-arcadia-bg/95 p-3 font-mono text-[10px] text-white/80 shadow-neon-cyan">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-arcade text-[9px] text-neon-cyan">
+          DICE DEBUG · n={rollHistory?.length ?? 0}
+        </span>
+        <button
+          type="button"
+          onClick={onClose}
+          className="font-arcade text-[9px] text-white/40 hover:text-neon-pink"
+          aria-label="Hide dice debug"
+        >
+          ✕
+        </button>
+      </div>
+      {counts.map((c, i) => {
+        const width = `${Math.round((c / max) * 100)}%`
+        return (
+          <div key={i} className="flex items-center gap-2">
+            <span className="w-3 text-white/60">{i + 1}</span>
+            <span
+              className="inline-block h-2 rounded-sm bg-neon-green/70"
+              style={{ width }}
+            />
+            <span className="text-white/70">{c}</span>
+          </div>
+        )
+      })}
+    </div>
   )
 }
