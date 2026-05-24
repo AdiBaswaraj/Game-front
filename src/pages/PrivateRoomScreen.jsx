@@ -103,13 +103,18 @@ function CreateTab({ gameId, username, userId }) {
         if (cancelled) return
         const c = res?.roomCode ?? res?.room_code ?? res?.code
         if (!c) {
-          setError('Could not create room.')
+          const msg = 'Could not create room — no code in response.'
+          setError(msg)
+          toast.show({ message: msg, duration: 4500 })
           return
         }
         setCode(String(c).toUpperCase())
       })
-      .catch(() => {
-        if (!cancelled) setError('Could not create room.')
+      .catch((err) => {
+        if (cancelled) return
+        const msg = `Could not create room — ${err?.message ?? 'unknown error'}`
+        setError(msg)
+        toast.show({ message: msg, duration: 4500 })
       })
     return () => {
       cancelled = true

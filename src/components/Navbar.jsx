@@ -1,15 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useFriends } from '../context/FriendsContext'
 import SideNavDrawer from './SideNavDrawer'
 
-export default function Navbar({ playersOnline = 0 }) {
+export default function Navbar() {
   const { user, isGuest, displayName, loading, openLogin, openSignup, signOut } =
     useAuth()
   const friendsCtx = useFriends()
   const pendingCount = friendsCtx?.pendingRequests?.length ?? 0
+  const onlineCount = friendsCtx?.onlineCount ?? 0
   const [navOpen, setNavOpen] = useState(false)
+  const [countFlash, setCountFlash] = useState(false)
+  const prevCountRef = useRef(onlineCount)
+  useEffect(() => {
+    if (onlineCount !== prevCountRef.current) {
+      prevCountRef.current = onlineCount
+      setCountFlash(true)
+      const t = setTimeout(() => setCountFlash(false), 500)
+      return () => clearTimeout(t)
+    }
+  }, [onlineCount])
 
   return (
     <header className="sticky top-0 z-40 border-b border-neon-green/40 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.25),0_10px_30px_-20px_rgba(0,255,136,0.5)] backdrop-blur-md">
@@ -42,11 +53,13 @@ export default function Navbar({ playersOnline = 0 }) {
 
         <div className="flex items-center gap-3 md:gap-5">
           <span
-            className="hidden items-center gap-2 rounded-md border border-neon-cyan/40 bg-neon-cyan/5 px-3 py-1.5 font-arcade text-[10px] text-neon-cyan sm:inline-flex"
+            className={`hidden items-center gap-2 rounded-md border border-neon-cyan/40 bg-neon-cyan/5 px-3 py-1.5 font-arcade text-[10px] text-neon-cyan transition-shadow sm:inline-flex ${
+              countFlash ? 'shadow-neon-cyan' : ''
+            }`}
             aria-label="players online"
           >
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-neon-cyan shadow-neon-cyan" />
-            {playersOnline} PLAYERS ONLINE
+            {onlineCount} PLAYERS ONLINE
           </span>
 
           {loading ? (

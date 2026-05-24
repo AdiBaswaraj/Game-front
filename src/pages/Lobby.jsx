@@ -9,7 +9,7 @@ export default function Lobby() {
   useDocumentTitle('Lobby')
   return (
     <div className="scanlines relative min-h-screen bg-arcadia-bg text-white">
-      <Navbar playersOnline={0} />
+      <Navbar />
       <Hero />
 
       <main className="mx-auto max-w-7xl px-4 pb-12 pt-14 md:px-8">

@@ -63,14 +63,29 @@ export function FriendsProvider({ children }) {
   const [pendingSent, setPendingSent] = useState(() => new Set()) // outgoing usernames
   const [friendsLoading, setFriendsLoading] = useState(false)
   const [requestsLoading, setRequestsLoading] = useState(false)
+  const [onlineCount, setOnlineCount] = useState(0)
 
-  // Connect socket + emit user_connected when user logs in
+  // Connect socket on app mount (for everyone, not just logged-in users).
+  // This keeps the online_count counter live for guests / logged-out users
+  // too. We never disconnect — the socket lives for the whole tab.
   useEffect(() => {
-    if (!user) {
-      if (socket.connected) socket.disconnect()
-      return
-    }
     if (!socket.connected) socket.connect()
+  }, [])
+
+  // Listen for the global online_count event regardless of auth state.
+  useEffect(() => {
+    const onCount = (data) => {
+      const next = data?.count ?? data?.online_count ?? data?.onlineCount
+      if (typeof next === 'number') setOnlineCount(next)
+    }
+    socket.on('online_count', onCount)
+    return () => socket.off('online_count', onCount)
+  }, [])
+
+  // Emit user_connected once logged in. Re-emits on every connect so
+  // reconnects re-register presence without needing a new login.
+  useEffect(() => {
+    if (!user) return
     const announce = () =>
       socket.emit('user_connected', {
         userId: user.id,
@@ -278,6 +293,7 @@ export function FriendsProvider({ children }) {
       requestsLoading,
       incomingInvite,
       inviteFriend,
+      onlineCount,
       refreshFriends,
       refreshPending,
       sendRequest,
@@ -299,6 +315,7 @@ export function FriendsProvider({ children }) {
       requestsLoading,
       incomingInvite,
       inviteFriend,
+      onlineCount,
       refreshFriends,
       refreshPending,
       sendRequest,

@@ -57,8 +57,11 @@ export default function InviteGameModal() {
       closeInviteModal()
       closeDrawer()
       navigate(`/room/${roomCode}`)
-    } catch {
-      toast.show({ message: 'Could not create room.', duration: 3000 })
+    } catch (err) {
+      toast.show({
+        message: `Could not create room — ${err?.message ?? 'unknown error'}`,
+        duration: 4500,
+      })
     }
   }
 

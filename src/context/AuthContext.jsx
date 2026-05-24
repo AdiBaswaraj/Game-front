@@ -52,16 +52,39 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true
 
-    supabase.auth.getSession().then(({ data }) => {
+    // Hard timeout: if getSession hasn't resolved in 3s, force loading
+    // off so the navbar can render the logged-out state rather than
+    // spinning forever.
+    const timeout = setTimeout(() => {
       if (!mounted) return
-      setSession(data.session)
-      setUser(data.session?.user ?? null)
-      lastUserIdRef.current = data.session?.user?.id ?? null
+      console.warn('[auth] getSession timed out, forcing loading false')
       setLoading(false)
-    })
+    }, 3000)
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        if (!mounted) return
+        clearTimeout(timeout)
+        const session = data?.session ?? null
+        setSession(session)
+        setUser(session?.user ?? null)
+        lastUserIdRef.current = session?.user?.id ?? null
+        setLoading(false)
+      })
+      .catch((err) => {
+        if (!mounted) return
+        clearTimeout(timeout)
+        console.error('[auth] getSession failed', err)
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+      })
 
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (event, nextSession) => {
+        // Loading is only for the initial mount — don't toggle it on
+        // subsequent auth events.
         setSession(nextSession)
         setUser(nextSession?.user ?? null)
 
@@ -81,6 +104,7 @@ export function AuthProvider({ children }) {
 
     return () => {
       mounted = false
+      clearTimeout(timeout)
       sub.subscription.unsubscribe()
     }
   }, [])

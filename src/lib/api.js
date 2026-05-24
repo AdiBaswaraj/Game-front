@@ -155,10 +155,72 @@ export async function searchUsers(query) {
 // ===== Rooms =====
 
 export async function createRoom({ gameId, username }) {
-  return jsonFetch(`${BASE}/api/rooms/create`, {
-    method: 'POST',
-    body: JSON.stringify({ gameId, username }),
+  const url = `${BASE}/api/rooms/create`
+  console.log('[room] attempting create:', {
+    backendUrl: BASE,
+    gameId,
+    username,
+    fullUrl: url,
   })
+
+  if (!BASE) {
+    const err = new Error('Backend URL not configured')
+    console.error('[room] VITE_BACKEND_URL is undefined!')
+    throw err
+  }
+
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(await authHeaders()),
+  }
+
+  let response
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ gameId, username }),
+    })
+  } catch (networkError) {
+    console.error('[room] network error:', networkError)
+    throw networkError
+  }
+
+  console.log('[room] response status:', response.status)
+  console.log('[room] response ok:', response.ok)
+  console.log(
+    '[room] response headers:',
+    Object.fromEntries(response.headers.entries()),
+  )
+
+  const text = await response.text()
+  console.log('[room] raw response body:', text)
+
+  let data
+  try {
+    data = JSON.parse(text)
+    console.log('[room] parsed response:', data)
+  } catch {
+    console.error('[room] response is not JSON:', text)
+    throw new Error(`Non-JSON response: ${text.slice(0, 100)}`)
+  }
+
+  if (!response.ok) {
+    console.error('[room] backend error:', data)
+    const err = new Error(data?.message || `HTTP ${response.status}`)
+    err.status = response.status
+    err.body = data
+    throw err
+  }
+
+  const code = data?.code ?? data?.roomCode ?? data?.room_code
+  if (!code) {
+    console.error('[room] missing room code in response:', data)
+    throw new Error('No room code in response')
+  }
+
+  console.log('[room] success! code:', code)
+  return data
 }
 
 export async function getRoom(code) {

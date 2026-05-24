@@ -408,8 +408,11 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
         return
       }
       navigate(`/room/${code}`)
-    } catch {
-      toast.show({ message: 'Could not create room.', duration: 2500 })
+    } catch (err) {
+      toast.show({
+        message: `Could not create room — ${err?.message ?? 'unknown error'}`,
+        duration: 4500,
+      })
     }
   }, [displayName, navigate, openLogin, toast, user])
 
