@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { getLeaderboard, postScore } from '../../lib/api'
 import { profileNameFor } from '../../lib/profile'
 import Leaderboard from '../../components/Leaderboard'
@@ -60,6 +61,13 @@ export default function SnakeGame() {
   const [level, setLevel] = useState(1)
   const [highScore, setHighScore] = useState(readHighScore)
   const [status, setStatus] = useState('idle')
+
+  // Single-player active = a game is in progress. Leaving now would
+  // throw away the run.
+  const leaveModal = useGameLeaveGuard({
+    active: status === 'playing',
+    kind: 'single',
+  })
 
   // Pull personal best from backend leaderboard if logged in
   useEffect(() => {
@@ -378,6 +386,7 @@ export default function SnakeGame() {
           <Leaderboard gameId="snake" scoreFormat="points" />
         </div>
       )}
+      {leaveModal}
     </div>
   )
 }

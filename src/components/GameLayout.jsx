@@ -13,13 +13,13 @@ export default function GameLayout({
   const navigate = useNavigate()
   const guardCtx = useLeaveGuardContext()
 
-  const handleBack = (e) => {
+  const guarded = (target) => (e) => {
     if (!guardCtx) return
     const ok = guardCtx.requestLeave({
-      target: backTo,
-      commit: () => navigate(backTo),
+      target,
+      commit: () => navigate(target),
     })
-    if (ok === false) e.preventDefault()
+    if (ok === false) e?.preventDefault?.()
   }
 
   return (
@@ -28,7 +28,7 @@ export default function GameLayout({
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-4 py-4 md:px-8">
           <Link
             to={backTo}
-            onClick={handleBack}
+            onClick={guarded(backTo)}
             className="flex items-center gap-2 justify-self-start font-arcade text-[10px] text-neon-cyan transition hover:text-neon-green md:text-xs"
           >
             <span aria-hidden="true">◀</span>
@@ -38,7 +38,16 @@ export default function GameLayout({
             {icon && <span className="mr-2">{icon}</span>}
             {title}
           </h1>
-          <span className="justify-self-end" />
+          <Link
+            to="/"
+            onClick={guarded('/')}
+            className="flex items-center gap-1.5 justify-self-end rounded-md border border-white/15 px-2.5 py-1 font-arcade text-[10px] text-white/70 transition hover:border-neon-green/60 hover:text-neon-green md:text-xs"
+            aria-label="Home"
+            title="Home"
+          >
+            <span aria-hidden="true">🏠</span>
+            <span className="hidden sm:inline">HOME</span>
+          </Link>
         </div>
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-10">

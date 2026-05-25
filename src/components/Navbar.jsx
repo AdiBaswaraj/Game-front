@@ -8,7 +8,6 @@ export default function Navbar() {
   const { user, isGuest, displayName, loading, openLogin, openSignup, signOut } =
     useAuth()
   const friendsCtx = useFriends()
-  const pendingCount = friendsCtx?.pendingRequests?.length ?? 0
   const onlineCount = friendsCtx?.onlineCount ?? 0
   const [navOpen, setNavOpen] = useState(false)
   const [countFlash, setCountFlash] = useState(false)
@@ -40,13 +39,6 @@ export default function Navbar() {
           >
             ARCADIA
           </Link>
-          <Link
-            to="/leaderboard"
-            className="hidden items-center gap-1.5 font-arcade text-[10px] text-white/65 transition hover:text-neon-cyan sm:flex md:text-xs"
-          >
-            <span aria-hidden="true">🏆</span>
-            <span>HALL OF FAME</span>
-          </Link>
         </div>
 
         <SideNavDrawer open={navOpen} onClose={() => setNavOpen(false)} />
@@ -65,12 +57,7 @@ export default function Navbar() {
           {loading ? (
             <div className="h-7 w-24 animate-pulse rounded-md bg-white/5" />
           ) : user ? (
-            <SignedIn
-              name={displayName}
-              onSignOut={signOut}
-              onOpenFriends={friendsCtx?.openDrawer}
-              pendingCount={pendingCount}
-            />
+            <SignedIn name={displayName} onSignOut={signOut} />
           ) : isGuest ? (
             <GuestBadge
               name={displayName}
@@ -86,23 +73,9 @@ export default function Navbar() {
   )
 }
 
-function SignedIn({ name, onSignOut, onOpenFriends, pendingCount }) {
+function SignedIn({ name, onSignOut }) {
   return (
     <div className="flex items-center gap-3">
-      <button
-        type="button"
-        onClick={onOpenFriends}
-        className="relative rounded-md border border-white/15 px-3 py-1.5 font-arcade text-[10px] text-white/75 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
-        aria-label="Open friends panel"
-      >
-        <span aria-hidden="true">👥</span>
-        <span className="ml-1 hidden sm:inline">FRIENDS</span>
-        {pendingCount > 0 && (
-          <span className="absolute -right-1.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-neon-pink px-1 text-[8px] font-bold text-arcadia-bg shadow-neon-pink">
-            {pendingCount}
-          </span>
-        )}
-      </button>
       <Link
         to={`/profile/${encodeURIComponent(name ?? '')}`}
         className="hidden font-arcade text-[10px] text-neon-green transition hover:text-neon-cyan sm:inline"

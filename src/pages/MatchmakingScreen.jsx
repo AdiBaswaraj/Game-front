@@ -73,6 +73,10 @@ export default function MatchmakingScreen() {
       // Already showing the searching state; nothing to do.
     }
     const onMatched = (data) => {
+      console.log('[clock] raw data received:', JSON.stringify(data))
+      console.log('[clock] data.clock:', data?.clock)
+      console.log('[clock] data.room?.gameState?.clock:', data?.room?.gameState?.clock)
+      console.log('[clock] data.gameState?.clock:', data?.gameState?.clock)
       const roomCode = pick(data, 'roomCode', 'room_code', 'code')
       const opponentUsername = pick(
         data,

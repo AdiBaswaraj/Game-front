@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from '../../components/Avatar'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import {
   GOAL,
   LADDERS,
@@ -28,6 +29,10 @@ export default function SnakeAndLadderLocalGame({
   const [rolling, setRolling] = useState(false)
   const [animating, setAnimating] = useState(false)
   const [winner, setWinner] = useState(null)
+  const leaveModal = useGameLeaveGuard({
+    active: winner == null,
+    kind: 'single',
+  })
   const [log, setLog] = useState([])
   const [flash, setFlash] = useState(null)
   const [rollHistory, setRollHistory] = useState([])
@@ -217,6 +222,7 @@ export default function SnakeAndLadderLocalGame({
         onRoll={performRoll}
         onReset={reset}
       />
+      {leaveModal}
     </div>
   )
 }

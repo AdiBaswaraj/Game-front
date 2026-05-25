@@ -8,8 +8,7 @@ import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
-import { useLeaveGuard } from '../../hooks/useLeaveGuard'
-import { useRegisterLeaveGuard } from '../../context/LeaveGuardContext'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import {
   DIFFICULTY_DEPTH,
   getBestMove,
@@ -144,7 +143,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [aiThinking, setAiThinking] = useState(false)
   const [engineState, setEngineStateLocal] = useState('idle')
   const [reconnecting, setReconnecting] = useState(false)
-  const [pendingLeave, setPendingLeave] = useState(null)
+  const [resignConfirm, setResignConfirm] = useState(false)
   const [selectedSquare, setSelectedSquare] = useState(null)
   const [legalMoves, setLegalMoves] = useState([]) // verbose moves
   const [pendingPromotion, setPendingPromotion] = useState(null) // {from,to}
@@ -522,7 +521,10 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       setResult({ winner: winnerColor, reason: displayReason })
     }
 
-    const onMatchResult = (data) => finalizeResult(data)
+    const onMatchResult = (data) => {
+      console.log('[match_result] received:', data)
+      finalizeResult(data)
+    }
     const onGameOver = (data) => finalizeResult(data)
 
     const onOpponentLeft = () => {
@@ -845,40 +847,56 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     setUndosLeft((n) => n - 1)
   }, [isMP, result, undosLeft])
 
+  // Clicking RESIGN just opens the modal — actual emit is in onResignConfirm
   const handleResign = useCallback(() => {
-    console.log('[chess] resign clicked', {
-      isMP,
-      socketConnected: socket.connected,
-      roomCode,
-      userId: user?.id,
-    })
+    console.log('[resign] button clicked')
+    console.log('[resign] socket connected:', socket.connected)
+    console.log('[resign] roomCode:', roomCode)
+    setResignConfirm(true)
+  }, [roomCode])
+
+  const onResignConfirm = useCallback(() => {
+    setResignConfirm(false)
     if (!isMP) {
-      if (!window.confirm('Are you sure you want to resign?')) return
+      console.log('[resign] single-player resign')
       setResult({
         winner: myColor === 'w' ? 'b' : 'w',
         reason: 'YOU RESIGNED',
       })
       return
     }
-    if (!window.confirm('Are you sure you want to resign?')) return
     const opponent = room?.players?.find(
       (p) =>
         (p.userId ?? p.user_id ?? p.id) !== user?.id &&
         (p.username ?? p.name)?.toLowerCase() !==
           displayName?.toLowerCase(),
     )
+    const opponentId =
+      opponent?.userId ?? opponent?.user_id ?? opponent?.id
+    console.log('[chess MP] opponent:', opponentId, 'from players:', room?.players)
     if (!socket.connected) {
-      console.warn('[chess] resign emit failed — socket disconnected')
+      console.warn('[resign] emit aborted — socket disconnected')
       toast.show({ message: 'Connection lost — try again.', duration: 3000 })
       return
     }
-    socket.emit('game_over', {
+    if (!opponentId) {
+      console.warn('[resign] no opponentId resolved — winnerId would be undefined')
+      toast.show({
+        message: 'Could not resign — opponent unknown.',
+        duration: 3000,
+      })
+      return
+    }
+    const payload = {
       roomCode,
-      winnerId: opponent?.userId ?? opponent?.user_id ?? opponent?.id,
+      winnerId: opponentId,
       loserId: user?.id,
       score: 0,
       reason: 'resign',
-    })
+    }
+    console.log('[resign] emitting game_over:', payload)
+    socket.emit('game_over', payload)
+    console.log('[resign] game_over emitted')
   }, [displayName, isMP, myColor, room, roomCode, toast, user?.id])
 
   const handleSync = useCallback(() => {
@@ -921,37 +939,35 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   }, [fen])
 
   // ===== Leave guard =====
-  const gameActive = isMP && !result
-  useLeaveGuard(gameActive)
-
-  useRegisterLeaveGuard(gameActive, ({ commit, cancel }) => {
-    setPendingLeave({ commit, cancel })
-  })
-
-  const handleStay = () => {
-    pendingLeave?.cancel?.()
-    setPendingLeave(null)
-  }
-  const handleForfeit = () => {
-    if (isMP && socket.connected && roomCode) {
-      const opponent = room?.players?.find(
-        (p) =>
-          (p.userId ?? p.user_id ?? p.id) !== user?.id &&
-          (p.username ?? p.name)?.toLowerCase() !==
-            displayName?.toLowerCase(),
-      )
+  // Chess uses the same useGameLeaveGuard hook as every other game.
+  // 'multi' shows the forfeit copy and emits game_over on confirm.
+  // 'single' (computer mode) shows the "progress will be lost" copy.
+  const opponentForGuard =
+    room?.players?.find(
+      (p) =>
+        (p.userId ?? p.user_id ?? p.id) !== user?.id &&
+        (p.username ?? p.name)?.toLowerCase() !==
+          displayName?.toLowerCase(),
+    ) ?? null
+  const leaveModal = useGameLeaveGuard({
+    active: isMP ? !result : !result && history.length > 0,
+    kind: isMP ? 'multi' : 'single',
+    onForfeit: () => {
+      if (!isMP || !socket.connected || !roomCode) return
+      const oppId =
+        opponentForGuard?.userId ??
+        opponentForGuard?.user_id ??
+        opponentForGuard?.id ??
+        null
       socket.emit('game_over', {
         roomCode,
-        winnerId: opponent?.userId ?? opponent?.user_id ?? opponent?.id,
+        winnerId: oppId,
         loserId: user?.id,
         score: 0,
         reason: 'resign',
       })
-    }
-    const commit = pendingLeave?.commit
-    setPendingLeave(null)
-    commit?.()
-  }
+    },
+  })
 
   const turn = fenTurn(fen)
   const myTurn =
@@ -1049,6 +1065,15 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           />
         )}
 
+        {isMP && (
+          <div className="mt-2 rounded-md border border-white/10 bg-arcadia-bg/70 px-2 py-1 font-mono text-[9px] text-white/55">
+            myColor: {myColor ?? 'null'} · activeColor:{' '}
+            {clockBase.activeColor} · w: {Math.floor(liveClocks.w / 1000)}s ·
+            b: {Math.floor(liveClocks.b / 1000)}s · ticking:{' '}
+            {!result && !flagged ? 'yes' : 'no'}
+          </div>
+        )}
+
         {isMP && opponentDc.disconnected && !result && (
           <DisconnectBanner
             username={opponentDc.username}
@@ -1136,8 +1161,12 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         )}
       </aside>
 
-      {pendingLeave && (
-        <LeaveConfirm onStay={handleStay} onForfeit={handleForfeit} />
+      {leaveModal}
+      {resignConfirm && (
+        <ResignModal
+          onCancel={() => setResignConfirm(false)}
+          onConfirm={onResignConfirm}
+        />
       )}
 
       {pendingPromotion && (
@@ -1376,35 +1405,34 @@ function ResultPanel({ result, myColor }) {
   )
 }
 
-function LeaveConfirm({ onStay, onForfeit }) {
+function ResignModal({ onCancel, onConfirm }) {
   return (
     <div
       className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
     >
-      <div className="w-full max-w-sm rounded-xl border border-neon-pink/60 bg-arcadia-surface p-6 shadow-neon-pink">
+      <div className="w-full max-w-sm rounded-xl border-2 border-neon-pink/60 bg-arcadia-surface p-6 shadow-neon-pink">
         <h3 className="font-arcade text-sm text-neon-pink">
-          ⚠ LEAVE ACTIVE GAME?
+          ♟ RESIGN GAME?
         </h3>
         <p className="mt-3 text-xs text-white/65">
-          You're in the middle of a game. Leaving will forfeit and your
-          opponent wins.
+          Your opponent will be declared winner.
         </p>
         <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <button
             type="button"
-            onClick={onStay}
+            onClick={onCancel}
             className="rounded-md border border-neon-green/70 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green hover:bg-neon-green/20 hover:shadow-neon-green"
           >
-            STAY
+            KEEP PLAYING
           </button>
           <button
             type="button"
-            onClick={onForfeit}
+            onClick={onConfirm}
             className="rounded-md border border-neon-pink/70 bg-neon-pink/10 px-4 py-2 font-arcade text-[10px] text-neon-pink hover:bg-neon-pink/20 hover:shadow-neon-pink"
           >
-            🏳 FORFEIT
+            🏳 RESIGN
           </button>
         </div>
       </div>

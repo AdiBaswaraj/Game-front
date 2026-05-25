@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
 import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
@@ -426,6 +427,29 @@ export default function SnakeAndLadderGame({ roomCode }) {
     )
   }, [room, user?.id, displayName])
 
+  const opponentForGuard =
+    myIdx >= 0 && room?.players
+      ? room.players.find((_, i) => i !== myIdx)
+      : null
+  const leaveModal = useGameLeaveGuard({
+    active: winner == null && !!room,
+    kind: 'multi',
+    onForfeit: () => {
+      const oppId =
+        opponentForGuard?.userId ??
+        opponentForGuard?.user_id ??
+        opponentForGuard?.id ??
+        null
+      socket.emit('game_over', {
+        roomCode,
+        winnerId: oppId,
+        loserId: user?.id,
+        score: 0,
+        reason: 'resign',
+      })
+    },
+  })
+
   // Use server-provided currentTurn (userId) if available — otherwise
   // fall back to comparing player indices.
   const currentTurnUserId =
@@ -521,6 +545,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
         opponentDcUsername={opponentDc.username}
         opponentDcSeconds={opponentDc.secondsRemaining}
       />
+      {leaveModal}
     </div>
   )
 }

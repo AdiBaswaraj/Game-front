@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
 
@@ -106,6 +107,11 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
 
   const [board, setBoard] = useState(() => makeBoard(cfg.rows, cfg.cols))
   const [status, setStatus] = useState('idle')
+
+  const leaveModal = useGameLeaveGuard({
+    active: status === 'playing',
+    kind: 'single',
+  })
   const [flagsLeft, setFlagsLeft] = useState(cfg.mines)
   const [time, setTime] = useState(0)
   const [flagMode, setFlagMode] = useState(false)
@@ -305,6 +311,7 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
           />
         </div>
       )}
+      {leaveModal}
     </div>
   )
 }

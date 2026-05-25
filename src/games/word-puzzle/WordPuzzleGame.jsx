@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
 import { createRoom, postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
@@ -148,6 +149,11 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
   const [currentRow, setCurrentRow] = useState(saved?.currentRow ?? 0)
   const [currentGuess, setCurrentGuess] = useState('')
   const [status, setStatus] = useState(saved?.status ?? 'playing')
+
+  const leaveModal = useGameLeaveGuard({
+    active: status === 'playing',
+    kind: 'single',
+  })
   const [keyStates, setKeyStates] = useState(saved?.keyStates ?? {})
   const [shakeRow, setShakeRow] = useState(false)
   const [revealing, setRevealing] = useState(false)
@@ -527,6 +533,7 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
           Free play is unranked — scores aren&rsquo;t saved.
         </p>
       )}
+      {leaveModal}
     </div>
   )
 }

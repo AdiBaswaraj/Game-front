@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
 import { getRoom, postScore } from '../../lib/api'
 import { socket } from '../../lib/socket'
@@ -85,6 +86,22 @@ export default function WordPuzzleBattle({ roomCode }) {
     if (!room?.players || myIdx < 0) return null
     return room.players.find((_, i) => i !== myIdx) ?? null
   }, [room, myIdx])
+
+  const leaveModal = useGameLeaveGuard({
+    active: status === 'playing',
+    kind: 'multi',
+    onForfeit: () => {
+      const oppId =
+        opponent?.userId ?? opponent?.user_id ?? opponent?.id ?? null
+      socket.emit('game_over', {
+        roomCode,
+        winnerId: oppId,
+        loserId: user?.id,
+        score: 0,
+        reason: 'resign',
+      })
+    },
+  })
 
   // Socket events
   useEffect(() => {
@@ -322,6 +339,7 @@ export default function WordPuzzleBattle({ roomCode }) {
           LEAVE ROOM
         </Link>
       </aside>
+      {leaveModal}
     </div>
   )
 }

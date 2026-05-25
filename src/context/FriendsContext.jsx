@@ -16,9 +16,7 @@ import {
   removeFriend as apiRemoveFriend,
   sendFriendRequest as apiSendFriendRequest,
 } from '../lib/api'
-import FriendsDrawer from '../components/FriendsDrawer'
 import GameInviteBanner from '../components/GameInviteBanner'
-import InviteGameModal from '../components/InviteGameModal'
 
 const FriendsContext = createContext(null)
 
@@ -54,8 +52,6 @@ export function FriendsProvider({ children }) {
   const { user, displayName } = useAuth()
   const toast = useToast()
 
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [inviteFriend, setInviteFriend] = useState(null) // for outgoing-invite modal
   const [incomingInvite, setIncomingInvite] = useState(null) // for banner
 
   const [friends, setFriends] = useState([])
@@ -275,10 +271,6 @@ export function FriendsProvider({ children }) {
     [pendingSent],
   )
 
-  const openDrawer = useCallback(() => setDrawerOpen(true), [])
-  const closeDrawer = useCallback(() => setDrawerOpen(false), [])
-  const openInviteModal = useCallback((friend) => setInviteFriend(friend), [])
-  const closeInviteModal = useCallback(() => setInviteFriend(null), [])
   const dismissIncomingInvite = useCallback(
     () => setIncomingInvite(null),
     [],
@@ -286,13 +278,11 @@ export function FriendsProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      drawerOpen,
       friends,
       friendsLoading,
       pendingRequests,
       requestsLoading,
       incomingInvite,
-      inviteFriend,
       onlineCount,
       refreshFriends,
       refreshPending,
@@ -301,20 +291,14 @@ export function FriendsProvider({ children }) {
       declineOrRemove,
       isAlreadyFriend,
       isPendingOutgoing,
-      openDrawer,
-      closeDrawer,
-      openInviteModal,
-      closeInviteModal,
       dismissIncomingInvite,
     }),
     [
-      drawerOpen,
       friends,
       friendsLoading,
       pendingRequests,
       requestsLoading,
       incomingInvite,
-      inviteFriend,
       onlineCount,
       refreshFriends,
       refreshPending,
@@ -323,10 +307,6 @@ export function FriendsProvider({ children }) {
       declineOrRemove,
       isAlreadyFriend,
       isPendingOutgoing,
-      openDrawer,
-      closeDrawer,
-      openInviteModal,
-      closeInviteModal,
       dismissIncomingInvite,
     ],
   )
@@ -334,8 +314,6 @@ export function FriendsProvider({ children }) {
   return (
     <FriendsContext.Provider value={value}>
       {children}
-      {user && <FriendsDrawer />}
-      {user && <InviteGameModal />}
       {user && <GameInviteBanner />}
     </FriendsContext.Provider>
   )

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
 import {
@@ -35,6 +36,11 @@ export default function SudokuGame({ difficulty = 'easy' }) {
   const [selected, setSelected] = useState(null)
   const [time, setTime] = useState(0)
   const [status, setStatus] = useState('playing')
+
+  const leaveModal = useGameLeaveGuard({
+    active: status === 'playing',
+    kind: 'single',
+  })
   const [showErrors, setShowErrors] = useState(false)
   const startTimeRef = useRef(Date.now())
 
@@ -210,6 +216,7 @@ export default function SudokuGame({ difficulty = 'easy' }) {
           Log in to save completion times to the global leaderboard.
         </p>
       )}
+      {leaveModal}
     </div>
   )
 }
