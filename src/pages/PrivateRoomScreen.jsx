@@ -20,11 +20,26 @@ function pick(o, ...keys) {
 
 export default function PrivateRoomScreen() {
   const { gameId } = useParams()
-  const { user, displayName, openLogin } = useAuth()
+  const { user, displayName, openLogin, loading: authLoading } = useAuth()
   const label = GAME_LABELS[gameId] ?? { name: gameId?.toUpperCase(), icon: '🎮' }
   useDocumentTitle(`${label.name} — Private Room`)
 
   const [tab, setTab] = useState('create') // 'create' | 'join'
+
+  // Show a connecting state while auth resolves rather than flashing
+  // the "login required" screen — the auth resolution can take up to
+  // 3s in degraded network conditions before the AuthContext timeout
+  // fires.
+  if (authLoading) {
+    return (
+      <Shell title={label.name} icon={label.icon} backTo={`/game/${gameId}/mode`}>
+        <main className="mx-auto flex max-w-2xl flex-col items-center gap-3 px-4 py-16 text-center md:py-24">
+          <p className="font-arcade text-[11px] text-neon-cyan">CONNECTING…</p>
+          <p className="text-xs text-white/45">Checking your session.</p>
+        </main>
+      </Shell>
+    )
+  }
 
   if (!user) {
     return (
@@ -40,6 +55,20 @@ export default function PrivateRoomScreen() {
           >
             LOGIN
           </button>
+        </main>
+      </Shell>
+    )
+  }
+
+  // Defensive: if user is set but displayName is still null/empty for
+  // some reason (race during user_metadata population, etc.), don't
+  // mount CreateTab yet — auto-create would fire with username=null.
+  if (!displayName) {
+    return (
+      <Shell title={label.name} icon={label.icon} backTo={`/game/${gameId}/mode`}>
+        <main className="mx-auto flex max-w-2xl flex-col items-center gap-3 px-4 py-16 text-center md:py-24">
+          <p className="font-arcade text-[11px] text-neon-cyan">PREPARING…</p>
+          <p className="text-xs text-white/45">Loading your profile.</p>
         </main>
       </Shell>
     )
@@ -90,17 +119,46 @@ function CreateTab({ gameId, username, userId }) {
   const [error, setError] = useState(null)
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
+  // requestedRef guards against duplicate create calls (StrictMode
+  // double-mount and any re-render-triggered re-fire).
   const requestedRef = useRef(false)
   const joinedRef = useRef(false)
+  // mountedRef lets us safely commit state from an async resolution
+  // without using a cancellation flag — which previously bailed out of
+  // a successful response if the component re-rendered between the
+  // fetch starting and resolving (race with auth-state changes).
+  const mountedRef = useRef(true)
 
-  // Auto-create on first mount
   useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+
+  // Auto-create on first mount, but only when the username is actually
+  // available. Calling createRoom with a null/undefined username races
+  // with auth resolution and the backend can return 400.
+  useEffect(() => {
+    console.log('[room] CreateTab effect:', {
+      username,
+      userId,
+      requested: requestedRef.current,
+    })
+    if (!username) {
+      console.log('[room] waiting for username…')
+      return
+    }
     if (requestedRef.current) return
     requestedRef.current = true
-    let cancelled = false
+    console.log('[room] CreateTab calling createRoom', { gameId, username })
     createRoom({ gameId, username })
       .then((res) => {
-        if (cancelled) return
+        console.log('[room] CreateTab handler running', {
+          mounted: mountedRef.current,
+          res,
+        })
+        if (!mountedRef.current) return
         const c = res?.roomCode ?? res?.room_code ?? res?.code
         if (!c) {
           const msg = 'Could not create room — no code in response.'
@@ -111,24 +169,36 @@ function CreateTab({ gameId, username, userId }) {
         setCode(String(c).toUpperCase())
       })
       .catch((err) => {
-        if (cancelled) return
+        console.error('[room] CreateTab createRoom failed', err)
+        if (!mountedRef.current) return
         const msg = `Could not create room — ${err?.message ?? 'unknown error'}`
         setError(msg)
         toast.show({ message: msg, duration: 4500 })
       })
-    return () => {
-      cancelled = true
-    }
-  }, [gameId, username])
+  }, [gameId, username, userId, toast])
 
   // Once we have a code, subscribe to room socket events and join the
   // socket room so we receive room_update when opponent arrives.
   useEffect(() => {
     if (!code) return
-    if (!socket.connected) socket.connect()
-    if (!joinedRef.current) {
+    if (!socket.connected) {
+      console.log('[room] socket not yet connected, calling connect()')
+      socket.connect()
+    }
+
+    const announce = () => {
+      if (joinedRef.current) return
       joinedRef.current = true
+      console.log('[room] socket connected:', socket.connected, '— emit join_room', { code, username })
       socket.emit('join_room', { roomCode: code, username })
+    }
+    if (socket.connected) {
+      announce()
+    } else {
+      // Defer until the socket actually connects — emit-while-disconnected
+      // queues in socket.io-client but we want the log to fire at the
+      // real connect moment for visibility.
+      socket.once('connect', announce)
     }
 
     const onRoomUpdate = (data) => {
@@ -147,6 +217,7 @@ function CreateTab({ gameId, username, userId }) {
     socket.on('room_update', onRoomUpdate)
     socket.on('opponent_left', onOpponentLeft)
     return () => {
+      socket.off('connect', announce)
       socket.off('room_update', onRoomUpdate)
       socket.off('opponent_left', onOpponentLeft)
     }

@@ -186,7 +186,7 @@ export async function createRoom({ gameId, username }) {
     throw networkError
   }
 
-  console.log('[room] response status:', response.status)
+  console.log('[room] fetch resolved!', response.status)
   console.log('[room] response ok:', response.ok)
   console.log(
     '[room] response headers:',
