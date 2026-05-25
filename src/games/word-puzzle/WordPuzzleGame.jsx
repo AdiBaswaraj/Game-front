@@ -389,7 +389,11 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
     }
   }, [board, currentRow, dateKey, isDaily, status, toast])
 
-  const handleBattle = useCallback(async () => {
+  const handleBattle = useCallback(async (e) => {
+    if (e) {
+      e.preventDefault?.()
+      e.stopPropagation?.()
+    }
     if (!user) {
       toast.show({
         message: 'Login required for multiplayer.',

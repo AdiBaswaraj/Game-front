@@ -36,7 +36,14 @@ export default function InviteGameModal() {
 
   if (!open) return null
 
-  const pickGame = async (gameId) => {
+  const pickGame = async (gameId, e) => {
+    // Defensive — these buttons are already type="button" and not in a
+    // form, but we belt-and-suspenders against any accidental default
+    // submission / bubble that could turn the click into a navigation.
+    if (e) {
+      e.preventDefault?.()
+      e.stopPropagation?.()
+    }
     try {
       const res = await createRoom({ gameId, username: displayName })
       const roomCode = res?.roomCode ?? res?.room_code ?? res?.code
@@ -98,7 +105,7 @@ export default function InviteGameModal() {
             <button
               key={g.id}
               type="button"
-              onClick={() => pickGame(g.id)}
+              onClick={(e) => pickGame(g.id, e)}
               className={`flex items-center gap-4 rounded-lg border-2 bg-arcadia-bg/60 p-4 transition ${ACCENTS[g.accent]}`}
             >
               <span className="text-2xl">{g.icon}</span>
