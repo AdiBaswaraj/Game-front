@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
+import { useSquareGameSize } from '../../hooks/useViewport'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
 import {
@@ -40,6 +41,15 @@ export default function SudokuGame({ difficulty = 'easy' }) {
   const leaveModal = useGameLeaveGuard({
     active: status === 'playing',
     kind: 'single',
+  })
+
+  // Reserve room for: control row (~56), number pad (~64), gaps.
+  const boardSize = useSquareGameSize({
+    headerHeight: 72,
+    controlsHeight: 220,
+    padding: 16,
+    minSize: 280,
+    maxSize: 520,
   })
   const [showErrors, setShowErrors] = useState(false)
   const startTimeRef = useRef(Date.now())
@@ -187,6 +197,7 @@ export default function SudokuGame({ difficulty = 'easy' }) {
           selected={selected}
           conflicts={conflicts}
           errors={errors}
+          size={boardSize}
           onSelect={setSelected}
         />
         {status === 'won' && (
@@ -230,11 +241,11 @@ function Stat({ label, value, accent }) {
   )
 }
 
-function SudokuGrid({ board, selected, conflicts, errors, onSelect }) {
+function SudokuGrid({ board, selected, conflicts, errors, onSelect, size }) {
   return (
     <div
       className="grid grid-cols-9 grid-rows-9 overflow-hidden rounded-md border-2 border-neon-cyan/60 bg-arcadia-bg shadow-neon-cyan"
-      style={{ width: 'min(450px, 92vw)', aspectRatio: '1 / 1' }}
+      style={{ width: size, height: size }}
       role="grid"
       aria-label="Sudoku board"
     >

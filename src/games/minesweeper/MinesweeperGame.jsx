@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
+import LandscapeHint from '../../components/LandscapeHint'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
 
@@ -248,6 +249,12 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
 
   return (
     <div className="flex flex-col items-center gap-6">
+      {diff === 'hard' && (
+        <LandscapeHint
+          keyName="minesweeper-hard"
+          message="Hard board fits better in landscape"
+        />
+      )}
       <div className="rounded-lg border-2 border-neon-green/60 bg-arcadia-surface p-3 shadow-neon-green">
         <div className="mb-3 flex items-center justify-between gap-4">
           <Counter

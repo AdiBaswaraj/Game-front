@@ -5,10 +5,10 @@ import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { getLeaderboard, postScore } from '../../lib/api'
 import { profileNameFor } from '../../lib/profile'
 import Leaderboard from '../../components/Leaderboard'
+import { useSquareGameSize } from '../../hooks/useViewport'
+import { useFullscreen } from '../../hooks/useFullscreen'
 
 const GRID = 20
-const CELL = 24
-const CANVAS_SIZE = GRID * CELL
 const HS_KEY = 'arcadia:highscore:snake'
 
 const UP = { x: 0, y: -1 }
@@ -68,6 +68,19 @@ export default function SnakeGame() {
     active: status === 'playing',
     kind: 'single',
   })
+
+  const { isFullscreen } = useFullscreen()
+  // Reserve room for the bottom HUD (Stat cards + controls hint).
+  // Bigger reservation when not fullscreen (the HUD column lives
+  // below the canvas on mobile and beside it on desktop).
+  const canvasSize = useSquareGameSize({
+    headerHeight: isFullscreen ? 56 : 72,
+    controlsHeight: isFullscreen ? 32 : 240,
+    padding: isFullscreen ? 8 : 16,
+    minSize: 260,
+    maxSize: isFullscreen ? 760 : 560,
+  })
+  const cellSize = canvasSize / GRID
 
   // Pull personal best from backend leaderboard if logged in
   useEffect(() => {
@@ -135,6 +148,19 @@ export default function SnakeGame() {
     return () => window.removeEventListener('keydown', handler)
   }, [startGame, queueDir])
 
+  // Prevent the document from scrolling while playing — Snake uses
+  // swipes for input and any vertical scroll feels broken on phones.
+  // Listener is global but the cleanup runs on unmount.
+  useEffect(() => {
+    const prevent = (e) => {
+      if (e.target && e.target.closest?.('.game-no-scroll')) {
+        e.preventDefault()
+      }
+    }
+    document.addEventListener('touchmove', prevent, { passive: false })
+    return () => document.removeEventListener('touchmove', prevent)
+  }, [])
+
   // Touch swipe input
   useEffect(() => {
     const el = canvasRef.current
@@ -170,17 +196,30 @@ export default function SnakeGame() {
     }
   }, [startGame, queueDir])
 
+  // Mirror canvas dimensions into refs so the long-lived render loop
+  // can read the latest values without a re-bind.
+  const sizeRef = useRef({ canvas: canvasSize, cell: cellSize })
+  useEffect(() => {
+    sizeRef.current = { canvas: canvasSize, cell: cellSize }
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = canvasSize * dpr
+    canvas.height = canvasSize * dpr
+    canvas.style.width = `${canvasSize}px`
+    canvas.style.height = `${canvasSize}px`
+    const ctx = canvas.getContext('2d')
+    // The transform was applied once during the initial setup, so reset
+    // it then re-apply the new DPR scale on every resize.
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
+    ctx.scale(dpr, dpr)
+  }, [canvasSize, cellSize])
+
   // Render + tick loop
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = CANVAS_SIZE * dpr
-    canvas.height = CANVAS_SIZE * dpr
-    canvas.style.width = `${CANVAS_SIZE}px`
-    canvas.style.height = `${CANVAS_SIZE}px`
-    ctx.scale(dpr, dpr)
 
     let rafId
 
@@ -241,19 +280,20 @@ export default function SnakeGame() {
 
     const draw = (ts) => {
       const s = stateRef.current
+      const { canvas: CSIZE, cell: C } = sizeRef.current
       ctx.fillStyle = '#0a0a0f'
-      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE)
+      ctx.fillRect(0, 0, CSIZE, CSIZE)
 
       ctx.strokeStyle = 'rgba(255,255,255,0.04)'
       ctx.lineWidth = 1
       for (let i = 1; i < GRID; i++) {
         ctx.beginPath()
-        ctx.moveTo(i * CELL, 0)
-        ctx.lineTo(i * CELL, CANVAS_SIZE)
+        ctx.moveTo(i * C, 0)
+        ctx.lineTo(i * C, CSIZE)
         ctx.stroke()
         ctx.beginPath()
-        ctx.moveTo(0, i * CELL)
-        ctx.lineTo(CANVAS_SIZE, i * CELL)
+        ctx.moveTo(0, i * C)
+        ctx.lineTo(CSIZE, i * C)
         ctx.stroke()
       }
 
@@ -264,26 +304,28 @@ export default function SnakeGame() {
       ctx.fillStyle = '#ff006e'
       ctx.beginPath()
       ctx.arc(
-        s.food.x * CELL + CELL / 2,
-        s.food.y * CELL + CELL / 2,
-        CELL * 0.32 * pulse,
+        s.food.x * C + C / 2,
+        s.food.y * C + C / 2,
+        C * 0.32 * pulse,
         0,
         Math.PI * 2,
       )
       ctx.fill()
       ctx.restore()
 
+      const pad1 = Math.max(1, C * 0.04)
+      const pad2 = Math.max(2, C * 0.08)
       s.snake.forEach((seg, i) => {
         if (i === 0) {
           ctx.save()
           ctx.shadowColor = '#00ff88'
           ctx.shadowBlur = 10
           ctx.fillStyle = '#00ff88'
-          ctx.fillRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2)
+          ctx.fillRect(seg.x * C + pad1, seg.y * C + pad1, C - pad1 * 2, C - pad1 * 2)
           ctx.restore()
         } else {
           ctx.fillStyle = '#00cc6e'
-          ctx.fillRect(seg.x * CELL + 2, seg.y * CELL + 2, CELL - 4, CELL - 4)
+          ctx.fillRect(seg.x * C + pad2, seg.y * C + pad2, C - pad2 * 2, C - pad2 * 2)
         }
       })
     }
@@ -305,16 +347,28 @@ export default function SnakeGame() {
   }, [user])
 
   return (
-    <div className="flex flex-col items-center gap-8">
-    <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
-      <div className="relative">
-        <div className="rounded-xl border-2 border-neon-green/60 bg-arcadia-surface p-2 shadow-neon-green">
+    <div className="flex flex-col items-center gap-4 md:gap-8">
+    <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center">
+      <div
+        className="game-touch relative"
+        style={{ width: canvasSize, height: canvasSize }}
+      >
+        <div
+          className="rounded-xl border-2 border-neon-green/60 bg-arcadia-surface p-1 shadow-neon-green"
+          style={{ width: canvasSize, height: canvasSize, boxSizing: 'content-box' }}
+        >
           <canvas
             ref={canvasRef}
-            className="block touch-none rounded-md"
-            style={{ maxWidth: '95vw', height: 'auto' }}
+            className="game-no-scroll block rounded-md"
             aria-label="Snake game canvas"
           />
+        </div>
+        {/* Score overlay inside canvas — top-left corner */}
+        <div
+          className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/55 px-2.5 py-1 font-arcade text-[9px] leading-tight text-neon-green"
+          aria-hidden="true"
+        >
+          SCORE {score} · BEST {Math.max(highScore, score)} · LV {level}
         </div>
 
         {status === 'idle' && (
