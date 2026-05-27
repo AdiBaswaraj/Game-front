@@ -284,6 +284,15 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       setSelectedSquare(null)
       setLegalMoves([])
       setPendingPromotion(null)
+      // Clocks restart fresh on resume — per spec we don't restore them.
+      setClockBase({
+        w: DEFAULT_CLOCK_MS,
+        b: DEFAULT_CLOCK_MS,
+        activeColor: fenTurn(c.fen()),
+        baseTime: Date.now(),
+      })
+      setLiveClocks({ w: DEFAULT_CLOCK_MS, b: DEFAULT_CLOCK_MS })
+      setFlagged(null)
     } catch (err) {
       console.error('[chess SP] resume failed', err)
       clearSPSave()
@@ -303,6 +312,14 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     setPendingPromotion(null)
     setResult(null)
     setResumeOffer(null)
+    setClockBase({
+      w: DEFAULT_CLOCK_MS,
+      b: DEFAULT_CLOCK_MS,
+      activeColor: 'w',
+      baseTime: Date.now(),
+    })
+    setLiveClocks({ w: DEFAULT_CLOCK_MS, b: DEFAULT_CLOCK_MS })
+    setFlagged(null)
   }, [])
 
   // Clear save on game over (chess SP only — MP uses socket reconnect)
@@ -604,10 +621,13 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     }
   }, [isMP, room, user?.id, myColor, toast])
 
-  // ===== Local clock countdown (MP only, runs whether or not opponent
-  //       has disconnected — per Note 1) =====
+  // ===== Local clock countdown =====
+  // Runs in BOTH multiplayer and vs computer mode. In MP the
+  // clockBase comes from the server (move_accepted carries clocks).
+  // In SP we drive clockBase locally — see the next effect that
+  // flips activeColor whenever the FEN turn changes.
   useEffect(() => {
-    if (!isMP || result || flagged) return
+    if (result || flagged) return
     let lastDebugLog = 0
     const id = setInterval(() => {
       const now = Date.now()
@@ -619,7 +639,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         ? Math.max(0, clockBase.b - elapsed)
         : clockBase.b
       setLiveClocks({ w: wRem, b: bRem })
-      if (now - lastDebugLog >= 5000) {
+      if (isMP && now - lastDebugLog >= 5000) {
         lastDebugLog = now
         console.log('[clock] tick:', {
           white: wRem,
@@ -633,14 +653,46 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       if (wRem === 0 && clockBase.activeColor === 'w') {
         setFlagged('w')
         clearInterval(id)
+        if (!isMP) {
+          setResult({
+            winner: 'b',
+            reason: myColor === 'w' ? 'YOU FLAGGED' : 'STOCKFISH FLAGGED',
+          })
+        }
       }
       if (bRem === 0 && clockBase.activeColor === 'b') {
         setFlagged('b')
         clearInterval(id)
+        if (!isMP) {
+          setResult({
+            winner: 'w',
+            reason: myColor === 'b' ? 'YOU FLAGGED' : 'STOCKFISH FLAGGED',
+          })
+        }
       }
     }, 100)
     return () => clearInterval(id)
   }, [isMP, clockBase, result, flagged, myColor])
+
+  // ===== SP clock driver =====
+  // In vs-computer mode there is no server, so we have to commit the
+  // moving side's remaining time and flip activeColor whenever the
+  // FEN's turn marker changes (i.e. after every accepted move,
+  // player or AI). This effect is the SP equivalent of MP's
+  // move_accepted clock update.
+  useEffect(() => {
+    if (isMP) return
+    if (result || flagged) return
+    const turnNow = fenTurn(fen)
+    if (turnNow === clockBase.activeColor) return
+    setClockBase({
+      w: liveClocks.w,
+      b: liveClocks.b,
+      activeColor: turnNow,
+      baseTime: Date.now(),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fen, isMP, result, flagged])
 
   // ===== Computer mode AI loop =====
   useEffect(() => {
@@ -1036,14 +1088,12 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         className="relative mx-auto flex shrink-0 flex-col"
         style={{ width: boardSize }}
       >
-        {isMP && (
-          <ClockRow
-            name={opponentLabel}
-            ms={liveClocks[opponentColor]}
-            active={turn === opponentColor && !result && !flagged}
-            colorClass="bg-arcadia-surface"
-          />
-        )}
+        <ClockRow
+          name={opponentLabel}
+          ms={liveClocks[opponentColor]}
+          active={turn === opponentColor && !result && !flagged}
+          colorClass="bg-arcadia-surface"
+        />
         <CapturedRow
           pieces={captured[myColor === 'w' ? 'b' : 'w']}
           opponentPieces={captured[myColor === 'w' ? 'w' : 'b']}
@@ -1075,14 +1125,12 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           accent="pink"
           label="LOST"
         />
-        {isMP && (
-          <ClockRow
-            name={displayName ?? 'You'}
-            ms={liveClocks[myColor ?? 'w']}
-            active={turn === (myColor ?? 'w') && !result && !flagged}
-            colorClass="bg-arcadia-surface"
-          />
-        )}
+        <ClockRow
+          name={displayName ?? 'You'}
+          ms={liveClocks[myColor ?? 'w']}
+          active={turn === (myColor ?? 'w') && !result && !flagged}
+          colorClass="bg-arcadia-surface"
+        />
 
         {isMP && (
           <div className="mt-2 rounded-md border border-white/10 bg-arcadia-bg/70 px-2 py-1 font-mono text-[9px] text-white/55">
