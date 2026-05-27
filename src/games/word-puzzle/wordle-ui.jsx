@@ -1,3 +1,5 @@
+import { useViewport } from '../../hooks/useViewport'
+
 export const ROWS = 6
 export const STATE_PRIORITY = { correct: 3, present: 2, absent: 1 }
 export const KEY_ROWS = [
@@ -5,6 +7,42 @@ export const KEY_ROWS = [
   ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
   ['ENTER', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', '⌫'],
 ]
+
+// Compute tile + key sizes that keep the 6-row grid and the on-screen
+// keyboard both visible without scrolling on any viewport.
+//   Default formula: cell = min(availableH/6, availableW/cols, 62)
+//   If that drops below 36px, shrink keyboard rows to 38px and retry.
+//   Very short viewports (height < 580) get 36px keys + tighter row gap.
+export function useWordPuzzleSize(cols = 5) {
+  const { width, height } = useViewport()
+  const headerH = 72
+  const padding = 32
+  const veryShort = height < 580
+
+  let keyH = veryShort ? 36 : 48
+  let rowGap = veryShort ? 4 : 6
+  let keyboardH = keyH * 3 + 8 * 2 // 3 rows + 2 row gaps (~8px)
+
+  const compute = (kbH) => {
+    const availableH = Math.max(120, height - headerH - kbH - padding)
+    const availableW = Math.max(120, width - 32)
+    return Math.min(
+      Math.floor(availableH / ROWS),
+      Math.floor(availableW / cols),
+      62,
+    )
+  }
+
+  let cellSize = compute(keyboardH)
+  if (cellSize < 36 && keyH > 38) {
+    keyH = 38
+    keyboardH = keyH * 3 + 8 * 2
+    cellSize = compute(keyboardH)
+  }
+  cellSize = Math.max(28, cellSize) // absolute floor
+
+  return { cellSize, keyH, rowGap }
+}
 
 export function makeEmptyBoard(cols) {
   return Array.from({ length: ROWS }, () =>
@@ -37,19 +75,32 @@ export function evaluate(guess, answer) {
   return result
 }
 
-export function Board({ board, cols, activeRow, shakeRow }) {
+export function Board({
+  board,
+  cols,
+  activeRow,
+  shakeRow,
+  cellSize = 56,
+  rowGap = 6,
+}) {
   return (
-    <div className="flex flex-col gap-1.5" style={{ perspective: '600px' }}>
+    <div
+      className="flex flex-col"
+      style={{ perspective: '600px', gap: `${rowGap}px` }}
+    >
       {board.map((row, r) => (
         <div
           key={r}
-          className={`grid gap-1.5 ${
+          className={`grid ${
             shakeRow && r === activeRow ? 'wp-row-shake' : ''
           }`}
-          style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}
+          style={{
+            gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+            gap: `${rowGap}px`,
+          }}
         >
           {row.map((tile, c) => (
-            <Tile key={c} tile={tile} index={c} cols={cols} />
+            <Tile key={c} tile={tile} index={c} cellSize={cellSize} />
           ))}
         </div>
       ))}
@@ -57,7 +108,7 @@ export function Board({ board, cols, activeRow, shakeRow }) {
   )
 }
 
-function Tile({ tile, index, cols }) {
+function Tile({ tile, index, cellSize = 56 }) {
   const animClass =
     tile.state === 'correct'
       ? 'wp-tile-correct'
@@ -68,25 +119,24 @@ function Tile({ tile, index, cols }) {
           : ''
   const popClass = tile.state === 'typed' ? 'wp-tile-pop' : ''
   const baseBg = tile.state === 'typed' ? 'border-white/35' : 'border-white/15'
-
-  const sizeClass =
-    cols >= 6
-      ? 'h-12 w-12 text-base sm:h-14 sm:w-14 sm:text-lg'
-      : cols === 4
-        ? 'h-16 w-16 text-xl sm:h-20 sm:w-20 sm:text-2xl'
-        : 'h-14 w-14 text-lg sm:h-16 sm:w-16 sm:text-xl'
+  const fontSize = Math.max(12, Math.floor(cellSize * 0.45))
 
   return (
     <div
-      className={`flex items-center justify-center rounded-md border-2 bg-arcadia-surface font-arcade uppercase tracking-wider text-white ${sizeClass} ${baseBg} ${animClass} ${popClass}`}
-      style={{ animationDelay: animClass ? `${index * 0.3}s` : undefined }}
+      className={`flex items-center justify-center rounded-md border-2 bg-arcadia-surface font-arcade uppercase tracking-wider text-white ${baseBg} ${animClass} ${popClass}`}
+      style={{
+        width: cellSize,
+        height: cellSize,
+        fontSize,
+        animationDelay: animClass ? `${index * 0.3}s` : undefined,
+      }}
     >
       {tile.letter}
     </div>
   )
 }
 
-export function Keyboard({ keyStates, onKey }) {
+export function Keyboard({ keyStates, onKey, keyH = 48 }) {
   return (
     <div className="flex w-full flex-col items-center gap-1.5">
       {KEY_ROWS.map((row, ri) => (
@@ -98,6 +148,7 @@ export function Keyboard({ keyStates, onKey }) {
               state={keyStates[k]}
               onClick={() => onKey(k)}
               wide={k === 'ENTER' || k === '⌫'}
+              keyH={keyH}
             />
           ))}
         </div>
@@ -106,7 +157,7 @@ export function Keyboard({ keyStates, onKey }) {
   )
 }
 
-function KeyButton({ label, state, onClick, wide }) {
+function KeyButton({ label, state, onClick, wide, keyH = 48 }) {
   let cls = 'border-white/15 bg-arcadia-surface text-white hover:bg-white/5'
   if (state === 'correct')
     cls = 'border-neon-green bg-neon-green text-arcadia-bg'
@@ -115,13 +166,20 @@ function KeyButton({ label, state, onClick, wide }) {
   else if (state === 'absent')
     cls = 'border-white/10 bg-[#2a2a36] text-white/50'
 
+  // Font size scales with key height so short viewports stay readable.
+  const fontSize = Math.max(8, Math.floor(keyH * 0.22))
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex h-12 select-none items-center justify-center rounded-md border font-arcade text-[10px] uppercase transition ${cls} ${
-        wide ? 'flex-[1.6] text-[9px]' : 'flex-1'
+      className={`flex select-none items-center justify-center rounded-md border font-arcade uppercase transition ${cls} ${
+        wide ? 'flex-[1.6]' : 'flex-1'
       }`}
+      style={{
+        height: keyH,
+        fontSize: wide ? Math.max(7, fontSize - 1) : fontSize,
+      }}
     >
       {label}
     </button>

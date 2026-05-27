@@ -15,6 +15,7 @@ import {
   evaluate,
   makeEmptyBoard,
   updateKeyStates,
+  useWordPuzzleSize,
 } from './wordle-ui'
 
 const COLS = 5
@@ -52,6 +53,7 @@ export default function WordPuzzleBattle({ roomCode }) {
   const [currentGuess, setCurrentGuess] = useState('')
   const [keyStates, setKeyStates] = useState({})
   const [status, setStatus] = useState('playing') // playing | won | lost
+  const { cellSize, keyH, rowGap } = useWordPuzzleSize(COLS)
   const [revealing, setRevealing] = useState(false)
   const [shakeRow, setShakeRow] = useState(false)
   const [opponentGuessCount, setOpponentGuessCount] = useState(0)
@@ -302,6 +304,8 @@ export default function WordPuzzleBattle({ roomCode }) {
           cols={COLS}
           activeRow={currentRow}
           shakeRow={shakeRow}
+          cellSize={cellSize}
+          rowGap={rowGap}
         />
 
         {(youWon || status === 'lost' || winnerInfo) && (
@@ -314,7 +318,7 @@ export default function WordPuzzleBattle({ roomCode }) {
           />
         )}
 
-        <Keyboard keyStates={keyStates} onKey={handleKeyInput} />
+        <Keyboard keyStates={keyStates} onKey={handleKeyInput} keyH={keyH} />
       </div>
 
       <aside className="flex flex-col gap-4">
