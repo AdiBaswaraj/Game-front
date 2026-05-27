@@ -8,6 +8,8 @@ import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
+import { useViewport } from '../../hooks/useViewport'
+import { useFullscreen } from '../../hooks/useFullscreen'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import {
   DIFFICULTY_DEPTH,
@@ -137,7 +139,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [myColor, setMyColor] = useState(mode === 'computer' ? 'w' : null)
   const [result, setResult] = useState(null) // {winner: 'w'|'b'|'draw', reason}
   const [error, setError] = useState(null)
-  const [boardSize, setBoardSize] = useState(420)
+  // boardSize now derived from viewport; containerRef no longer needed
+  // for measurement but kept for any future use.
   const containerRef = useRef(null)
   const aiThinkingRef = useRef(false)
   const [aiThinking, setAiThinking] = useState(false)
@@ -171,16 +174,28 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
 
   const opponentDc = useOpponentDisconnect(isMP ? roomCode : null)
 
-  // Responsive board size — pick the smaller of container width / 480
-  useEffect(() => {
-    const update = () => {
-      const w = containerRef.current?.clientWidth ?? 420
-      setBoardSize(Math.min(480, w))
-    }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
-  }, [])
+  // Viewport-aware board size. Desktop reserves room for the right-
+  // side info panel (clocks + captures + move list); mobile reserves
+  // a vertical strip for the same controls stacked below the board.
+  const { width: vw, height: vh } = useViewport()
+  const { isFullscreen } = useFullscreen()
+  const isDesktop = vw >= 1024
+  const sidebarWidth = isDesktop ? 304 : 0
+  const headerH = isFullscreen ? 56 : 72
+  // Mobile strip = top clock + bottom clock + captured rows + move
+  // list panel + buttons. Desktop sidebar covers all of that.
+  const controlsH = isDesktop
+    ? 24
+    : isFullscreen
+      ? 200
+      : 280
+  const pad = isFullscreen ? 8 : 16
+  const availW = Math.max(0, vw - sidebarWidth - pad * 2)
+  const availH = Math.max(0, vh - headerH - controlsH - pad * 2)
+  const boardSize = Math.max(
+    260,
+    Math.min(availW, availH, isFullscreen ? 720 : 560),
+  )
 
   // ===== Computer mode: subscribe to Stockfish state =====
   useEffect(() => {
@@ -1015,8 +1030,12 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_18rem]">
-      <div ref={containerRef} className="relative mx-auto w-full max-w-[480px]">
+    <div className="flex h-full flex-col gap-3 lg:grid lg:grid-cols-[auto_18rem] lg:gap-5">
+      <div
+        ref={containerRef}
+        className="relative mx-auto flex shrink-0 flex-col"
+        style={{ width: boardSize }}
+      >
         {isMP && (
           <ClockRow
             name={opponentLabel}
@@ -1097,7 +1116,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         {result && <ResultPanel result={result} myColor={myColor} />}
       </div>
 
-      <aside className="flex flex-col gap-3">
+      <aside className="flex shrink-0 flex-col gap-2 lg:gap-3">
         {!isMP && engineState === 'loading' && (
           <div className="flex items-center gap-2 rounded-lg border border-neon-cyan/40 bg-neon-cyan/10 px-3 py-2 text-[10px] text-neon-cyan">
             <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-neon-cyan shadow-neon-cyan" />
@@ -1308,7 +1327,7 @@ function MoveList({ history, scrollRef }) {
       <p className="font-arcade text-[9px] text-white/45">MOVES</p>
       <div
         ref={scrollRef}
-        className="mt-2 max-h-44 overflow-y-auto font-mono text-xs leading-relaxed text-white/75"
+        className="mt-2 max-h-[100px] overflow-y-auto font-mono text-xs leading-relaxed text-white/75 lg:max-h-44"
       >
         {history.length === 0 ? (
           <p className="text-white/30">No moves yet.</p>
