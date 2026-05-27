@@ -7,6 +7,8 @@ import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
+import { useViewport } from '../../hooks/useViewport'
+import { useFullscreen } from '../../hooks/useFullscreen'
 import {
   GOAL,
   LADDERS,
@@ -431,6 +433,24 @@ export default function SnakeAndLadderGame({ roomCode }) {
     myIdx >= 0 && room?.players
       ? room.players.find((_, i) => i !== myIdx)
       : null
+
+  // Viewport-aware board size. On desktop the sidebar lives in its own
+  // column so we only subtract the header; on mobile we subtract a
+  // fixed controls strip (players + log + dice). In fullscreen we
+  // give the board more room.
+  const { width: vw, height: vh } = useViewport()
+  const { isFullscreen } = useFullscreen()
+  const isDesktop = vw >= 1024
+  const sidebarWidth = isDesktop ? 304 : 0
+  const headerH = isFullscreen ? 56 : 72
+  const controlsH = isDesktop ? 24 : isFullscreen ? 200 : 280
+  const pad = isFullscreen ? 8 : 16
+  const availW = Math.max(0, vw - sidebarWidth - pad * 2)
+  const availH = Math.max(0, vh - headerH - controlsH - pad * 2)
+  const boardSize = Math.max(
+    260,
+    Math.min(availW, availH, isFullscreen ? 760 : 600),
+  )
   const leaveModal = useGameLeaveGuard({
     active: winner == null && !!room,
     kind: 'multi',
@@ -514,19 +534,22 @@ export default function SnakeAndLadderGame({ roomCode }) {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_18rem]">
+    <div className="flex h-full flex-col gap-3 lg:grid lg:grid-cols-[auto_18rem] lg:gap-5">
       {showDiceDebug && (
         <DiceDistribution
           rollHistory={rollHistory}
           onClose={() => setShowDiceDebug(false)}
         />
       )}
-      <Board
-        positions={positions}
-        winner={winner}
-        room={room}
-        flash={flash}
-      />
+      <div className="flex shrink-0 justify-center lg:row-span-1">
+        <Board
+          positions={positions}
+          winner={winner}
+          room={room}
+          flash={flash}
+          size={boardSize}
+        />
+      </div>
       <Sidebar
         room={room}
         myIdx={myIdx}
@@ -550,7 +573,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
   )
 }
 
-function Board({ positions, winner, room, flash }) {
+function Board({ positions, winner, room, flash, size = 560 }) {
   const cells = []
   for (let row = 0; row < SIZE; row++) {
     for (let col = 0; col < SIZE; col++) {
@@ -567,8 +590,8 @@ function Board({ positions, winner, room, flash }) {
 
   return (
     <div
-      className="relative w-full max-w-[640px] self-start rounded-xl border-2 border-neon-cyan/50 bg-arcadia-surface p-2 shadow-neon-cyan"
-      style={{ aspectRatio: '1/1' }}
+      className="relative shrink-0 self-start rounded-xl border-2 border-neon-cyan/50 bg-arcadia-surface p-2 shadow-neon-cyan"
+      style={{ width: size, height: size }}
     >
       <div
         className="grid h-full w-full overflow-hidden rounded-md"
@@ -767,8 +790,9 @@ function Sidebar({
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
   }, [log?.length])
   return (
-    <aside className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
+    <aside className="flex shrink-0 flex-col gap-2 lg:gap-3">
+      {/* Player row — horizontal on mobile, vertical on desktop */}
+      <div className="flex flex-row gap-2 lg:flex-col">
         {[0, 1].map((i) => {
           const p = room.players[i]
           const me = i === myIdx
@@ -776,26 +800,32 @@ function Sidebar({
           return (
             <div
               key={i}
-              className={`flex items-center gap-3 rounded-lg border bg-arcadia-surface/70 px-3 py-2 ${
+              className={`flex flex-1 items-center gap-2 rounded-lg border bg-arcadia-surface/70 px-2 py-1.5 lg:gap-3 lg:px-3 lg:py-2 ${
                 onTurn
-                  ? 'border-neon-green/50 shadow-neon-green'
+                  ? 'border-neon-green/60 shadow-neon-green'
                   : 'border-white/10'
               }`}
             >
-              <Avatar name={p?.username ?? '—'} size="md" />
+              <span
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full lg:hidden"
+                style={{ backgroundColor: TOKEN_COLORS[i] }}
+              />
+              <span className="hidden lg:inline-flex">
+                <Avatar name={p?.username ?? '—'} size="md" />
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-arcade text-[10px] text-white">
+                <p className="truncate font-arcade text-[9px] leading-tight text-white lg:text-[10px]">
                   {p?.username ?? 'Waiting…'} {me && '· YOU'}
                 </p>
                 <p
-                  className="font-arcade text-[9px]"
+                  className="font-arcade text-[8px] leading-tight lg:text-[9px]"
                   style={{ color: TOKEN_COLORS[i] }}
                 >
-                  SQUARE {positions[i] ?? 1}
+                  SQ {positions[i] ?? 1}
                 </p>
               </div>
               {onTurn && (
-                <span className="font-arcade text-[9px] text-neon-green">
+                <span className="font-arcade text-[8px] text-neon-green lg:text-[9px]">
                   TURN
                 </span>
               )}
@@ -804,18 +834,43 @@ function Sidebar({
         })}
       </div>
 
-      <EventLog log={log} room={room} scrollRef={logRef} />
+      {/* Compact event log — 3 lines on mobile, more on desktop */}
+      <div className="rounded-md border border-white/10 bg-arcadia-bg/60 p-2">
+        <p className="font-arcade text-[8px] text-white/45 lg:text-[9px]">LOG</p>
+        <div
+          ref={logRef}
+          className="mt-1 max-h-[60px] space-y-0.5 overflow-y-auto font-mono text-[9px] leading-snug lg:max-h-32 lg:text-[10px]"
+        >
+          {!log || log.length === 0 ? (
+            <p className="text-white/30">Waiting on first roll…</p>
+          ) : (
+            log.map((e, i) => {
+              const dotColor =
+                TOKEN_COLORS[e.playerIdx % TOKEN_COLORS.length]
+              const name =
+                e.name ?? room?.players?.[e.playerIdx]?.username ?? 'Player'
+              return (
+                <div key={i} className="flex items-start gap-1.5">
+                  <span style={{ color: dotColor }}>●</span>
+                  <span className="text-white">{name}</span>
+                  <span className="text-white/70">{e.text}</span>
+                </div>
+              )
+            })
+          )}
+        </div>
+      </div>
 
-      <div className="rounded-lg border border-white/10 bg-arcadia-surface/70 p-4 text-center">
-        <p className="font-arcade text-[9px] text-white/45">DICE</p>
-        <p className="my-2 text-6xl text-neon-green drop-shadow-[0_0_12px_rgba(0,255,136,0.45)]">
+      {/* Dice row — horizontal on mobile, vertical on desktop */}
+      <div className="flex shrink-0 items-stretch gap-2 rounded-lg border border-white/10 bg-arcadia-surface/70 p-2 lg:flex-col lg:p-4 lg:text-center">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-arcadia-bg text-4xl text-neon-green drop-shadow-[0_0_10px_rgba(0,255,136,0.45)] lg:my-2 lg:h-auto lg:w-auto lg:bg-transparent lg:text-6xl">
           {diceFace ? DICE_FACES[diceFace - 1] : '·'}
-        </p>
+        </div>
         <button
           type="button"
           onClick={onRoll}
           disabled={!myTurn || rolling || animating || winner != null}
-          className={`mt-2 w-full rounded-md border-2 py-2.5 font-arcade text-[11px] transition ${
+          className={`flex-1 rounded-md border-2 px-3 py-2 font-arcade text-[11px] transition ${
             myTurn && !rolling && !animating && winner == null
               ? 'border-neon-green/70 bg-neon-green/10 text-neon-green hover:bg-neon-green/20 hover:shadow-neon-green'
               : 'cursor-not-allowed border-white/15 text-white/35'
@@ -844,12 +899,12 @@ function Sidebar({
         type="button"
         onClick={onSync}
         disabled={reconnecting}
-        className="rounded-md border border-white/15 px-3 py-2 font-arcade text-[9px] text-white/55 hover:border-neon-cyan/60 hover:text-neon-cyan disabled:opacity-50"
+        className="hidden rounded-md border border-white/15 px-3 py-2 font-arcade text-[9px] text-white/55 hover:border-neon-cyan/60 hover:text-neon-cyan disabled:opacity-50 lg:block"
       >
         {reconnecting ? 'SYNCING…' : '↻ SYNC'}
       </button>
 
-      <p className="text-center text-[10px] text-white/35">
+      <p className="hidden text-center text-[10px] text-white/35 lg:block">
         ↑ Ladders climb · ↓ Snakes slide
       </p>
     </aside>
