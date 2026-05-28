@@ -6,6 +6,9 @@ import LeaderboardPage from './pages/LeaderboardPage'
 import ProfilePage from './pages/ProfilePage'
 import SettingsPage from './pages/SettingsPage'
 import JoinByCodePage from './pages/JoinByCodePage'
+import PrivacyPage from './pages/legal/PrivacyPage'
+import TermsPage from './pages/legal/TermsPage'
+import CookiesPage from './pages/legal/CookiesPage'
 import PageTransition from './components/PageTransition'
 import { FriendsProvider } from './context/FriendsContext'
 import { LeaveGuardProvider } from './context/LeaveGuardContext'
@@ -41,6 +44,9 @@ export default function App() {
                     path="/join/:roomCode"
                     element={<JoinByCodePage />}
                   />
+                  <Route path="/privacy" element={<PrivacyPage />} />
+                  <Route path="/terms" element={<TermsPage />} />
+                  <Route path="/cookies" element={<CookiesPage />} />
                 </Routes>
               </PageTransition>
             </div>
