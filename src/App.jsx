@@ -14,20 +14,25 @@ export default function App() {
     <BrowserRouter>
       <FriendsProvider>
         <LeaveGuardProvider>
-          <Routes>
-            <Route path="/" element={<Lobby />} />
-            <Route path="/game/:gameId" element={<GamePage />} />
-            <Route path="/game/:gameId/:difficulty" element={<GamePage />} />
-            <Route
-              path="/game/:gameId/:difficulty/:variant"
-              element={<GamePage />}
-            />
-            <Route path="/room/:roomCode" element={<RoomPage />} />
-            <Route path="/leaderboard" element={<LeaderboardPage />} />
-            <Route path="/profile/:username" element={<ProfilePage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/join/:roomCode" element={<JoinByCodePage />} />
-          </Routes>
+          <div className="scanlines">
+            <Routes>
+              <Route path="/" element={<Lobby />} />
+              <Route path="/game/:gameId" element={<GamePage />} />
+              <Route
+                path="/game/:gameId/:difficulty"
+                element={<GamePage />}
+              />
+              <Route
+                path="/game/:gameId/:difficulty/:variant"
+                element={<GamePage />}
+              />
+              <Route path="/room/:roomCode" element={<RoomPage />} />
+              <Route path="/leaderboard" element={<LeaderboardPage />} />
+              <Route path="/profile/:username" element={<ProfilePage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/join/:roomCode" element={<JoinByCodePage />} />
+            </Routes>
+          </div>
         </LeaveGuardProvider>
       </FriendsProvider>
     </BrowserRouter>

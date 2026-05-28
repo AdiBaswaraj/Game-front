@@ -4,11 +4,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        'arcadia-bg': '#0a0a0f',
+        'arcadia-bg': '#050508',
         'arcadia-surface': '#11111a',
         'neon-green': '#00ff88',
         'neon-cyan': '#00d4ff',
         'neon-pink': '#ff006e',
+        'neon-purple': '#7000ff',
       },
       fontFamily: {
         arcade: ['"Press Start 2P"', 'system-ui', 'monospace'],
@@ -18,6 +19,7 @@ export default {
         'neon-green': '0 0 12px rgba(0, 255, 136, 0.55), 0 0 24px rgba(0, 255, 136, 0.25)',
         'neon-cyan': '0 0 12px rgba(0, 212, 255, 0.55), 0 0 24px rgba(0, 212, 255, 0.25)',
         'neon-pink': '0 0 12px rgba(255, 0, 110, 0.55), 0 0 24px rgba(255, 0, 110, 0.25)',
+        'neon-purple': '0 0 12px rgba(112, 0, 255, 0.55), 0 0 24px rgba(112, 0, 255, 0.25)',
       },
       keyframes: {
         blink: {

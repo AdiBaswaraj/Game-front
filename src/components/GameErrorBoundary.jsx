@@ -25,7 +25,7 @@ export default class GameErrorBoundary extends Component {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="scanlines relative flex min-h-screen flex-col items-center justify-center gap-4 bg-arcadia-bg px-6 text-center text-white">
+        <div className="relative flex min-h-screen flex-col items-center justify-center gap-4 bg-arcadia-bg px-6 text-center text-white">
           <p className="font-arcade text-2xl text-neon-pink drop-shadow-[0_0_12px_rgba(255,0,110,0.55)]">
             ⚠ GAME CRASHED
           </p>

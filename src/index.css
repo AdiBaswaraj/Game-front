@@ -4,14 +4,50 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Backgrounds */
+  --bg-base: #050508;
+  --bg-surface: rgba(255, 255, 255, 0.04);
+  --bg-surface-hover: rgba(255, 255, 255, 0.07);
+  --bg-surface-active: rgba(255, 255, 255, 0.10);
+
+  /* Glass */
+  --glass-blur: blur(12px);
+  --glass-border: rgba(0, 255, 136, 0.15);
+  --glass-border-hover: rgba(0, 255, 136, 0.4);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  --glass-shadow-hover: 0 12px 40px rgba(0, 255, 136, 0.15);
+
+  /* Neon colors */
+  --neon-green: #00ff88;
+  --neon-cyan: #00d4ff;
+  --neon-pink: #ff006e;
+  --neon-purple: #7000ff;
+
+  /* Neon glows */
+  --glow-green: 0 0 20px rgba(0, 255, 136, 0.5);
+  --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.5);
+  --glow-pink: 0 0 20px rgba(255, 0, 110, 0.5);
+  --glow-purple: 0 0 20px rgba(112, 0, 255, 0.5);
+
+  /* Typography */
+  --font-pixel: 'Press Start 2P', monospace;
+  --font-body: 'Outfit', sans-serif;
+
+  /* Timing */
+  --transition-fast: 150ms ease-out;
+  --transition-base: 250ms ease-out;
+  --transition-spring: 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 html,
 body,
 #root {
   margin: 0;
   min-height: 100vh;
-  background-color: #0a0a0f;
+  background-color: var(--bg-base);
   color: #e6e6f0;
-  font-family: 'Outfit', system-ui, sans-serif;
+  font-family: var(--font-body);
 }
 
 @layer utilities {
@@ -22,33 +58,79 @@ body,
     background-size: 60px 60px;
   }
 
-  .scanlines::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 50;
-    background: repeating-linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.04) 0px,
-      rgba(255, 255, 255, 0.04) 1px,
-      transparent 1px,
-      transparent 3px
-    );
-    mix-blend-mode: overlay;
+  /* ===== Section A — glass / pixel / neon utilities ===== */
+
+  .glass-panel {
+    background: var(--bg-surface);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    border-radius: 12px;
+    transition:
+      border-color var(--transition-base),
+      box-shadow var(--transition-base),
+      background-color var(--transition-base);
+  }
+  .glass-panel:hover {
+    border-color: var(--glass-border-hover);
+    box-shadow: var(--glass-shadow-hover);
   }
 
+  .pixel-corners {
+    position: relative;
+  }
+  .pixel-corners::before,
+  .pixel-corners::after {
+    content: '';
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-color: var(--neon-green);
+    border-style: solid;
+    pointer-events: none;
+    transition: border-color var(--transition-base);
+  }
+  .pixel-corners::before {
+    top: -1px;
+    left: -1px;
+    border-width: 2px 0 0 2px;
+  }
+  .pixel-corners::after {
+    bottom: -1px;
+    right: -1px;
+    border-width: 0 2px 2px 0;
+  }
+  .pixel-corners-cyan::before,
+  .pixel-corners-cyan::after { border-color: var(--neon-cyan); }
+  .pixel-corners-pink::before,
+  .pixel-corners-pink::after { border-color: var(--neon-pink); }
+  .pixel-corners-purple::before,
+  .pixel-corners-purple::after { border-color: var(--neon-purple); }
+  .pixel-corners-amber::before,
+  .pixel-corners-amber::after { border-color: #ffd700; }
+
+  .neon-text {
+    text-shadow:
+      0 0 7px currentColor,
+      0 0 10px currentColor,
+      0 0 21px currentColor;
+  }
+
+  /* Subtle CRT scanline overlay — applied once at the app root. */
   .scanlines::after {
     content: '';
     position: fixed;
     inset: 0;
-    pointer-events: none;
-    z-index: 51;
-    background: radial-gradient(
-      ellipse at center,
-      transparent 55%,
-      rgba(0, 0, 0, 0.55) 100%
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
     );
+    pointer-events: none;
+    z-index: 9999;
   }
 }
 
