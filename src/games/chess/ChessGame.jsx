@@ -1316,19 +1316,24 @@ function ResumeModal({ savedAt, difficulty, onResume, onNewGame }) {
 function ClockRow({ name, ms, active, colorClass = '' }) {
   const low = ms < 60_000 && ms > 0
   const dead = ms <= 0
-  const cls = active
+  const cornerCls = active
     ? low
-      ? 'text-neon-pink border-neon-pink/70 shadow-neon-pink chess-clock-low'
-      : 'text-neon-green border-neon-green/70 shadow-neon-green'
-    : 'text-white/45 border-white/15'
+      ? 'pixel-corners pixel-corners-pink'
+      : 'pixel-corners'
+    : 'pixel-corners pixel-corners-cyan'
+  const stateCls = active
+    ? low
+      ? 'text-neon-pink shadow-neon-pink chess-clock-low'
+      : 'text-neon-green shadow-neon-green'
+    : 'text-white/45'
   return (
     <div
-      className={`my-1 flex items-center justify-between rounded-md border px-3 py-1.5 font-mono ${colorClass} ${cls}`}
+      className={`glass-panel ${cornerCls} my-1 flex items-center justify-between px-3 py-1.5 font-mono ${colorClass} ${stateCls}`}
     >
       <span className="truncate font-arcade text-[9px] text-white/55">
         {name}
       </span>
-      <span className="font-arcade text-base tracking-wider">
+      <span className="neon-text font-arcade text-base tracking-wider">
         {dead ? '00:00' : fmtClock(ms)}
       </span>
     </div>
@@ -1463,14 +1468,25 @@ function ResultPanel({ result, myColor, signedIn }) {
   const won = !isDraw && result.winner === myColor
   const title = isDraw ? 'DRAW' : won ? 'YOU WIN!' : 'YOU LOST'
   const accent = won
-    ? 'border-neon-green/60 shadow-neon-green text-neon-green'
+    ? 'shadow-neon-green text-neon-green'
     : isDraw
-      ? 'border-neon-cyan/60 shadow-neon-cyan text-neon-cyan'
-      : 'border-neon-pink/60 shadow-neon-pink text-neon-pink'
+      ? 'shadow-neon-cyan text-neon-cyan'
+      : 'shadow-neon-pink text-neon-pink'
+  const cornerCls = isDraw
+    ? 'pixel-corners-cyan'
+    : won
+      ? ''
+      : 'pixel-corners-pink'
+  const borderColor = won
+    ? 'rgba(0,255,136,0.5)'
+    : isDraw
+      ? 'rgba(0,212,255,0.5)'
+      : 'rgba(255,0,110,0.5)'
 
   return (
     <div
-      className={`go-overlay-in relative mt-4 overflow-visible rounded-xl border-2 bg-arcadia-surface/85 px-5 py-4 text-center backdrop-blur ${accent}`}
+      className={`go-overlay-in glass-panel pixel-corners ${cornerCls} relative mt-4 overflow-visible px-5 py-4 text-center ${accent}`}
+      style={{ borderColor, borderWidth: 2 }}
     >
       {won && <WinParticles />}
       <p

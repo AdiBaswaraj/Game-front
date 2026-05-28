@@ -453,7 +453,16 @@ export default function SnakeGame() {
 
 function Overlay({ children }) {
   return (
-    <div className="go-overlay-in absolute inset-2 flex flex-col items-center justify-center rounded-md bg-arcadia-bg/85 px-6 text-center backdrop-blur-sm">
+    <div
+      className="go-overlay-in pixel-corners pixel-corners-pink absolute inset-2 flex flex-col items-center justify-center px-6 text-center"
+      style={{
+        background: 'rgba(5, 5, 8, 0.85)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        border: '1px solid var(--glass-border)',
+        borderRadius: 12,
+      }}
+    >
       {children}
     </div>
   )
@@ -484,9 +493,11 @@ function Hud({ score, highScore, level, signedIn }) {
 
 function Stat({ label, value, accent }) {
   return (
-    <div className="flex items-center justify-between rounded-md border border-white/10 bg-arcadia-surface/60 px-4 py-3">
+    <div className="glass-panel pixel-corners flex items-center justify-between px-4 py-3">
       <span className="font-arcade text-[9px] text-white/45">{label}</span>
-      <span className={`font-arcade text-base ${accent}`}>{value}</span>
+      <span className={`neon-text font-arcade text-base ${accent}`}>
+        {value}
+      </span>
     </div>
   )
 }

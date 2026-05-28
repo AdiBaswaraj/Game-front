@@ -430,3 +430,11 @@ body,
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ===== Section E — waiting pulse for room screen ===== */
+
+@keyframes waiting-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.waiting-pulse { animation: waiting-pulse 1.4s ease-in-out infinite; }

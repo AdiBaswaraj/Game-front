@@ -379,11 +379,17 @@ function PlayerCard({ accent, name, subtitle, guesses, solved }) {
 
 function ResultOverlay({ youWon, opponentWonFirst, answer, guesses, onLobby }) {
   const accent = youWon
-    ? 'border-neon-green/60 shadow-neon-green text-neon-green'
-    : 'border-neon-pink/60 shadow-neon-pink text-neon-pink'
+    ? 'shadow-neon-green text-neon-green'
+    : 'shadow-neon-pink text-neon-pink'
   return (
     <div
-      className={`go-overlay-in relative w-full max-w-md overflow-visible rounded-xl border-2 bg-arcadia-surface/85 px-6 py-5 text-center backdrop-blur ${accent}`}
+      className={`go-overlay-in glass-panel pixel-corners ${
+        youWon ? '' : 'pixel-corners-pink'
+      } relative w-full max-w-md overflow-visible px-6 py-5 text-center ${accent}`}
+      style={{
+        borderColor: youWon ? 'rgba(0,255,136,0.5)' : 'rgba(255,0,110,0.5)',
+        borderWidth: 2,
+      }}
     >
       {youWon && <WinParticles />}
       <p

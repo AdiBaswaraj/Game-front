@@ -274,20 +274,35 @@ export default function RoomPage() {
 
   return (
     <Shell>
-      <section className="flex flex-col items-center gap-3 text-center">
-        <span className="font-arcade text-[10px] text-white/45">ROOM CODE</span>
-        <div className="flex items-center gap-3">
-          <span className="font-arcade text-3xl tracking-[0.4em] text-neon-green drop-shadow-[0_0_14px_rgba(0,255,136,0.55)] md:text-5xl">
-            {code}
-          </span>
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-3 py-1.5 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
-          >
-            {copied ? '✓ COPIED' : '📋 COPY CODE'}
-          </button>
+      <section className="flex flex-col items-center gap-4 text-center">
+        <span className="font-arcade text-[10px] tracking-[0.3em] text-white/45">
+          ROOM CODE
+        </span>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+          {String(code).split('').map((ch, i) => (
+            <span
+              key={i}
+              className="grid h-12 w-10 place-items-center font-arcade text-2xl text-neon-green sm:h-16 sm:w-14 sm:text-4xl"
+              style={{
+                background: 'rgba(0, 255, 136, 0.05)',
+                border: '1px solid rgba(0, 255, 136, 0.4)',
+                borderRadius: 6,
+                boxShadow:
+                  'inset 0 0 12px rgba(0, 255, 136, 0.18), 0 0 18px rgba(0, 255, 136, 0.25)',
+                textShadow: '0 0 8px rgba(0, 255, 136, 0.7)',
+              }}
+            >
+              {ch}
+            </span>
+          ))}
         </div>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-3 py-1.5 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+        >
+          {copied ? '✓ COPIED' : '📋 COPY CODE'}
+        </button>
         <p className="text-xs text-white/45">
           Send this code to your friend.
         </p>
@@ -361,11 +376,20 @@ export default function RoomPage() {
 function PlayerCard({ player, isMe, label, placeholder }) {
   if (!player) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-white/15 bg-arcadia-surface/40 p-4">
+      <div
+        className="pixel-corners pixel-corners-cyan flex flex-col items-center gap-2 p-4"
+        style={{
+          background: 'var(--bg-surface)',
+          backdropFilter: 'var(--glass-blur)',
+          WebkitBackdropFilter: 'var(--glass-blur)',
+          border: '2px dashed rgba(255, 255, 255, 0.15)',
+          borderRadius: 12,
+        }}
+      >
         <div className="grid h-16 w-16 place-items-center rounded-full border-2 border-white/10 text-2xl text-white/30">
           ?
         </div>
-        <span className="font-arcade text-[10px] text-white/40">
+        <span className="waiting-pulse font-arcade text-[10px] text-white/55">
           {placeholder ?? 'WAITING…'}
         </span>
         <Dots />
@@ -374,11 +398,17 @@ function PlayerCard({ player, isMe, label, placeholder }) {
   }
   return (
     <div
-      className={`flex flex-col items-center gap-2 rounded-xl border-2 bg-arcadia-surface/70 p-4 ${
-        player.ready
-          ? 'border-neon-green/60 shadow-neon-green'
-          : 'border-white/15'
+      className={`glass-panel pixel-corners ${
+        player.ready ? '' : 'pixel-corners-cyan'
+      } flex flex-col items-center gap-2 p-4 ${
+        player.ready ? 'shadow-neon-green' : ''
       }`}
+      style={{
+        borderColor: player.ready
+          ? 'rgba(0, 255, 136, 0.5)'
+          : 'rgba(255, 255, 255, 0.15)',
+        borderWidth: 2,
+      }}
     >
       <Avatar name={player.username} size="lg" />
       <span className="max-w-[10rem] truncate font-arcade text-[11px] text-white">

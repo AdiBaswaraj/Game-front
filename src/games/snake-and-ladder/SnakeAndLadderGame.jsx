@@ -744,7 +744,16 @@ function Board({ positions, winner, myIdx, signedIn, room, flash, size = 560 }) 
       )}
 
       {winner != null && (
-        <div className="go-overlay-in absolute inset-2 flex flex-col items-center justify-center overflow-hidden rounded-md bg-arcadia-bg/85 backdrop-blur-sm">
+        <div
+          className="go-overlay-in pixel-corners pixel-corners-amber absolute inset-2 flex flex-col items-center justify-center overflow-hidden"
+          style={{
+            background: 'rgba(5, 5, 8, 0.85)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255, 215, 0, 0.4)',
+            borderRadius: 12,
+          }}
+        >
           {winner === myIdx && <WinParticles />}
           <p
             className={`relative font-arcade text-2xl drop-shadow-[0_0_18px_currentColor] ${

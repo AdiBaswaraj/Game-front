@@ -117,6 +117,15 @@ const WP_BATTLE_CARDS = [
   },
 ]
 
+const GAME_ACCENTS = {
+  snake: 'green',
+  sudoku: 'cyan',
+  minesweeper: 'pink',
+  chess: 'purple',
+  'snake-and-ladder': 'amber',
+  'word-puzzle': 'cyan',
+}
+
 function GamePageBody() {
   const { gameId, difficulty, variant } = useParams()
   const [searchParams] = useSearchParams()
@@ -125,6 +134,7 @@ function GamePageBody() {
   const game = games.find((g) => g.id === gameId)
   const title = game?.name?.toUpperCase() ?? gameId?.toUpperCase() ?? 'GAME'
   const icon = game?.icon
+  const accent = GAME_ACCENTS[gameId] ?? 'green'
 
   // ===== Chess =====
   if (gameId === 'chess') {
@@ -135,6 +145,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/"
           backLabel="LOBBY"
+          accent={accent}
           loadingVariant="chess"
         >
           <ChessGame mode="multiplayer" roomCode={room} />
@@ -153,6 +164,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/game/chess/computer"
           backLabel="DIFFICULTY"
+          accent={accent}
           loadingVariant="chess"
         >
           <ChessGame mode="computer" difficulty={variant} />
@@ -173,6 +185,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/"
           backLabel="LOBBY"
+          accent={accent}
         >
           <SnakeAndLadderGame roomCode={room} />
         </GameLayout>
@@ -212,6 +225,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/game/snake-and-ladder/computer"
           backLabel="PLAYERS"
+          accent={accent}
         >
           <SnakeAndLadderLocalGame
             playerNames={names}
@@ -234,6 +248,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/"
           backLabel="LOBBY"
+          accent={accent}
         >
           <WordPuzzleBattle roomCode={room} />
         </GameLayout>
@@ -247,6 +262,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/game/word-puzzle"
           backLabel="MODE"
+          accent={accent}
         >
           <WordPuzzleGame mode="daily" length={5} />
         </GameLayout>
@@ -262,6 +278,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/game/word-puzzle/free"
           backLabel="LENGTH"
+          accent={accent}
         >
           <WordPuzzleGame mode="free" length={len} />
         </GameLayout>
@@ -275,6 +292,7 @@ function GamePageBody() {
           cards={WP_BATTLE_CARDS}
           backTo="/game/word-puzzle"
           backLabel="MODE"
+          accent={accent}
         />
       )
     }
@@ -295,6 +313,7 @@ function GamePageBody() {
         icon={icon}
         backTo={`/game/${gameId}/difficulty`}
         backLabel="DIFFICULTY"
+          accent={accent}
       >
         <Component difficulty={difficulty} />
       </GameLayout>
@@ -304,7 +323,7 @@ function GamePageBody() {
   // ===== Simple single-player =====
   const Component = SIMPLE_GAMES[gameId]
   return (
-    <GameLayout title={title} icon={icon}>
+    <GameLayout title={title} icon={icon} accent={accent}>
       {Component ? (
         <Component />
       ) : (

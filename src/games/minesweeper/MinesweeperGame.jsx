@@ -331,9 +331,11 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
 
 function Counter({ value, color, label }) {
   return (
-    <div className="rounded-md border border-white/10 bg-arcadia-bg px-3 py-1.5 text-center">
+    <div className="glass-panel pixel-corners pixel-corners-pink px-3 py-1.5 text-center">
       <p className="font-arcade text-[8px] text-white/40">{label}</p>
-      <p className={`font-arcade text-base tracking-wider ${color}`}>{value}</p>
+      <p className={`neon-text font-arcade text-base tracking-wider ${color}`}>
+        {value}
+      </p>
     </div>
   )
 }
@@ -406,9 +408,14 @@ function Result({ status, time, difficulty, signedIn, onReset }) {
   )
   return (
     <div
-      className={`go-overlay-in relative flex flex-col items-center gap-3 overflow-visible rounded-lg border bg-arcadia-surface/80 px-6 py-5 text-center shadow-lg backdrop-blur ${
-        won ? 'border-neon-green/60 shadow-neon-green' : 'border-neon-pink/60 shadow-neon-pink'
+      className={`go-overlay-in glass-panel pixel-corners ${
+        won ? '' : 'pixel-corners-pink'
+      } relative flex flex-col items-center gap-3 overflow-visible px-6 py-5 text-center ${
+        won ? 'shadow-neon-green' : 'shadow-neon-pink'
       }`}
+      style={{
+        borderColor: won ? 'rgba(0,255,136,0.5)' : 'rgba(255,0,110,0.5)',
+      }}
     >
       {won && <WinParticles />}
       <p

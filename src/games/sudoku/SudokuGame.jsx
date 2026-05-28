@@ -240,9 +240,9 @@ export default function SudokuGame({ difficulty = 'easy' }) {
 
 function Stat({ label, value, accent }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border border-white/10 bg-arcadia-surface/60 px-4 py-2">
+    <div className="glass-panel pixel-corners pixel-corners-cyan flex items-center gap-2 px-4 py-2">
       <span className="font-arcade text-[9px] text-white/45">{label}</span>
-      <span className={`font-arcade text-sm ${accent}`}>{value}</span>
+      <span className={`neon-text font-arcade text-sm ${accent}`}>{value}</span>
     </div>
   )
 }
@@ -344,7 +344,17 @@ function WinOverlay({ time, difficulty, signedIn, onPlayAgain }) {
     localStorage.getItem(`arcadia:bestTime:sudoku:${difficulty}`) || 0,
   )
   return (
-    <div className="go-overlay-in absolute inset-2 flex flex-col items-center justify-center overflow-hidden rounded-md bg-arcadia-bg/92 px-6 text-center backdrop-blur-sm">
+    <div
+      className="go-overlay-in pixel-corners absolute inset-2 flex flex-col items-center justify-center overflow-hidden px-6 text-center"
+      style={{
+        background: 'rgba(5, 5, 8, 0.88)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+        border: '1px solid rgba(0, 255, 136, 0.4)',
+        boxShadow: 'var(--glow-green)',
+        borderRadius: 12,
+      }}
+    >
       <WinParticles />
       <p className="relative font-arcade text-base text-neon-green drop-shadow-[0_0_12px_rgba(0,255,136,0.5)] md:text-xl">
         <span className="go-icon-pop">★</span> COMPLETE{' '}
