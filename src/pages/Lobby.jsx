@@ -13,7 +13,7 @@ export default function Lobby() {
       <Hero />
 
       <main className="mx-auto max-w-7xl px-4 pb-12 pt-14 md:px-8">
-        <div className="mb-8 flex items-end justify-between gap-4">
+        <div className="section-header-in mb-8 flex items-end justify-between gap-4">
           <div>
             <h2 className="font-arcade text-lg text-white md:text-2xl">
               SELECT YOUR GAME
@@ -28,8 +28,8 @@ export default function Lobby() {
         </div>
 
         <div className="grid grid-cols-2 gap-4 md:grid-cols-3 md:gap-6">
-          {games.map((game) => (
-            <GameCard key={game.id} game={game} />
+          {games.map((game, i) => (
+            <GameCard key={game.id} game={game} index={i} />
           ))}
         </div>
       </main>

@@ -32,7 +32,7 @@ const ACCENTS = {
   },
 }
 
-export default function GameCard({ game }) {
+export default function GameCard({ game, index = 0 }) {
   const navigate = useNavigate()
   const { user, openLogin } = useAuth()
   const toast = useToast()
@@ -67,11 +67,12 @@ export default function GameCard({ game }) {
 
   return (
     <article
-      className={`group relative flex flex-col rounded-xl border ${a.border} ${a.glow} bg-arcadia-surface/70 p-5 transition-all duration-200 hover:-translate-y-1`}
+      className={`lobby-card group relative flex flex-col rounded-xl border ${a.border} ${a.glow} bg-arcadia-surface/70 p-5 transition-all duration-200 ease-out hover:-translate-y-[3px]`}
+      style={{ '--card-index': index }}
     >
       <div className="flex items-start justify-between gap-3">
         <span
-          className={`inline-flex h-14 w-14 items-center justify-center rounded-lg border border-white/10 bg-arcadia-bg text-3xl ${a.iconHalo}`}
+          className={`lobby-card-icon inline-flex h-14 w-14 items-center justify-center rounded-lg border border-white/10 bg-arcadia-bg text-3xl ${a.iconHalo}`}
           aria-hidden="true"
         >
           {game.icon}
@@ -93,7 +94,7 @@ export default function GameCard({ game }) {
       <button
         type="button"
         onClick={handlePlay}
-        className={`mt-6 w-full rounded-md border bg-transparent py-2.5 font-arcade text-[11px] transition-all duration-200 ${a.btn}`}
+        className={`mt-6 w-full rounded-md border bg-transparent py-2.5 font-arcade text-[11px] transition-all duration-200 ease-out group-hover:bg-white/[0.04] ${a.btn}`}
       >
         ▶ PLAY
       </button>

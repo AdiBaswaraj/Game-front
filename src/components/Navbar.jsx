@@ -51,7 +51,13 @@ export default function Navbar() {
             aria-label="players online"
           >
             <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-neon-cyan shadow-neon-cyan" />
-            {onlineCount} PLAYERS ONLINE
+            <span
+              key={onlineCount}
+              className="badge-flip inline-block tabular-nums"
+            >
+              {onlineCount}
+            </span>{' '}
+            PLAYERS ONLINE
           </span>
 
           {loading ? (

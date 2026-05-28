@@ -138,6 +138,74 @@ body,
   overscroll-behavior: contain;
 }
 
+/* ===== Lobby polish ===== */
+
+@keyframes lobby-card-in {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.lobby-card {
+  animation: lobby-card-in 0.4s ease-out both;
+  animation-delay: calc(var(--card-index, 0) * 60ms);
+}
+
+@keyframes lobby-icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.lobby-card-icon { transition: transform 0.3s ease-out; }
+.lobby-card:hover .lobby-card-icon {
+  animation: lobby-icon-bounce 0.6s ease-out;
+}
+
+@keyframes hero-welcome-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-welcome { animation: hero-welcome-in 0.6s ease-out both; }
+
+@keyframes hero-tagline-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-tagline {
+  animation: hero-tagline-in 0.4s ease-out both;
+  animation-delay: 0.4s;
+}
+
+@keyframes hero-subline-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.hero-subline {
+  animation: hero-subline-in 0.4s ease-out both;
+  animation-delay: 0.6s;
+}
+
+@keyframes section-header-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.section-header-in {
+  animation: section-header-in 0.4s ease-out both;
+  animation-delay: 0.55s; /* after the 6th lobby card (5 * 60ms + 0.25s) */
+}
+
+/* Subtle CRT flicker — odd timing so the eye doesn't lock onto it. */
+@keyframes crt-flicker {
+  0%, 100%      { opacity: 1; }
+  17%, 19%      { opacity: 0.94; }
+  43%, 45%      { opacity: 0.97; }
+  78%, 80%      { opacity: 0.93; }
+}
+.crt-flicker { animation: crt-flicker 4s infinite; }
+
+@keyframes badge-flip {
+  0%   { transform: rotateX(90deg); opacity: 0; }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+.badge-flip { animation: badge-flip 0.22s ease-out; transform-origin: center; }
+
 @keyframes sl-flash-snake {
   0% { background-color: rgba(255, 0, 110, 0.6); box-shadow: inset 0 0 18px rgba(255, 0, 110, 0.7); }
   100% { background-color: transparent; box-shadow: inset 0 0 0 rgba(0,0,0,0); }
