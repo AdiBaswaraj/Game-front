@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { ICONS_BY_ID } from '../assets/icons/index.jsx'
 
 const ACCENT_BY_DIFF = {
   easy: {
@@ -33,6 +34,7 @@ export default function DifficultySelect({
 }) {
   const navigate = useNavigate()
   useDocumentTitle(`${title} — Difficulty`)
+  const Icon = ICONS_BY_ID[gameId]
 
   return (
     <div className="route-fade-in relative min-h-screen bg-arcadia-bg text-white">
@@ -45,9 +47,13 @@ export default function DifficultySelect({
             <span aria-hidden="true">◀</span>
             LOBBY
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            {icon && <span className="mr-2">{icon}</span>}
-            {title}
+          <h1 className="neon-text inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green md:text-lg">
+            {Icon ? (
+              <Icon size={22} aria-hidden="true" />
+            ) : (
+              icon && <span>{icon}</span>
+            )}
+            <span>{title}</span>
           </h1>
           <span className="justify-self-end" />
         </div>

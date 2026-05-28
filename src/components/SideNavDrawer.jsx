@@ -7,6 +7,7 @@ import { useToast } from '../context/ToastContext'
 import { createRoom, searchUsers } from '../lib/api'
 import { socket } from '../lib/socket'
 import Avatar from './Avatar'
+import { ChessIcon, SnakeLadderIcon, WordPuzzleIcon } from '../assets/icons/index.jsx'
 
 const NAV_LINKS = [
   { to: '/', icon: '🏠', label: 'HOME' },
@@ -15,9 +16,9 @@ const NAV_LINKS = [
 ]
 
 const MP_GAMES = [
-  { id: 'chess', name: 'Chess', icon: '♟' },
-  { id: 'snake-and-ladder', name: 'Snake & Ladder', icon: '🎲' },
-  { id: 'word-puzzle', name: 'Word Puzzle', icon: '🔤' },
+  { id: 'chess', name: 'Chess', Icon: ChessIcon },
+  { id: 'snake-and-ladder', name: 'Snake & Ladder', Icon: SnakeLadderIcon },
+  { id: 'word-puzzle', name: 'Word Puzzle', Icon: WordPuzzleIcon },
 ]
 
 function formatJoinDate(s) {
@@ -500,7 +501,7 @@ function OnlineList({
                       onClick={() => handleInvite(f, g.id)}
                       className="flex items-center gap-2 rounded-md border border-white/10 bg-arcadia-surface/60 px-2 py-1.5 text-left transition hover:border-neon-pink/60 hover:text-neon-pink"
                     >
-                      <span className="text-base">{g.icon}</span>
+                      <g.Icon size={18} />
                       <span className="font-arcade text-[9px]">{g.name}</span>
                     </button>
                   ))}

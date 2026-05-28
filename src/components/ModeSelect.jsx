@@ -11,6 +11,7 @@ const ACCENTS = {
 export default function ModeSelect({
   title,
   icon,
+  Icon,
   cards,
   backTo = '/',
   backLabel = 'LOBBY',
@@ -29,9 +30,13 @@ export default function ModeSelect({
             <span aria-hidden="true">◀</span>
             {backLabel}
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            {icon && <span className="mr-2">{icon}</span>}
-            {title}
+          <h1 className="neon-text inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green md:text-lg">
+            {Icon ? (
+              <Icon size={22} aria-hidden="true" />
+            ) : (
+              icon && <span>{icon}</span>
+            )}
+            <span>{title}</span>
           </h1>
           <span className="justify-self-end" />
         </div>

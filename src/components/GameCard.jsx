@@ -77,10 +77,10 @@ export default function GameCard({ game, index = 0 }) {
       </span>
 
       <span
-        className="lobby-card-icon inline-flex h-12 w-12 items-center justify-center text-4xl transition-transform duration-200 group-hover:-translate-y-1"
+        className="lobby-card-icon inline-flex h-12 w-12 items-center justify-center transition-transform duration-200 group-hover:-translate-y-1"
         aria-hidden="true"
       >
-        {game.icon}
+        {game.Icon ? <game.Icon size={48} /> : <span className="text-4xl">{game.icon}</span>}
       </span>
 
       <div className="min-w-0">

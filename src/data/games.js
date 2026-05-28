@@ -1,8 +1,18 @@
+import {
+  ChessIcon,
+  MinesweeperIcon,
+  SnakeIcon,
+  SnakeLadderIcon,
+  SudokuIcon,
+  WordPuzzleIcon,
+} from '../assets/icons/index.jsx'
+
 export const games = [
   {
     id: 'snake',
     name: 'Snake',
     icon: '🐍',
+    Icon: SnakeIcon,
     players: '1P',
     category: 'Arcade',
     multiplayer: false,
@@ -12,6 +22,7 @@ export const games = [
     id: 'sudoku',
     name: 'Sudoku',
     icon: '🔢',
+    Icon: SudokuIcon,
     players: '1P',
     category: 'Puzzle',
     multiplayer: false,
@@ -22,6 +33,7 @@ export const games = [
     id: 'word-puzzle',
     name: 'Word Puzzle',
     icon: '🔤',
+    Icon: WordPuzzleIcon,
     players: '1P / 2P',
     category: 'Puzzle',
     multiplayer: false,
@@ -31,6 +43,7 @@ export const games = [
     id: 'minesweeper',
     name: 'Minesweeper',
     icon: '💣',
+    Icon: MinesweeperIcon,
     players: '1P',
     category: 'Strategy',
     multiplayer: false,
@@ -41,6 +54,7 @@ export const games = [
     id: 'snake-and-ladder',
     name: 'Snake & Ladder',
     icon: '🎲',
+    Icon: SnakeLadderIcon,
     players: '1P / 2-4P',
     category: 'Board',
     multiplayer: true,
@@ -51,6 +65,7 @@ export const games = [
     id: 'chess',
     name: 'Chess',
     icon: '♟️',
+    Icon: ChessIcon,
     players: '1P / 2P',
     category: 'Strategy',
     multiplayer: true,

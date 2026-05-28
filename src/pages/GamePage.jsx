@@ -134,6 +134,7 @@ function GamePageBody() {
   const game = games.find((g) => g.id === gameId)
   const title = game?.name?.toUpperCase() ?? gameId?.toUpperCase() ?? 'GAME'
   const icon = game?.icon
+  const Icon = game?.Icon
   const accent = GAME_ACCENTS[gameId] ?? 'green'
 
   // ===== Chess =====
@@ -143,6 +144,7 @@ function GamePageBody() {
         <GameLayout
           title={`${title} · BATTLE`}
           icon={icon}
+          Icon={Icon}
           backTo="/"
           backLabel="LOBBY"
           accent={accent}
@@ -153,7 +155,8 @@ function GamePageBody() {
       )
     }
     if (!difficulty || difficulty === 'mode') {
-      return <ModeSelect title={title} icon={icon} cards={CHESS_CARDS} />
+      return <ModeSelect title={title} icon={icon}
+          Icon={Icon} cards={CHESS_CARDS} />
     }
     if (difficulty === 'computer') {
       if (!variant) return <ChessDifficultySelect />
@@ -162,6 +165,7 @@ function GamePageBody() {
         <GameLayout
           title={`${title} · CPU · ${variant.toUpperCase()}`}
           icon={icon}
+          Icon={Icon}
           backTo="/game/chess/computer"
           backLabel="DIFFICULTY"
           accent={accent}
@@ -173,7 +177,8 @@ function GamePageBody() {
     }
     if (difficulty === 'matchmaking') return <MatchmakingScreen />
     if (difficulty === 'room') return <PrivateRoomScreen />
-    return <ModeSelect title={title} icon={icon} cards={CHESS_CARDS} />
+    return <ModeSelect title={title} icon={icon}
+          Icon={Icon} cards={CHESS_CARDS} />
   }
 
   // ===== Snake & Ladder =====
@@ -183,6 +188,7 @@ function GamePageBody() {
         <GameLayout
           title={`${title} · BATTLE`}
           icon={icon}
+          Icon={Icon}
           backTo="/"
           backLabel="LOBBY"
           accent={accent}
@@ -192,7 +198,8 @@ function GamePageBody() {
       )
     }
     if (!difficulty || difficulty === 'mode') {
-      return <ModeSelect title={title} icon={icon} cards={SL_CARDS} />
+      return <ModeSelect title={title} icon={icon}
+          Icon={Icon} cards={SL_CARDS} />
     }
     if (difficulty === 'computer') {
       if (!variant) {
@@ -223,6 +230,7 @@ function GamePageBody() {
         <GameLayout
           title={`${title} · CPU ${count}P`}
           icon={icon}
+          Icon={Icon}
           backTo="/game/snake-and-ladder/computer"
           backLabel="PLAYERS"
           accent={accent}
@@ -236,7 +244,8 @@ function GamePageBody() {
     }
     if (difficulty === 'matchmaking') return <MatchmakingScreen />
     if (difficulty === 'room') return <PrivateRoomScreen />
-    return <ModeSelect title={title} icon={icon} cards={SL_CARDS} />
+    return <ModeSelect title={title} icon={icon}
+          Icon={Icon} cards={SL_CARDS} />
   }
 
   // ===== Word Puzzle =====
@@ -246,6 +255,7 @@ function GamePageBody() {
         <GameLayout
           title={`${title} · BATTLE`}
           icon={icon}
+          Icon={Icon}
           backTo="/"
           backLabel="LOBBY"
           accent={accent}
@@ -260,6 +270,7 @@ function GamePageBody() {
         <GameLayout
           title={`${title} · DAILY`}
           icon={icon}
+          Icon={Icon}
           backTo="/game/word-puzzle"
           backLabel="MODE"
           accent={accent}
@@ -276,6 +287,7 @@ function GamePageBody() {
         <GameLayout
           title={`${title} · FREE ${len}`}
           icon={icon}
+          Icon={Icon}
           backTo="/game/word-puzzle/free"
           backLabel="LENGTH"
           accent={accent}
@@ -289,6 +301,7 @@ function GamePageBody() {
         <ModeSelect
           title={`${title} BATTLE`}
           icon={icon}
+          Icon={Icon}
           cards={WP_BATTLE_CARDS}
           backTo="/game/word-puzzle"
           backLabel="MODE"
@@ -304,13 +317,15 @@ function GamePageBody() {
   // ===== Sudoku / Minesweeper (difficulty games) =====
   if (gameId in DIFFICULTY_GAMES) {
     if (!difficulty || !VALID_DIFFICULTIES.has(difficulty)) {
-      return <DifficultySelect title={title} icon={icon} gameId={gameId} />
+      return <DifficultySelect title={title} icon={icon}
+          Icon={Icon} gameId={gameId} />
     }
     const Component = DIFFICULTY_GAMES[gameId]
     return (
       <GameLayout
         title={`${title} · ${difficulty.toUpperCase()}`}
         icon={icon}
+          Icon={Icon}
         backTo={`/game/${gameId}/difficulty`}
         backLabel="DIFFICULTY"
           accent={accent}
@@ -323,7 +338,8 @@ function GamePageBody() {
   // ===== Simple single-player =====
   const Component = SIMPLE_GAMES[gameId]
   return (
-    <GameLayout title={title} icon={icon} accent={accent}>
+    <GameLayout title={title} icon={icon}
+          Icon={Icon} accent={accent}>
       {Component ? (
         <Component />
       ) : (

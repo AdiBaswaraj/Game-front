@@ -16,6 +16,7 @@ const ACCENTS = {
 export default function GameLayout({
   title,
   icon,
+  Icon,
   children,
   backTo = '/',
   backLabel = 'LOBBY',
@@ -64,12 +65,16 @@ export default function GameLayout({
             <span className={labelHidden}>{backLabel}</span>
           </Link>
           <h1
-            className={`neon-text justify-self-center font-arcade ${
+            className={`neon-text inline-flex items-center justify-self-center gap-2 font-arcade ${
               isFullscreen ? 'text-xs md:text-sm' : 'text-sm md:text-lg'
             } ${a.color}`}
           >
-            {icon && <span className="mr-2">{icon}</span>}
-            {title}
+            {Icon ? (
+              <Icon size={isFullscreen ? 18 : 22} aria-hidden="true" />
+            ) : (
+              icon && <span>{icon}</span>
+            )}
+            <span>{title}</span>
           </h1>
           <div className="flex items-center gap-1 justify-self-end md:gap-2">
             {fsSupported && (
