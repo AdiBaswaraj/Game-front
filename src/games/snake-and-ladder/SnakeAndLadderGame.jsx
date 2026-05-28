@@ -133,6 +133,18 @@ export default function SnakeAndLadderGame({ roomCode }) {
   }, [room])
 
   const opponentDc = useOpponentDisconnect(roomCode)
+  const wasDcRef = useRef(false)
+  useEffect(() => {
+    if (opponentDc.disconnected && !wasDcRef.current) {
+      wasDcRef.current = true
+      toast.warning(
+        `${opponentDc.username ?? 'Opponent'} disconnected. Waiting for reconnect…`,
+      )
+    } else if (!opponentDc.disconnected && wasDcRef.current) {
+      wasDcRef.current = false
+      toast.success('Opponent reconnected.')
+    }
+  }, [opponentDc.disconnected, opponentDc.username, toast])
 
   // Initial REST fetch + reconnect_to_room
   useEffect(() => {
@@ -394,7 +406,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
     }
 
     const onOpponentLeft = () => {
-      toast.show({ message: 'Opponent left the game.', duration: 4000 })
+      toast.warning('Opponent left the game.')
     }
 
     socket.on('dice_result', onDiceResult)

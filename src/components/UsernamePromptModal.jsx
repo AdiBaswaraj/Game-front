@@ -97,11 +97,11 @@ export default function UsernamePromptModal() {
         data: { full_name: trimmed },
       })
       if (aErr) throw aErr
-      toast.show({ message: 'Username set.', duration: 2500 })
+      toast.success('Username set.')
       close()
     } catch (err) {
       console.error('[username-prompt] save failed', err)
-      toast.show({ message: 'Could not save username.', duration: 3000 })
+      toast.error('Could not save username. Try again.')
     } finally {
       setSaving(false)
     }

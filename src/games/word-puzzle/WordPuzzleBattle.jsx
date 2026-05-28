@@ -128,7 +128,7 @@ export default function WordPuzzleBattle({ roomCode }) {
       }
     }
     const onOpponentLeft = () => {
-      toast.show({ message: 'Opponent left the game.', duration: 4000 })
+      toast.warning('Opponent left the game.')
     }
     socket.on('opponent_action', onOpponentAction)
     socket.on('game_over', onGameOver)
@@ -178,13 +178,13 @@ export default function WordPuzzleBattle({ roomCode }) {
   const submitGuess = useCallback(() => {
     if (status !== 'playing' || revealing) return
     if (currentGuess.length !== COLS) {
-      toast.show({ message: `NEED ${COLS} LETTERS`, duration: 1500 })
+      toast.error(`NEED ${COLS} LETTERS`, { duration: 1500 })
       setShakeRow(true)
       setTimeout(() => setShakeRow(false), 450)
       return
     }
     if (!isValidGuess(currentGuess, COLS)) {
-      toast.show({ message: 'NOT IN DICTIONARY', duration: 1500 })
+      toast.error('NOT IN DICTIONARY', { duration: 1500 })
       setShakeRow(true)
       setTimeout(() => setShakeRow(false), 450)
       return

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
+import { useToast } from '../../context/ToastContext'
 import { useSquareGameSize } from '../../hooks/useViewport'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
@@ -34,6 +35,7 @@ function fmtTime(s) {
 
 export default function SudokuGame({ difficulty = 'easy' }) {
   const { user } = useAuth()
+  const toast = useToast()
   const [board, setBoard] = useState(() => makeBoard(difficulty))
   const [selected, setSelected] = useState(null)
   const [time, setTime] = useState(0)
@@ -134,9 +136,11 @@ export default function SudokuGame({ difficulty = 'easy' }) {
         userId: user.id,
         gameId: `sudoku-${difficulty}`,
         score: finalTime,
-      }).catch(() => {})
+      })
+        .then(() => toast.success(`TIME SAVED · ${fmtTime(finalTime)}`))
+        .catch(() => toast.error('Could not save score. Check connection.'))
     }
-  }, [board, conflicts, status, user, difficulty])
+  }, [board, conflicts, status, user, difficulty, toast])
 
   // Keyboard input
   useEffect(() => {

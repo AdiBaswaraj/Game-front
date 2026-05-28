@@ -171,11 +171,11 @@ export default function ProfilePage() {
       if (error) throw error
       await supabase.auth.updateUser({ data: { full_name: next } })
       setProfile((p) => ({ ...p, username: next }))
-      toast.show({ message: 'Username updated.', duration: 2500 })
+      toast.success('Username updated.')
       setEditing(false)
     } catch (err) {
       console.error('[profile] update error', err)
-      toast.show({ message: 'Could not update username.', duration: 3000 })
+      toast.error('Could not update username. Try again.')
     } finally {
       setSaving(false)
     }

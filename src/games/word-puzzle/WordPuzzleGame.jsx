@@ -175,24 +175,28 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
             userId: user.id,
             gameId: 'word-puzzle',
             score: won ? row + 1 : 7,
-          }).catch(() => {})
+          })
+            .then(() => {
+              if (won) toast.success(`SCORE SAVED · ${row + 1}/6`)
+            })
+            .catch(() => toast.error('Could not save score. Check connection.'))
         }
       }
     },
-    [answer, dateKey, isDaily, user],
+    [answer, dateKey, isDaily, user, toast],
   )
 
   const submitGuess = useCallback(() => {
     if (status !== 'playing' || revealing) return
     if (!answer) return
     if (currentGuess.length !== COLS) {
-      toast.show({ message: `NEED ${COLS} LETTERS`, duration: 1500 })
+      toast.error(`NEED ${COLS} LETTERS`, { duration: 1500 })
       setShakeRow(true)
       setTimeout(() => setShakeRow(false), 450)
       return
     }
     if (!isValidGuess(currentGuess, COLS)) {
-      toast.show({ message: 'NOT IN DICTIONARY', duration: 1500 })
+      toast.error('NOT IN DICTIONARY', { duration: 1500 })
       setShakeRow(true)
       setTimeout(() => setShakeRow(false), 450)
       return
@@ -344,15 +348,12 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text)
-        toast.show({ message: 'COPIED TO CLIPBOARD', duration: 2000 })
+        toast.success('Result copied to clipboard.')
       } else {
         throw new Error('no clipboard')
       }
     } catch {
-      toast.show({
-        message: 'COPY FAILED — SELECT MANUALLY',
-        duration: 2500,
-      })
+      toast.error('Copy failed — select the result manually.')
     }
   }, [board, currentRow, dateKey, isDaily, status, toast])
 
@@ -362,8 +363,7 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
       e.stopPropagation?.()
     }
     if (!user) {
-      toast.show({
-        message: 'Login required for multiplayer.',
+      toast.info('Login required for multiplayer.', {
         action: { label: 'LOGIN', onClick: openLogin },
       })
       return
@@ -375,15 +375,14 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
       })
       const code = res?.roomCode ?? res?.room_code ?? res?.code
       if (!code) {
-        toast.show({ message: 'Could not create room.', duration: 2500 })
+        toast.error('Could not create room. Try again.')
         return
       }
       navigate(`/room/${code}`)
     } catch (err) {
-      toast.show({
-        message: `Could not create room — ${err?.message ?? 'unknown error'}`,
-        duration: 4500,
-      })
+      toast.error(
+        `Could not create room — ${err?.message ?? 'unknown error'}`,
+      )
     }
   }, [displayName, navigate, openLogin, toast, user])
 

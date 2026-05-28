@@ -174,6 +174,19 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const moveListRef = useRef(null)
 
   const opponentDc = useOpponentDisconnect(isMP ? roomCode : null)
+  const wasDcRef = useRef(false)
+  useEffect(() => {
+    if (!isMP) return
+    if (opponentDc.disconnected && !wasDcRef.current) {
+      wasDcRef.current = true
+      toast.warning(
+        `${opponentDc.username ?? 'Opponent'} disconnected. Waiting for reconnect…`,
+      )
+    } else if (!opponentDc.disconnected && wasDcRef.current) {
+      wasDcRef.current = false
+      toast.success('Opponent reconnected.')
+    }
+  }, [isMP, opponentDc.disconnected, opponentDc.username, toast])
 
   // Viewport-aware board size. Desktop reserves room for the right-
   // side info panel (clocks + captures + move list); mobile reserves
@@ -499,7 +512,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           reason: 'CHECKMATE',
         })
       } else if (isCheck) {
-        toast.show({ message: 'CHECK!', duration: 1500 })
+        toast.warning('CHECK!', { duration: 1500 })
       }
     }
 
@@ -561,7 +574,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     const onGameOver = (data) => finalizeResult(data)
 
     const onOpponentLeft = () => {
-      toast.show({ message: 'Opponent left the game.', duration: 4000 })
+      toast.warning('Opponent left the game.')
     }
 
     const onStateSync = (data) => {
@@ -735,7 +748,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             chessRef.current.inCheck() &&
             !chessRef.current.isCheckmate()
           ) {
-            toast.show({ message: 'CHECK!', duration: 1500 })
+            toast.warning('CHECK!', { duration: 1500 })
           }
           if (chessRef.current.isGameOver()) finalizeLocalResult()
         }
@@ -788,7 +801,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       if (chessRef.current.isCheckmate()) {
         setResult({ winner: m.color, reason: 'CHECKMATE' })
       } else if (chessRef.current.inCheck()) {
-        toast.show({ message: 'CHECK!', duration: 1500 })
+        toast.warning('CHECK!', { duration: 1500 })
       }
       return true
     },
@@ -944,7 +957,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     console.log('[chess MP] opponent:', opponentId, 'from players:', room?.players)
     if (!socket.connected) {
       console.warn('[resign] emit aborted — socket disconnected')
-      toast.show({ message: 'Connection lost — try again.', duration: 3000 })
+      toast.error('Connection lost — try again.')
       return
     }
     if (!opponentId) {

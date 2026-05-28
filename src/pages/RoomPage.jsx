@@ -222,8 +222,9 @@ export default function RoomPage() {
       await navigator.clipboard.writeText(code)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
+      toast.success(`ROOM CODE COPIED · ${code}`)
     } catch {
-      toast.show({ message: 'Copy failed — select manually.', duration: 2500 })
+      toast.error('Copy failed — select the code manually.')
     }
   }, [code, toast])
 

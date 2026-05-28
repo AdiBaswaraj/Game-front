@@ -276,3 +276,9 @@ body,
   to   { opacity: 1; }
 }
 .route-fade-in { animation: route-fade-in 0.28s ease-out both; }
+
+@keyframes toast-in {
+  from { transform: translate(-50%, 16px); opacity: 0; }
+  to   { transform: translate(-50%, 0); opacity: 1; }
+}
+.toast-in { animation: toast-in 0.25s cubic-bezier(0.2, 0.7, 0.3, 1) both; }

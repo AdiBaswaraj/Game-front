@@ -244,8 +244,9 @@ function CreateTab({ gameId, username, userId }) {
       await navigator.clipboard.writeText(code)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
+      toast.success(`ROOM CODE COPIED · ${code}`)
     } catch {
-      toast.show({ message: 'Copy failed.', duration: 2000 })
+      toast.error('Copy failed — select the code manually.')
     }
   }
 
@@ -255,8 +256,9 @@ function CreateTab({ gameId, username, userId }) {
       await navigator.clipboard.writeText(shareLink)
       setLinkCopied(true)
       setTimeout(() => setLinkCopied(false), 1500)
+      toast.success('INVITE LINK COPIED')
     } catch {
-      toast.show({ message: 'Copy failed.', duration: 2000 })
+      toast.error('Copy failed — select the link manually.')
     }
   }
 

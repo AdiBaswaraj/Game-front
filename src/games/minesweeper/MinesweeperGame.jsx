@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
+import { useToast } from '../../context/ToastContext'
 import LandscapeHint from '../../components/LandscapeHint'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
@@ -104,6 +105,7 @@ function cloneBoard(b) {
 
 export default function MinesweeperGame({ difficulty = 'easy' }) {
   const { user } = useAuth()
+  const toast = useToast()
   const diff = difficulty
   const cfg = DIFFICULTIES[diff] ?? DIFFICULTIES.easy
 
@@ -156,10 +158,12 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
           userId: user.id,
           gameId: `minesweeper-${diff}`,
           score: seconds,
-        }).catch(() => {})
+        })
+          .then(() => toast.success(`TIME SAVED · ${seconds}s`))
+          .catch(() => toast.error('Could not save score. Check connection.'))
       }
     },
-    [user, diff],
+    [user, diff, toast],
   )
 
   const handleReveal = useCallback(

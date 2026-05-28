@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
+import { useToast } from '../../context/ToastContext'
 import { getLeaderboard, postScore } from '../../lib/api'
 import { profileNameFor } from '../../lib/profile'
 import Leaderboard from '../../components/Leaderboard'
@@ -54,6 +55,7 @@ function readHighScore() {
 
 export default function SnakeGame() {
   const { user } = useAuth()
+  const toast = useToast()
   const canvasRef = useRef(null)
   const stateRef = useRef(initialState())
   const statusRef = useRef('idle')
@@ -241,7 +243,9 @@ export default function SnakeGame() {
           userId: user.id,
           gameId: 'snake',
           score: finalScore,
-        }).catch(() => {})
+        })
+          .then(() => toast.success(`SCORE SAVED · ${finalScore}`))
+          .catch(() => toast.error('Could not save score. Check connection.'))
       }
     }
 

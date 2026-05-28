@@ -359,7 +359,7 @@ function OnlineList({
       const res = await createRoom({ gameId, username: displayName })
       const roomCode = res?.code ?? res?.roomCode ?? res?.room_code
       if (!roomCode) {
-        toast.show({ message: 'Could not create room.', duration: 3000 })
+        toast.error('Could not create room. Try again.')
         return
       }
       socket.emit('send_friend_invite', {
@@ -368,17 +368,13 @@ function OnlineList({
         gameId,
         fromUsername: displayName,
       })
-      toast.show({
-        message: `Invite sent to ${friend.username}!`,
-        duration: 3000,
-      })
+      toast.success(`Invite sent to ${friend.username}.`)
       onClose?.()
       navigate(`/room/${roomCode}`)
     } catch (err) {
-      toast.show({
-        message: `Could not create room — ${err?.message ?? 'unknown error'}`,
-        duration: 4000,
-      })
+      toast.error(
+        `Could not create room — ${err?.message ?? 'unknown error'}`,
+      )
     }
   }
 

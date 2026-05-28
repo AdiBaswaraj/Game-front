@@ -129,16 +129,10 @@ export function FriendsProvider({ children }) {
       })
     }
     const onInviteDeclined = ({ fromUsername }) => {
-      toast.show({
-        message: `${fromUsername ?? 'Friend'} declined your invite.`,
-        duration: 4000,
-      })
+      toast.info(`${fromUsername ?? 'Friend'} declined your invite.`)
     }
     const onInviteFailed = ({ message }) => {
-      toast.show({
-        message: message ?? 'Invite failed.',
-        duration: 4000,
-      })
+      toast.error(message ?? 'Invite failed.')
     }
 
     socket.on('friend_online', onFriendOnline)
@@ -203,15 +197,13 @@ export function FriendsProvider({ children }) {
           next.add(addresseeUsername)
           return next
         })
-        toast.show({
-          message: `Request sent to ${addresseeUsername}.`,
-          duration: 3000,
-        })
+        toast.success(`Request sent to ${addresseeUsername}.`)
       } catch (err) {
-        toast.show({
-          message: err.status === 409 ? 'Request already exists.' : 'Could not send request.',
-          duration: 3000,
-        })
+        toast.error(
+          err.status === 409
+            ? 'Request already exists.'
+            : 'Could not send request. Try again.',
+        )
       }
     },
     [toast, user],
@@ -226,12 +218,9 @@ export function FriendsProvider({ children }) {
           prev.filter((r) => r.friendshipId !== request.friendshipId),
         )
         await refreshFriends()
-        toast.show({
-          message: `Now friends with ${request.username}.`,
-          duration: 3000,
-        })
+        toast.success(`Now friends with ${request.username}.`)
       } catch {
-        toast.show({ message: 'Could not accept request.', duration: 3000 })
+        toast.error('Could not accept request. Try again.')
       }
     },
     [refreshFriends, toast, user],
@@ -249,10 +238,10 @@ export function FriendsProvider({ children }) {
           prev.filter((f) => f.friendshipId !== friendshipId),
         )
         if (label) {
-          toast.show({ message: label, duration: 2500 })
+          toast.info(label)
         }
       } catch {
-        toast.show({ message: 'Could not complete.', duration: 3000 })
+        toast.error('Could not complete. Try again.')
       }
     },
     [toast, user],
