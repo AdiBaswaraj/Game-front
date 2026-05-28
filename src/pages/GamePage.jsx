@@ -1,3 +1,4 @@
+import { lazy } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import GameLayout from '../components/GameLayout'
 import DifficultySelect from '../components/DifficultySelect'
@@ -5,19 +6,30 @@ import GameErrorBoundary from '../components/GameErrorBoundary'
 import ModeSelect from '../components/ModeSelect'
 import MatchmakingScreen from './MatchmakingScreen'
 import PrivateRoomScreen from './PrivateRoomScreen'
-import SnakeGame from '../games/snake/SnakeGame'
-import SudokuGame from '../games/sudoku/SudokuGame'
-import MinesweeperGame from '../games/minesweeper/MinesweeperGame'
-import WordPuzzleGame from '../games/word-puzzle/WordPuzzleGame'
 import WordPuzzleModeSelect from '../games/word-puzzle/WordPuzzleModeSelect'
 import WordPuzzleLengthSelect from '../games/word-puzzle/WordPuzzleLengthSelect'
-import WordPuzzleBattle from '../games/word-puzzle/WordPuzzleBattle'
-import SnakeAndLadderGame from '../games/snake-and-ladder/SnakeAndLadderGame'
 import SnakeAndLadderLocalSelect from '../games/snake-and-ladder/SnakeAndLadderLocalSelect'
-import SnakeAndLadderLocalGame from '../games/snake-and-ladder/SnakeAndLadderLocalGame'
 import ChessDifficultySelect from '../games/chess/ChessDifficultySelect'
-import ChessGame from '../games/chess/ChessGame'
 import { games } from '../data/games'
+
+const SnakeGame = lazy(() => import('../games/snake/SnakeGame'))
+const SudokuGame = lazy(() => import('../games/sudoku/SudokuGame'))
+const MinesweeperGame = lazy(() =>
+  import('../games/minesweeper/MinesweeperGame'),
+)
+const WordPuzzleGame = lazy(() =>
+  import('../games/word-puzzle/WordPuzzleGame'),
+)
+const WordPuzzleBattle = lazy(() =>
+  import('../games/word-puzzle/WordPuzzleBattle'),
+)
+const SnakeAndLadderGame = lazy(() =>
+  import('../games/snake-and-ladder/SnakeAndLadderGame'),
+)
+const SnakeAndLadderLocalGame = lazy(() =>
+  import('../games/snake-and-ladder/SnakeAndLadderLocalGame'),
+)
+const ChessGame = lazy(() => import('../games/chess/ChessGame'))
 
 const SIMPLE_GAMES = {
   snake: SnakeGame,
@@ -123,6 +135,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/"
           backLabel="LOBBY"
+          loadingVariant="chess"
         >
           <ChessGame mode="multiplayer" roomCode={room} />
         </GameLayout>
@@ -140,6 +153,7 @@ function GamePageBody() {
           icon={icon}
           backTo="/game/chess/computer"
           backLabel="DIFFICULTY"
+          loadingVariant="chess"
         >
           <ChessGame mode="computer" difficulty={variant} />
         </GameLayout>

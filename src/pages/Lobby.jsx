@@ -8,7 +8,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 export default function Lobby() {
   useDocumentTitle('Lobby')
   return (
-    <div className="scanlines relative min-h-screen bg-arcadia-bg text-white">
+    <div className="scanlines route-fade-in relative min-h-screen bg-arcadia-bg text-white">
       <Navbar />
       <Hero />
 

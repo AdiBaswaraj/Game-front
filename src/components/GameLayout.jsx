@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useFullscreen } from '../hooks/useFullscreen'
 import { useLeaveGuardContext } from '../context/LeaveGuardContext'
+import GameLoadingScreen from './GameLoadingScreen'
 
 export default function GameLayout({
   title,
@@ -9,6 +11,7 @@ export default function GameLayout({
   children,
   backTo = '/',
   backLabel = 'LOBBY',
+  loadingVariant = 'default',
 }) {
   useDocumentTitle(title ?? null)
   const navigate = useNavigate()
@@ -30,7 +33,7 @@ export default function GameLayout({
   const labelHidden = isFullscreen ? 'sm:hidden' : 'hidden sm:inline'
 
   return (
-    <div className="game-page scanlines relative flex min-h-[100dvh] flex-col bg-arcadia-bg text-white">
+    <div className="game-page scanlines route-fade-in relative flex min-h-[100dvh] flex-col bg-arcadia-bg text-white">
       <header
         className={`sticky top-0 z-30 shrink-0 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md`}
       >
@@ -81,11 +84,13 @@ export default function GameLayout({
         </div>
       </header>
       <main
-        className={`mx-auto w-full max-w-7xl flex-1 ${
+        className={`mx-auto flex w-full max-w-7xl flex-1 flex-col ${
           isFullscreen ? 'px-2 py-2' : 'px-4 py-6 md:px-8 md:py-10'
         }`}
       >
-        {children}
+        <Suspense fallback={<GameLoadingScreen variant={loadingVariant} />}>
+          {children}
+        </Suspense>
       </main>
     </div>
   )
