@@ -11,7 +11,9 @@ export default function Navbar() {
   const onlineCount = friendsCtx?.onlineCount ?? 0
   const [navOpen, setNavOpen] = useState(false)
   const [countFlash, setCountFlash] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
   const prevCountRef = useRef(onlineCount)
+
   useEffect(() => {
     if (onlineCount !== prevCountRef.current) {
       prevCountRef.current = onlineCount
@@ -21,22 +23,39 @@ export default function Navbar() {
     }
   }, [onlineCount])
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   return (
-    <header className="sticky top-0 z-40 border-b border-neon-green/40 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.25),0_10px_30px_-20px_rgba(0,255,136,0.5)] backdrop-blur-md">
+    <header
+      className={`fixed inset-x-0 top-0 z-[100] border-b transition-[border-color,background-color] duration-300 ${
+        scrolled
+          ? 'border-neon-green/30 bg-[rgba(5,5,8,0.92)]'
+          : 'border-neon-green/10 bg-[rgba(5,5,8,0.8)]'
+      }`}
+      style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+    >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
         <div className="flex items-center gap-3 md:gap-5">
           <button
             type="button"
             onClick={() => setNavOpen(true)}
-            className="rounded-md border border-white/15 px-2.5 py-1.5 font-arcade text-xs text-white/70 transition hover:border-neon-green/60 hover:text-neon-green"
+            className="grid h-10 w-10 place-items-center rounded-md border border-white/15 font-arcade text-xs text-white/70 transition hover:border-neon-green/60 hover:text-neon-green"
             aria-label="Open navigation"
           >
             ☰
           </button>
           <Link
             to="/"
-            className="font-arcade text-base text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.6)] md:text-xl"
+            className="neon-text inline-flex items-center gap-2 font-arcade text-base text-neon-green md:text-xl"
           >
+            <span aria-hidden="true" className="text-neon-cyan">
+              ★
+            </span>
             ARCADIA
           </Link>
         </div>
@@ -45,19 +64,20 @@ export default function Navbar() {
 
         <div className="flex items-center gap-3 md:gap-5">
           <span
-            className={`hidden items-center gap-2 rounded-md border border-neon-cyan/40 bg-neon-cyan/5 px-3 py-1.5 font-arcade text-[10px] text-neon-cyan transition-shadow sm:inline-flex ${
+            className={`glass-panel hidden items-center gap-2 px-3 py-1.5 font-arcade text-[10px] text-neon-cyan transition-shadow sm:inline-flex ${
               countFlash ? 'shadow-neon-cyan' : ''
             }`}
+            style={{ borderRadius: 8 }}
             aria-label="players online"
           >
-            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-neon-cyan shadow-neon-cyan" />
+            <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-neon-green shadow-neon-green" />
             <span
               key={onlineCount}
-              className="badge-flip inline-block tabular-nums"
+              className="badge-flip inline-block tabular-nums text-neon-green"
             >
               {onlineCount}
             </span>{' '}
-            PLAYERS ONLINE
+            <span className="text-white/65">PLAYERS ONLINE</span>
           </span>
 
           {loading ? (

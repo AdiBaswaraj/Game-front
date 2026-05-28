@@ -383,3 +383,50 @@ body,
   from { transform: translate3d(120vw, 0, 0) rotate(0deg); }
   to   { transform: translate3d(-20vw, 0, 0) rotate(360deg); }
 }
+
+/* ===== Section C — hero glitch + section divider ===== */
+
+@keyframes hero-glitch {
+  0%, 95%, 100% {
+    clip-path: none;
+    transform: none;
+  }
+  96% {
+    clip-path: polygon(0 20%, 100% 20%, 100% 40%, 0 40%);
+    transform: translateX(-4px);
+    color: var(--neon-cyan);
+  }
+  97% {
+    clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+    transform: translateX(4px);
+    color: var(--neon-pink);
+  }
+  98% {
+    clip-path: none;
+    transform: translateX(-2px);
+  }
+}
+.hero-glitch { animation: hero-glitch 8s infinite; }
+
+.neon-rule {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--neon-green),
+    transparent
+  );
+}
+
+/* IntersectionObserver-driven enter animation. */
+.io-fade-in {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 0.5s ease-out,
+    transform 0.5s ease-out;
+}
+.io-fade-in.io-visible {
+  opacity: 1;
+  transform: translateY(0);
+}

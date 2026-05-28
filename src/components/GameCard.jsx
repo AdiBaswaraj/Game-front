@@ -4,31 +4,28 @@ import { useToast } from '../context/ToastContext'
 
 const ACCENTS = {
   'neon-green': {
-    border: 'border-neon-green/40 hover:border-neon-green',
-    glow: 'hover:shadow-neon-green',
-    text: 'text-neon-green',
-    badgeBg: 'bg-neon-green/10 border-neon-green/40 text-neon-green',
-    iconHalo: 'shadow-[0_0_30px_rgba(0,255,136,0.25)]',
-    btn:
-      'border-neon-green/60 text-neon-green hover:bg-neon-green/15 hover:shadow-neon-green',
+    cornerClass: 'pixel-corners',
+    title: 'text-neon-green',
+    badge: 'border-neon-green/50 bg-neon-green/10 text-neon-green',
+    btnIdle:
+      'border-neon-green/60 text-neon-green hover:bg-neon-green hover:text-arcadia-bg hover:border-neon-green hover:shadow-neon-green',
+    glow: 'group-hover:shadow-neon-green',
   },
   'neon-cyan': {
-    border: 'border-neon-cyan/40 hover:border-neon-cyan',
-    glow: 'hover:shadow-neon-cyan',
-    text: 'text-neon-cyan',
-    badgeBg: 'bg-neon-cyan/10 border-neon-cyan/40 text-neon-cyan',
-    iconHalo: 'shadow-[0_0_30px_rgba(0,212,255,0.25)]',
-    btn:
-      'border-neon-cyan/60 text-neon-cyan hover:bg-neon-cyan/15 hover:shadow-neon-cyan',
+    cornerClass: 'pixel-corners pixel-corners-cyan',
+    title: 'text-neon-cyan',
+    badge: 'border-neon-cyan/50 bg-neon-cyan/10 text-neon-cyan',
+    btnIdle:
+      'border-neon-cyan/60 text-neon-cyan hover:bg-neon-cyan hover:text-arcadia-bg hover:border-neon-cyan hover:shadow-neon-cyan',
+    glow: 'group-hover:shadow-neon-cyan',
   },
   'neon-pink': {
-    border: 'border-neon-pink/40 hover:border-neon-pink',
-    glow: 'hover:shadow-neon-pink',
-    text: 'text-neon-pink',
-    badgeBg: 'bg-neon-pink/10 border-neon-pink/40 text-neon-pink',
-    iconHalo: 'shadow-[0_0_30px_rgba(255,0,110,0.25)]',
-    btn:
-      'border-neon-pink/60 text-neon-pink hover:bg-neon-pink/15 hover:shadow-neon-pink',
+    cornerClass: 'pixel-corners pixel-corners-pink',
+    title: 'text-neon-pink',
+    badge: 'border-neon-pink/50 bg-neon-pink/10 text-neon-pink',
+    btnIdle:
+      'border-neon-pink/60 text-neon-pink hover:bg-neon-pink hover:text-arcadia-bg hover:border-neon-pink hover:shadow-neon-pink',
+    glow: 'group-hover:shadow-neon-pink',
   },
 }
 
@@ -40,14 +37,10 @@ export default function GameCard({ game, index = 0 }) {
 
   const handlePlay = () => {
     if (game.multiplayer) {
-      // Chess and Snake & Ladder route through their mode select where the
-      // user picks VS COMPUTER / QUICK MATCH / PRIVATE ROOM.
       if (game.hasModeSelect) {
         navigate(`/game/${game.id}/mode`)
         return
       }
-      // Fallback: bare multiplayer game with no mode select — direct to
-      // private room flow.
       if (!user) {
         toast.show({
           message: 'Login required for multiplayer.',
@@ -67,34 +60,42 @@ export default function GameCard({ game, index = 0 }) {
 
   return (
     <article
-      className={`lobby-card group relative flex flex-col rounded-xl border ${a.border} ${a.glow} bg-arcadia-surface/70 p-5 transition-all duration-200 ease-out hover:-translate-y-[3px]`}
-      style={{ '--card-index': index }}
+      className={`lobby-card group relative flex flex-col gap-4 rounded-lg p-6 transition-all duration-200 ease-out hover:-translate-y-1 active:-translate-y-0 ${a.cornerClass} ${a.glow}`}
+      style={{
+        background: 'var(--bg-surface)',
+        backdropFilter: 'var(--glass-blur)',
+        WebkitBackdropFilter: 'var(--glass-blur)',
+        border: '1px solid var(--glass-border)',
+        boxShadow: 'var(--glass-shadow)',
+        '--card-index': index,
+      }}
     >
-      <div className="flex items-start justify-between gap-3">
-        <span
-          className={`lobby-card-icon inline-flex h-14 w-14 items-center justify-center rounded-lg border border-white/10 bg-arcadia-bg text-3xl ${a.iconHalo}`}
-          aria-hidden="true"
-        >
-          {game.icon}
-        </span>
-        <span
-          className={`rounded-md border px-2 py-1 font-arcade text-[9px] ${a.badgeBg}`}
-        >
-          {game.players}
-        </span>
-      </div>
+      <span
+        className={`absolute right-3 top-3 rounded-md border px-2 py-0.5 font-arcade text-[9px] ${a.badge}`}
+      >
+        {game.players}
+      </span>
 
-      <h3 className={`mt-5 font-arcade text-sm leading-snug ${a.text}`}>
-        {game.name}
-      </h3>
-      <p className="mt-2 text-xs uppercase tracking-widest text-white/45">
-        {game.category}
-      </p>
+      <span
+        className="lobby-card-icon inline-flex h-12 w-12 items-center justify-center text-4xl transition-transform duration-200 group-hover:-translate-y-1"
+        aria-hidden="true"
+      >
+        {game.icon}
+      </span>
+
+      <div className="min-w-0">
+        <h3 className={`font-arcade text-sm leading-snug ${a.title}`}>
+          {game.name}
+        </h3>
+        <p className="mt-1.5 text-xs uppercase tracking-widest text-white/45">
+          {game.category}
+        </p>
+      </div>
 
       <button
         type="button"
         onClick={handlePlay}
-        className={`mt-6 w-full rounded-md border bg-transparent py-2.5 font-arcade text-[11px] transition-all duration-200 ease-out group-hover:bg-white/[0.04] ${a.btn}`}
+        className={`mt-auto w-full rounded-md border bg-transparent py-2.5 font-arcade text-[11px] transition-all duration-200 ease-out ${a.btnIdle}`}
       >
         ▶ PLAY
       </button>
