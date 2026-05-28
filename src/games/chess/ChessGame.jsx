@@ -8,6 +8,10 @@ import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
 import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
+import {
+  LobbyBackLink,
+  useArmGameOverFlash,
+} from '../../context/GameOverFlashContext'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
 import { useViewport } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -139,6 +143,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [room, setRoom] = useState(null)
   const [myColor, setMyColor] = useState(mode === 'computer' ? 'w' : null)
   const [result, setResult] = useState(null) // {winner: 'w'|'b'|'draw', reason}
+  useArmGameOverFlash(!!result)
   const [error, setError] = useState(null)
   // boardSize now derived from viewport; containerRef no longer needed
   // for measurement but kept for any future use.
@@ -1500,12 +1505,9 @@ function ResultPanel({ result, myColor, signedIn }) {
       <p className="relative mt-1 text-xs text-white/60">{result.reason}</p>
       <div className="relative mt-4 flex flex-col justify-center gap-2 sm:flex-row">
         <HallOfFameButton signedIn={signedIn} />
-        <Link
-          to="/"
-          className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
-        >
+        <LobbyBackLink className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan">
           BACK TO LOBBY
-        </Link>
+        </LobbyBackLink>
       </div>
     </div>
   )

@@ -42,7 +42,7 @@ export default function GameLayout({
   const labelHidden = isFullscreen ? 'sm:hidden' : 'hidden sm:inline'
 
   return (
-    <div className="game-page route-fade-in relative flex min-h-[100dvh] flex-col bg-arcadia-bg text-white">
+    <div className="game-page relative flex min-h-[100dvh] flex-col bg-arcadia-bg text-white">
       <header
         className={`sticky top-0 z-30 shrink-0 border-b ${a.border}`}
         style={{

@@ -53,7 +53,7 @@ function SectionHeader() {
 export default function Lobby() {
   useDocumentTitle('Lobby')
   return (
-    <div className="route-fade-in relative min-h-screen text-white">
+    <div className="relative min-h-screen text-white">
       <LobbyBackground />
       <div className="relative z-10">
         <Navbar />

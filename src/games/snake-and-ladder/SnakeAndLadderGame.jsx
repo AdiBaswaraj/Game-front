@@ -7,6 +7,10 @@ import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
 import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
+import {
+  LobbyBackLink,
+  useArmGameOverFlash,
+} from '../../context/GameOverFlashContext'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
 import { useViewport } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -107,6 +111,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
   const [rolling, setRolling] = useState(false)
   const [animating, setAnimating] = useState(false)
   const [winner, setWinner] = useState(null)
+  useArmGameOverFlash(winner != null)
   const [reconnecting, setReconnecting] = useState(false)
   const [flash, setFlash] = useState(null) // { square, kind, key }
   const [log, setLog] = useState([])
@@ -767,12 +772,9 @@ function Board({ positions, winner, myIdx, signedIn, room, flash, size = 560 }) 
           </p>
           <div className="relative mt-5 flex flex-col gap-2 sm:flex-row">
             <HallOfFameButton signedIn={signedIn} />
-            <Link
-              to="/"
-              className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
-            >
+            <LobbyBackLink className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan">
               BACK TO LOBBY
-            </Link>
+            </LobbyBackLink>
           </div>
         </div>
       )}

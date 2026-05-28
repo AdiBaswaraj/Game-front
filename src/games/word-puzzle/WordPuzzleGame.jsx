@@ -3,6 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
+import {
+  LobbyBackLink,
+  useArmGameOverFlash,
+} from '../../context/GameOverFlashContext'
 import { createRoom, postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
 import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
@@ -121,6 +125,7 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
   const [currentRow, setCurrentRow] = useState(saved?.currentRow ?? 0)
   const [currentGuess, setCurrentGuess] = useState('')
   const [status, setStatus] = useState(saved?.status ?? 'playing')
+  useArmGameOverFlash(status === 'won' || status === 'lost')
 
   const leaveModal = useGameLeaveGuard({
     active: status === 'playing',
@@ -581,12 +586,9 @@ function Overlay({
           </button>
         )}
         {isDaily && <HallOfFameButton signedIn={signedIn} />}
-        <Link
-          to="/"
-          className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
-        >
+        <LobbyBackLink className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan">
           BACK TO LOBBY
-        </Link>
+        </LobbyBackLink>
       </div>
       {isDaily && (
         <p className="relative mt-3 text-[10px] text-white/35">

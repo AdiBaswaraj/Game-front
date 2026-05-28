@@ -7,6 +7,10 @@ import { getRoom, postScore } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
 import { WinParticles } from '../../components/GameOverFX'
+import {
+  useArmGameOverFlash,
+  useGameOverFlash,
+} from '../../context/GameOverFlashContext'
 import { DAILY_WORDS, isValidGuess } from './words'
 import {
   Board,
@@ -54,6 +58,8 @@ export default function WordPuzzleBattle({ roomCode }) {
   const [currentGuess, setCurrentGuess] = useState('')
   const [keyStates, setKeyStates] = useState({})
   const [status, setStatus] = useState('playing') // playing | won | lost
+  useArmGameOverFlash(status === 'won' || status === 'lost')
+  const gameOverFlash = useGameOverFlash()
   const { cellSize, keyH, rowGap } = useWordPuzzleSize(COLS)
   const [revealing, setRevealing] = useState(false)
   const [shakeRow, setShakeRow] = useState(false)
@@ -315,7 +321,10 @@ export default function WordPuzzleBattle({ roomCode }) {
             opponentWonFirst={opponentWonFirst}
             answer={answer}
             guesses={youWon ? currentRow + 1 : null}
-            onLobby={() => navigate('/')}
+            onLobby={async () => {
+              await gameOverFlash?.flash()
+              navigate('/')
+            }}
           />
         )}
 

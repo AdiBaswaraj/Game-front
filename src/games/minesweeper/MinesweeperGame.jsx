@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
+import {
+  LobbyBackLink,
+  useArmGameOverFlash,
+} from '../../context/GameOverFlashContext'
 import LandscapeHint from '../../components/LandscapeHint'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
@@ -111,6 +115,7 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
 
   const [board, setBoard] = useState(() => makeBoard(cfg.rows, cfg.cols))
   const [status, setStatus] = useState('idle')
+  useArmGameOverFlash(status === 'won' || status === 'lost')
 
   const leaveModal = useGameLeaveGuard({
     active: status === 'playing',
@@ -457,12 +462,9 @@ function Result({ status, time, difficulty, signedIn, onReset }) {
           ▶ PLAY AGAIN
         </button>
         <HallOfFameButton signedIn={signedIn} />
-        <Link
-          to="/"
-          className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
-        >
+        <LobbyBackLink className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan">
           BACK TO LOBBY
-        </Link>
+        </LobbyBackLink>
       </div>
     </div>
   )

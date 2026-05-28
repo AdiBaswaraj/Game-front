@@ -4,6 +4,10 @@ import Avatar from '../../components/Avatar'
 import { WinParticles } from '../../components/GameOverFX'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import {
+  LobbyBackLink,
+  useArmGameOverFlash,
+} from '../../context/GameOverFlashContext'
+import {
   GOAL,
   LADDERS,
   SIZE,
@@ -30,6 +34,7 @@ export default function SnakeAndLadderLocalGame({
   const [rolling, setRolling] = useState(false)
   const [animating, setAnimating] = useState(false)
   const [winner, setWinner] = useState(null)
+  useArmGameOverFlash(winner != null)
   const leaveModal = useGameLeaveGuard({
     active: winner == null,
     kind: 'single',
@@ -510,12 +515,9 @@ function Sidebar({
           >
             ▶ PLAY AGAIN
           </button>
-          <Link
-            to="/"
-            className="rounded-md border border-white/15 px-3 py-2 text-center font-arcade text-[10px] text-white/55 hover:border-neon-cyan/60 hover:text-neon-cyan"
-          >
+          <LobbyBackLink className="rounded-md border border-white/15 px-3 py-2 text-center font-arcade text-[10px] text-white/55 hover:border-neon-cyan/60 hover:text-neon-cyan">
             BACK TO LOBBY
-          </Link>
+          </LobbyBackLink>
         </div>
       )}
     </aside>

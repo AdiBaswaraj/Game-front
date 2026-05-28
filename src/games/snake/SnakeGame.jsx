@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
+import {
+  LobbyBackLink,
+  useArmGameOverFlash,
+} from '../../context/GameOverFlashContext'
 import { getLeaderboard, postScore } from '../../lib/api'
 import { profileNameFor } from '../../lib/profile'
 import Leaderboard from '../../components/Leaderboard'
@@ -64,6 +68,7 @@ export default function SnakeGame() {
   const [level, setLevel] = useState(1)
   const [highScore, setHighScore] = useState(readHighScore)
   const [status, setStatus] = useState('idle')
+  useArmGameOverFlash(status === 'gameover')
 
   // Single-player active = a game is in progress. Leaving now would
   // throw away the run.
@@ -422,12 +427,9 @@ export default function SnakeGame() {
                 ▶ PLAY AGAIN
               </button>
               <HallOfFameButton signedIn={!!user} />
-              <Link
-                to="/"
-                className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
-              >
+              <LobbyBackLink className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan">
                 BACK TO LOBBY
-              </Link>
+              </LobbyBackLink>
             </div>
           </Overlay>
         )}
