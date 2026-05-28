@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from '../../components/Avatar'
+import { WinParticles } from '../../components/GameOverFX'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import {
   GOAL,
@@ -353,12 +354,15 @@ function Board({ positions, winner, players, flash }) {
       ))}
 
       {winner != null && (
-        <div className="absolute inset-2 flex flex-col items-center justify-center rounded-md bg-arcadia-bg/85 backdrop-blur-sm">
+        <div className="go-overlay-in absolute inset-2 flex flex-col items-center justify-center overflow-hidden rounded-md bg-arcadia-bg/85 backdrop-blur-sm">
+          <WinParticles />
           <p
-            className="font-arcade text-2xl drop-shadow-[0_0_18px_currentColor]"
+            className="relative font-arcade text-2xl drop-shadow-[0_0_18px_currentColor]"
             style={{ color: TOKEN_COLORS[winner % TOKEN_COLORS.length] }}
           >
-            ★ {players[winner]?.toUpperCase()} WINS ★
+            <span className="go-icon-pop">★</span>{' '}
+            {players[winner]?.toUpperCase()} WINS{' '}
+            <span className="go-icon-pop">★</span>
           </p>
         </div>
       )}

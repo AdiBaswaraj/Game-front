@@ -5,6 +5,7 @@ import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useSquareGameSize } from '../../hooks/useViewport'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
+import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
 import {
   findConflicts,
   generatePuzzle,
@@ -204,6 +205,7 @@ export default function SudokuGame({ difficulty = 'easy' }) {
           <WinOverlay
             time={time}
             difficulty={difficulty}
+            signedIn={!!user}
             onPlayAgain={() => newGame()}
           />
         )}
@@ -333,16 +335,18 @@ function NumberPad({ onInput }) {
   )
 }
 
-function WinOverlay({ time, difficulty, onPlayAgain }) {
+function WinOverlay({ time, difficulty, signedIn, onPlayAgain }) {
   const best = Number(
     localStorage.getItem(`arcadia:bestTime:sudoku:${difficulty}`) || 0,
   )
   return (
-    <div className="absolute inset-2 flex flex-col items-center justify-center rounded-md bg-arcadia-bg/92 px-6 text-center backdrop-blur-sm">
-      <p className="font-arcade text-base text-neon-green drop-shadow-[0_0_12px_rgba(0,255,136,0.5)] md:text-xl">
-        ★ COMPLETE ★
+    <div className="go-overlay-in absolute inset-2 flex flex-col items-center justify-center overflow-hidden rounded-md bg-arcadia-bg/92 px-6 text-center backdrop-blur-sm">
+      <WinParticles />
+      <p className="relative font-arcade text-base text-neon-green drop-shadow-[0_0_12px_rgba(0,255,136,0.5)] md:text-xl">
+        <span className="go-icon-pop">★</span> COMPLETE{' '}
+        <span className="go-icon-pop">★</span>
       </p>
-      <div className="mt-5 grid grid-cols-2 gap-4">
+      <div className="relative mt-5 grid grid-cols-2 gap-4">
         <div>
           <p className="font-arcade text-[9px] text-white/45">TIME</p>
           <p className="mt-1 font-arcade text-base text-neon-cyan">
@@ -356,7 +360,7 @@ function WinOverlay({ time, difficulty, onPlayAgain }) {
           </p>
         </div>
       </div>
-      <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+      <div className="relative mt-5 flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           onClick={onPlayAgain}
@@ -364,6 +368,7 @@ function WinOverlay({ time, difficulty, onPlayAgain }) {
         >
           ▶ NEW PUZZLE
         </button>
+        <HallOfFameButton signedIn={signedIn} />
         <Link
           to="/"
           className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"

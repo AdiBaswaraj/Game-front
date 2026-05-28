@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext'
 import { getRoom, postScore } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
+import { WinParticles } from '../../components/GameOverFX'
 import { DAILY_WORDS, isValidGuess } from './words'
 import {
   Board,
@@ -382,12 +383,19 @@ function ResultOverlay({ youWon, opponentWonFirst, answer, guesses, onLobby }) {
     : 'border-neon-pink/60 shadow-neon-pink text-neon-pink'
   return (
     <div
-      className={`w-full max-w-md rounded-xl border-2 bg-arcadia-surface/85 px-6 py-5 text-center backdrop-blur ${accent}`}
+      className={`go-overlay-in relative w-full max-w-md overflow-visible rounded-xl border-2 bg-arcadia-surface/85 px-6 py-5 text-center backdrop-blur ${accent}`}
     >
-      <p className="font-arcade text-lg drop-shadow-[0_0_10px_currentColor]">
-        ★ {youWon ? 'YOU WIN!' : opponentWonFirst ? 'YOU LOST' : 'OUT OF GUESSES'} ★
+      {youWon && <WinParticles />}
+      <p
+        className={`relative font-arcade text-lg drop-shadow-[0_0_10px_currentColor] ${
+          youWon ? '' : 'go-shake'
+        }`}
+      >
+        <span className="go-icon-pop">★</span>{' '}
+        {youWon ? 'YOU WIN!' : opponentWonFirst ? 'YOU LOST' : 'OUT OF GUESSES'}{' '}
+        <span className="go-icon-pop">★</span>
       </p>
-      <p className="mt-2 text-sm text-white/70">
+      <p className="relative mt-2 text-sm text-white/70">
         {youWon
           ? `Solved in ${guesses}/6`
           : `The word was ${answer.toUpperCase()}`}
@@ -395,7 +403,7 @@ function ResultOverlay({ youWon, opponentWonFirst, answer, guesses, onLobby }) {
       <button
         type="button"
         onClick={onLobby}
-        className="mt-4 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+        className="relative mt-4 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
       >
         BACK TO LOBBY
       </button>

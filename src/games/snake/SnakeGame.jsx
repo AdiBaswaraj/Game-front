@@ -5,6 +5,7 @@ import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { getLeaderboard, postScore } from '../../lib/api'
 import { profileNameFor } from '../../lib/profile'
 import Leaderboard from '../../components/Leaderboard'
+import { HallOfFameButton } from '../../components/GameOverFX'
 import { useSquareGameSize } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
 
@@ -391,8 +392,8 @@ export default function SnakeGame() {
 
         {status === 'gameover' && (
           <Overlay>
-            <p className="font-arcade text-base text-neon-pink md:text-lg">
-              GAME OVER
+            <p className="go-shake font-arcade text-base text-neon-pink drop-shadow-[0_0_10px_rgba(255,0,110,0.6)] md:text-lg">
+              <span className="go-icon-pop">💥</span> GAME OVER
             </p>
             <div className="mt-4 grid grid-cols-2 gap-4 text-center">
               <div>
@@ -416,6 +417,7 @@ export default function SnakeGame() {
               >
                 ▶ PLAY AGAIN
               </button>
+              <HallOfFameButton signedIn={!!user} />
               <Link
                 to="/"
                 className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
@@ -447,7 +449,7 @@ export default function SnakeGame() {
 
 function Overlay({ children }) {
   return (
-    <div className="absolute inset-2 flex flex-col items-center justify-center rounded-md bg-arcadia-bg/85 px-6 text-center backdrop-blur-sm">
+    <div className="go-overlay-in absolute inset-2 flex flex-col items-center justify-center rounded-md bg-arcadia-bg/85 px-6 text-center backdrop-blur-sm">
       {children}
     </div>
   )

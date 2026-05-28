@@ -5,6 +5,7 @@ import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import LandscapeHint from '../../components/LandscapeHint'
 import { postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
+import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
 
 const DIFFICULTIES = {
   easy: { rows: 9, cols: 9, mines: 10, label: 'EASY', cell: 32 },
@@ -304,6 +305,7 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
           status={status}
           time={time}
           difficulty={diff}
+          signedIn={!!user}
           onReset={() => newGame()}
         />
       )}
@@ -393,26 +395,36 @@ function Cell({ cell, size, onClick, onContextMenu }) {
   )
 }
 
-function Result({ status, time, difficulty, onReset }) {
+function Result({ status, time, difficulty, signedIn, onReset }) {
   const won = status === 'won'
   const best = Number(
     localStorage.getItem(`arcadia:bestTime:minesweeper:${difficulty}`) || 0,
   )
   return (
     <div
-      className={`flex flex-col items-center gap-3 rounded-lg border bg-arcadia-surface/80 px-6 py-5 text-center shadow-lg backdrop-blur ${
+      className={`go-overlay-in relative flex flex-col items-center gap-3 overflow-visible rounded-lg border bg-arcadia-surface/80 px-6 py-5 text-center shadow-lg backdrop-blur ${
         won ? 'border-neon-green/60 shadow-neon-green' : 'border-neon-pink/60 shadow-neon-pink'
       }`}
     >
+      {won && <WinParticles />}
       <p
-        className={`font-arcade text-base ${
-          won ? 'text-neon-green' : 'text-neon-pink'
+        className={`relative font-arcade text-base ${
+          won ? 'text-neon-green' : 'go-shake text-neon-pink'
         }`}
       >
-        {won ? '★ CLEARED ★' : '💥 BUSTED'}
+        {won ? (
+          <>
+            <span className="go-icon-pop">★</span> CLEARED{' '}
+            <span className="go-icon-pop">★</span>
+          </>
+        ) : (
+          <>
+            <span className="go-icon-pop">💥</span> BUSTED
+          </>
+        )}
       </p>
       {won && (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="relative grid grid-cols-2 gap-4">
           <div>
             <p className="font-arcade text-[9px] text-white/45">TIME</p>
             <p className="mt-1 font-arcade text-sm text-neon-cyan">{time}s</p>
@@ -425,7 +437,7 @@ function Result({ status, time, difficulty, onReset }) {
           </div>
         </div>
       )}
-      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+      <div className="relative mt-2 flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
           onClick={onReset}
@@ -433,6 +445,7 @@ function Result({ status, time, difficulty, onReset }) {
         >
           ▶ PLAY AGAIN
         </button>
+        <HallOfFameButton signedIn={signedIn} />
         <Link
           to="/"
           className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"

@@ -6,6 +6,7 @@ import { useToast } from '../../context/ToastContext'
 import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
+import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
 import { useViewport } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -545,6 +546,8 @@ export default function SnakeAndLadderGame({ roomCode }) {
         <Board
           positions={positions}
           winner={winner}
+          myIdx={myIdx}
+          signedIn={!!user}
           room={room}
           flash={flash}
           size={boardSize}
@@ -573,7 +576,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
   )
 }
 
-function Board({ positions, winner, room, flash, size = 560 }) {
+function Board({ positions, winner, myIdx, signedIn, room, flash, size = 560 }) {
   const cells = []
   for (let row = 0; row < SIZE; row++) {
     for (let col = 0; col < SIZE; col++) {
@@ -729,19 +732,27 @@ function Board({ positions, winner, room, flash, size = 560 }) {
       )}
 
       {winner != null && (
-        <div className="absolute inset-2 flex flex-col items-center justify-center rounded-md bg-arcadia-bg/85 backdrop-blur-sm">
+        <div className="go-overlay-in absolute inset-2 flex flex-col items-center justify-center overflow-hidden rounded-md bg-arcadia-bg/85 backdrop-blur-sm">
+          {winner === myIdx && <WinParticles />}
           <p
-            className="font-arcade text-2xl drop-shadow-[0_0_18px_currentColor]"
+            className={`relative font-arcade text-2xl drop-shadow-[0_0_18px_currentColor] ${
+              winner !== myIdx && myIdx != null ? 'go-shake' : ''
+            }`}
             style={{ color: TOKEN_COLORS[winner] }}
           >
-            ★ {room.players[winner]?.username?.toUpperCase()} WINS ★
+            <span className="go-icon-pop">★</span>{' '}
+            {room.players[winner]?.username?.toUpperCase()} WINS{' '}
+            <span className="go-icon-pop">★</span>
           </p>
-          <Link
-            to="/"
-            className="mt-5 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
-          >
-            BACK TO LOBBY
-          </Link>
+          <div className="relative mt-5 flex flex-col gap-2 sm:flex-row">
+            <HallOfFameButton signedIn={signedIn} />
+            <Link
+              to="/"
+              className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+            >
+              BACK TO LOBBY
+            </Link>
+          </div>
         </div>
       )}
     </div>

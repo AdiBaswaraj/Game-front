@@ -5,6 +5,7 @@ import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
 import { createRoom, postScore } from '../../lib/api'
 import Leaderboard from '../../components/Leaderboard'
+import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
 import {
   getDailyDateKey,
   getDailyWord,
@@ -444,6 +445,7 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
           subtitle={`Solved in ${currentRow + 1} / 6`}
           isDaily={isDaily}
           countdown={countdown}
+          signedIn={!!user}
           onShare={handleShare}
           onNewWord={newWord}
         />
@@ -464,6 +466,7 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
           revealed={revealed}
           onReveal={isDaily && !revealed ? handleReveal : null}
           countdown={countdown}
+          signedIn={!!user}
           onShare={handleShare}
           onNewWord={newWord}
         />
@@ -507,28 +510,37 @@ function Overlay({
   revealed,
   onReveal,
   countdown,
+  signedIn,
   onShare,
   onNewWord,
 }) {
-  const accent =
-    tone === 'green'
-      ? 'border-neon-green/60 shadow-neon-green text-neon-green'
-      : 'border-neon-pink/60 shadow-neon-pink text-neon-pink'
+  const won = tone === 'green'
+  const accent = won
+    ? 'border-neon-green/60 shadow-neon-green text-neon-green'
+    : 'border-neon-pink/60 shadow-neon-pink text-neon-pink'
 
   return (
     <div
-      className={`w-full max-w-md rounded-xl border-2 bg-arcadia-surface/85 px-6 py-5 text-center backdrop-blur ${accent}`}
+      className={`go-overlay-in relative w-full max-w-md overflow-visible rounded-xl border-2 bg-arcadia-surface/85 px-6 py-5 text-center backdrop-blur ${accent}`}
     >
-      <p className="font-arcade text-base drop-shadow-[0_0_10px_currentColor] md:text-lg">
-        ★ {title} ★
+      {won && <WinParticles />}
+      <p
+        className={`relative font-arcade text-base drop-shadow-[0_0_10px_currentColor] md:text-lg ${
+          won ? '' : 'go-shake'
+        }`}
+      >
+        <span className="go-icon-pop">★</span> {title}{' '}
+        <span className="go-icon-pop">★</span>
       </p>
-      {subtitle && <p className="mt-2 text-sm text-white/70">{subtitle}</p>}
+      {subtitle && (
+        <p className="relative mt-2 text-sm text-white/70">{subtitle}</p>
+      )}
 
       {isDaily && onReveal && (
         <button
           type="button"
           onClick={onReveal}
-          className="mt-4 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+          className="relative mt-4 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
         >
           👁 REVEAL ANSWER
         </button>
@@ -536,14 +548,16 @@ function Overlay({
 
       {isDaily && (
         <>
-          <p className="mt-4 font-arcade text-[10px] text-white/50">
+          <p className="relative mt-4 font-arcade text-[10px] text-white/50">
             NEXT WORD IN
           </p>
-          <p className="font-arcade text-base text-neon-cyan">{countdown}</p>
+          <p className="relative font-arcade text-base text-neon-cyan">
+            {countdown}
+          </p>
         </>
       )}
 
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+      <div className="relative mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
         {isDaily ? (
           <button
             type="button"
@@ -561,6 +575,7 @@ function Overlay({
             ▶ NEW WORD
           </button>
         )}
+        {isDaily && <HallOfFameButton signedIn={signedIn} />}
         <Link
           to="/"
           className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
@@ -569,7 +584,9 @@ function Overlay({
         </Link>
       </div>
       {isDaily && (
-        <p className="mt-3 text-[10px] text-white/35">Come back tomorrow.</p>
+        <p className="relative mt-3 text-[10px] text-white/35">
+          Come back tomorrow.
+        </p>
       )}
     </div>
   )

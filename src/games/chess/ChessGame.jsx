@@ -7,6 +7,7 @@ import { useToast } from '../../context/ToastContext'
 import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
+import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
 import { useViewport } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -1161,7 +1162,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           </div>
         )}
 
-        {result && <ResultPanel result={result} myColor={myColor} />}
+        {result && (
+          <ResultPanel result={result} myColor={myColor} signedIn={!!user} />
+        )}
       </div>
 
       <aside className="flex shrink-0 flex-col gap-2 lg:gap-3">
@@ -1442,7 +1445,7 @@ function DisconnectBanner({ username, secondsRemaining }) {
   )
 }
 
-function ResultPanel({ result, myColor }) {
+function ResultPanel({ result, myColor, signedIn }) {
   const isDraw = result.winner === 'draw'
   const won = !isDraw && result.winner === myColor
   const title = isDraw ? 'DRAW' : won ? 'YOU WIN!' : 'YOU LOST'
@@ -1454,16 +1457,23 @@ function ResultPanel({ result, myColor }) {
 
   return (
     <div
-      className={`lb-slide-in mt-4 rounded-xl border-2 bg-arcadia-surface/85 px-5 py-4 text-center backdrop-blur ${accent}`}
+      className={`go-overlay-in relative mt-4 overflow-visible rounded-xl border-2 bg-arcadia-surface/85 px-5 py-4 text-center backdrop-blur ${accent}`}
     >
-      <p className="font-arcade text-base drop-shadow-[0_0_10px_currentColor]">
-        ★ {title} ★
+      {won && <WinParticles />}
+      <p
+        className={`relative font-arcade text-base drop-shadow-[0_0_10px_currentColor] ${
+          !won && !isDraw ? 'go-shake' : ''
+        }`}
+      >
+        <span className="go-icon-pop">★</span> {title}{' '}
+        <span className="go-icon-pop">★</span>
       </p>
-      <p className="mt-1 text-xs text-white/60">{result.reason}</p>
-      <div className="mt-4 flex justify-center gap-2">
+      <p className="relative mt-1 text-xs text-white/60">{result.reason}</p>
+      <div className="relative mt-4 flex flex-col justify-center gap-2 sm:flex-row">
+        <HallOfFameButton signedIn={signedIn} />
         <Link
           to="/"
-          className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+          className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
         >
           BACK TO LOBBY
         </Link>
