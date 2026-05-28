@@ -364,3 +364,22 @@ body,
   to   { transform: translate(-50%, 0); opacity: 1; }
 }
 .toast-in { animation: toast-in 0.25s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+
+/* ===== Lobby living background ===== */
+
+.lobby-bg-gradient {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(112, 0, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(0, 212, 255, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 60% 80%, rgba(0, 255, 136, 0.05) 0%, transparent 50%),
+    #050508;
+}
+
+@keyframes silhouette-drift-ltr {
+  from { transform: translate3d(-20vw, 0, 0) rotate(0deg); }
+  to   { transform: translate3d(120vw, 0, 0) rotate(-360deg); }
+}
+@keyframes silhouette-drift-rtl {
+  from { transform: translate3d(120vw, 0, 0) rotate(0deg); }
+  to   { transform: translate3d(-20vw, 0, 0) rotate(360deg); }
+}
