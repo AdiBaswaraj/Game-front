@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useFriends } from '../context/FriendsContext'
 import { useToast } from '../context/ToastContext'
@@ -60,25 +60,33 @@ export default function SideNavDrawer({ open, onClose }) {
     <>
       <div
         onClick={onClose}
-        className={`fixed inset-0 z-[1000] bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[1000] bg-black/60 transition-opacity duration-200 ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
+        style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
       />
       <aside
         aria-label="Navigation"
         aria-hidden={!open}
-        className={`fixed inset-y-0 left-0 z-[1010] flex w-80 max-w-[88vw] flex-col border-r-2 border-neon-green/50 bg-arcadia-bg text-white shadow-[0_0_40px_-10px_rgba(0,255,136,0.5)] transition-transform duration-300 ${
-          open ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 right-0 z-[1010] flex w-full flex-col text-white sm:w-80 ${
+          open ? 'translate-x-0' : 'translate-x-full'
         }`}
+        style={{
+          background: 'rgba(5, 5, 8, 0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderLeft: '2px solid rgba(0, 255, 136, 0.2)',
+          transition: 'transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-white/10 px-5 py-4">
-          <span className="font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.5)]">
-            ★ ARCADIA
+        <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-4">
+          <span className="neon-text font-arcade text-sm text-neon-green">
+            <span className="text-neon-cyan">★</span> ARCADIA
           </span>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 font-arcade text-xs text-white/50 transition hover:text-neon-pink"
+            className="grid h-9 w-9 place-items-center rounded-md font-arcade text-xs text-white/50 transition hover:bg-white/[0.06] hover:text-neon-pink"
             aria-label="Close navigation"
           >
             ✕
@@ -100,40 +108,42 @@ export default function SideNavDrawer({ open, onClose }) {
             <SignedOutCard onLogin={handleLogin} />
           )}
 
-          <nav aria-label="Primary">
-            <ul className="border-t border-white/5">
+          <DividerLabel>NAVIGATE</DividerLabel>
+
+          <nav aria-label="Primary" className="px-3">
+            <ul className="space-y-1">
               {NAV_LINKS.map((item) => (
-                <li key={item.to}>
-                  <Link
-                    to={item.to}
-                    onClick={onClose}
-                    className="flex items-center gap-4 px-5 py-4 font-arcade text-[11px] text-white/80 transition hover:bg-white/5 hover:text-neon-cyan"
-                  >
-                    <span className="text-lg" aria-hidden="true">
-                      {item.icon}
-                    </span>
-                    <span>{item.label}</span>
-                  </Link>
-                </li>
+                <NavLinkItem key={item.to} item={item} onClose={onClose} />
               ))}
             </ul>
           </nav>
 
-          {user && <FriendsSection onClose={onClose} displayName={displayName} userId={user.id} />}
+          {user && (
+            <>
+              <DividerLabel>FRIENDS</DividerLabel>
+              <FriendsSection
+                onClose={onClose}
+                displayName={displayName}
+                userId={user.id}
+              />
+            </>
+          )}
         </div>
 
         {user && (
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex shrink-0 items-center gap-4 border-t border-white/10 px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-white/5"
+            className="flex shrink-0 items-center gap-4 border-t border-white/[0.06] px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-neon-pink/10 hover:shadow-[inset_0_0_20px_rgba(255,0,110,0.15)]"
           >
-            <span className="text-lg" aria-hidden="true">↩</span>
+            <span className="text-lg" aria-hidden="true">
+              ↩
+            </span>
             <span>SIGN OUT</span>
           </button>
         )}
 
-        <footer className="shrink-0 border-t border-white/5 px-5 py-3 text-center font-arcade text-[9px] text-white/30">
+        <footer className="shrink-0 border-t border-white/[0.06] px-5 py-3 text-center font-arcade text-[9px] text-white/30">
           © ARCADIA 2026
         </footer>
       </aside>
@@ -143,25 +153,79 @@ export default function SideNavDrawer({ open, onClose }) {
   return createPortal(drawer, document.body)
 }
 
+function DividerLabel({ children }) {
+  return (
+    <div className="my-4 flex items-center gap-3 px-5">
+      <div className="h-px flex-1 bg-white/[0.06]" />
+      <span className="font-arcade text-[9px] tracking-[0.3em] text-white/35">
+        {children}
+      </span>
+      <div className="h-px flex-1 bg-white/[0.06]" />
+    </div>
+  )
+}
+
+function NavLinkItem({ item, onClose }) {
+  const location = useLocation()
+  const isActive =
+    item.to === '/'
+      ? location.pathname === '/'
+      : location.pathname.startsWith(item.to)
+  return (
+    <li>
+      <Link
+        to={item.to}
+        onClick={onClose}
+        className={`relative flex items-center gap-4 rounded-md px-5 py-3 font-arcade text-[11px] transition-all duration-200 ${
+          isActive
+            ? 'bg-white/[0.05] text-neon-green'
+            : 'text-white/80 hover:bg-white/[0.05] hover:text-neon-cyan'
+        }`}
+      >
+        {isActive && (
+          <span className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-neon-green shadow-neon-green" />
+        )}
+        <span className="text-lg" aria-hidden="true">
+          {item.icon}
+        </span>
+        <span>{item.label}</span>
+      </Link>
+    </li>
+  )
+}
+
 function SignedInCard({ name, joinDate, onClose }) {
   const joined = formatJoinDate(joinDate)
   return (
     <Link
       to={`/profile/${encodeURIComponent(name ?? '')}`}
       onClick={onClose}
-      className="flex items-center gap-3 border-b border-white/5 px-5 py-5 transition hover:bg-white/5"
+      className="flex items-center gap-4 px-5 py-5 transition hover:bg-white/[0.04]"
     >
-      <Avatar name={name} size="lg" />
+      <span
+        className="grid place-items-center rounded-full p-[2px]"
+        style={{
+          background:
+            'linear-gradient(135deg, var(--neon-green), var(--neon-cyan))',
+        }}
+      >
+        <span className="grid place-items-center rounded-full bg-arcadia-bg">
+          <Avatar name={name} size="lg" />
+        </span>
+      </span>
       <div className="min-w-0">
-        <p className="truncate font-arcade text-[12px] text-neon-green drop-shadow-[0_0_6px_rgba(0,255,136,0.4)]">
+        <p className="neon-text truncate font-arcade text-[12px] text-neon-green">
           {name ?? 'Player'}
         </p>
-        {joined && (
-          <p className="mt-1 text-[10px] text-white/45">Member since {joined}</p>
-        )}
-        <p className="mt-1 font-arcade text-[9px] text-neon-cyan/80">
-          VIEW PROFILE →
+        <p className="mt-1 flex items-center gap-1.5 font-arcade text-[9px] text-neon-green/85">
+          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-neon-green shadow-neon-green" />
+          ONLINE
         </p>
+        {joined && (
+          <p className="mt-1 text-[10px] text-white/45">
+            Member since {joined}
+          </p>
+        )}
       </div>
     </Link>
   )
@@ -169,7 +233,7 @@ function SignedInCard({ name, joinDate, onClose }) {
 
 function GuestCard({ name, onLogin }) {
   return (
-    <div className="border-b border-white/5 px-5 py-5">
+    <div className="px-5 py-5">
       <div className="flex items-center gap-3">
         <Avatar name={name} size="lg" />
         <div className="min-w-0">
@@ -195,7 +259,7 @@ function GuestCard({ name, onLogin }) {
 
 function SignedOutCard({ onLogin }) {
   return (
-    <div className="border-b border-white/5 px-5 py-5 text-center">
+    <div className="px-5 py-5 text-center">
       <p className="font-arcade text-[10px] text-white/60">
         SIGN IN TO SAVE SCORES
       </p>
@@ -215,7 +279,7 @@ function SignedOutCard({ onLogin }) {
 
 function ProfileSkeleton() {
   return (
-    <div className="flex items-center gap-3 border-b border-white/5 px-5 py-5">
+    <div className="flex items-center gap-3 px-5 py-5">
       <div className="h-16 w-16 animate-pulse rounded-full bg-white/5" />
       <div className="flex-1 space-y-2">
         <div className="h-3 w-2/3 animate-pulse rounded bg-white/5" />
@@ -256,17 +320,16 @@ function FriendsSection({ onClose, displayName, userId }) {
   const pendingCount = pendingRequests.length
 
   return (
-    <section className="border-t border-white/10">
-      <header className="flex items-center justify-between px-5 pt-5">
-        <h3 className="font-arcade text-[11px] text-neon-cyan">★ FRIENDS</h3>
-        {pendingCount > 0 && (
+    <section>
+      {pendingCount > 0 && (
+        <div className="px-5 pb-1 text-right">
           <span className="rounded-full bg-neon-pink px-1.5 py-0.5 font-arcade text-[8px] text-arcadia-bg">
-            {pendingCount}
+            {pendingCount} pending
           </span>
-        )}
-      </header>
+        </div>
+      )}
 
-      <nav className="mt-3 flex px-3" aria-label="Friends tabs">
+      <nav className="flex px-3" aria-label="Friends tabs">
         {TABS.map((t) => {
           const active = tab === t
           const badge = t === 'REQUESTS' && pendingCount > 0
