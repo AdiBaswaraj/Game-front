@@ -75,10 +75,10 @@ const SL_CARDS = [
   {
     id: 'computer',
     to: '/game/snake-and-ladder/computer',
-    label: 'VS COMPUTER',
+    label: 'VS BOT',
     icon: '🤖',
     accent: 'cyan',
-    tag: 'Pick 2–4 players · CPU fills the rest',
+    tag: 'Pick 2–4 players · Bots fill the rest',
   },
   {
     id: 'matchmaking',
@@ -205,7 +205,7 @@ function GamePageBody() {
       if (!variant) {
         return (
           <SnakeAndLadderLocalSelect
-            title={`${title} · VS CPU`}
+            title={`${title} · VS BOT`}
             basePath="/game/snake-and-ladder/computer"
             backTo="/game/snake-and-ladder/mode"
           />
@@ -215,20 +215,20 @@ function GamePageBody() {
       if (![2, 3, 4].includes(count)) {
         return (
           <SnakeAndLadderLocalSelect
-            title={`${title} · VS CPU`}
+            title={`${title} · VS BOT`}
             basePath="/game/snake-and-ladder/computer"
             backTo="/game/snake-and-ladder/mode"
           />
         )
       }
       const names = ['You']
-      for (let i = 1; i < count; i++) names.push(`CPU ${i}`)
+      for (let i = 1; i < count; i++) names.push(`Bot ${i}`)
       const cpuIndices = new Set(
         Array.from({ length: count - 1 }, (_, i) => i + 1),
       )
       return (
         <GameLayout
-          title={`${title} · CPU ${count}P`}
+          title={`${title} · BOT ${count}P`}
           icon={icon}
           Icon={Icon}
           backTo="/game/snake-and-ladder/computer"

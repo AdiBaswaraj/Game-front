@@ -379,6 +379,35 @@ export function SignOutIcon({ size = 20, ...rest }) {
   )
 }
 
+// Tiny pixel robot — square head, two dot eyes, antenna. Sized for
+// inline use beside a bot player's name.
+export function RobotIcon({ size = 12, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 12 12"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Bot"
+      {...rest}
+    >
+      {/* antenna */}
+      <rect x="5" y="0" width="2" height="2" />
+      <rect x="5" y="2" width="2" height="1" />
+      {/* head */}
+      <rect x="2" y="3" width="8" height="6" />
+      {/* eyes punched out via bg color */}
+      <rect x="4" y="5" width="1" height="1" fill="#050508" />
+      <rect x="7" y="5" width="1" height="1" fill="#050508" />
+      {/* mouth */}
+      <rect x="4" y="7" width="4" height="1" fill="#050508" />
+      {/* base */}
+      <rect x="3" y="9" width="6" height="2" />
+    </svg>
+  )
+}
+
 // Lookup by game id — consumers use ICONS_BY_ID[gameId] when they
 // don't already have access to the games.js entry.
 export const ICONS_BY_ID = {

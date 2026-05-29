@@ -53,7 +53,7 @@ export default function SnakeAndLadderLocalSelect({
             >
               <span className="font-arcade text-lg">{opt.label}</span>
               <span className="text-xs uppercase tracking-widest text-white/45">
-                CPU fills the rest
+                Bots fill the rest
               </span>
             </button>
           ))}

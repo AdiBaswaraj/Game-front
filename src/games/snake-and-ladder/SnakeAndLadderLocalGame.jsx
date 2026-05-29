@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Avatar from '../../components/Avatar'
+import { RobotIcon } from '../../assets/icons/index.jsx'
 import { WinParticles } from '../../components/GameOverFX'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import {
@@ -375,7 +376,11 @@ function Board({ positions, winner, players, flash }) {
             style={{ color: TOKEN_COLORS[winner % TOKEN_COLORS.length] }}
           >
             <span className="go-icon-pop">★</span>{' '}
-            {players[winner]?.toUpperCase()} WINS{' '}
+            {winner === 0
+              ? 'YOU BEAT THE BOT!'
+              : cpuIndices.has(winner)
+                ? `${players[winner]?.toUpperCase()} WINS!`
+                : `${players[winner]?.toUpperCase()} WINS`}{' '}
             <span className="go-icon-pop">★</span>
           </p>
         </div>
@@ -438,8 +443,17 @@ function Sidebar({
             >
               <Avatar name={name} size="md" />
               <div className="min-w-0 flex-1">
-                <p className="truncate font-arcade text-[10px] text-white">
-                  {name} {cpuIndices.has(i) && '· CPU'}
+                <p className="flex items-center gap-1.5 truncate font-arcade text-[10px] text-white">
+                  <span>{name}</span>
+                  {cpuIndices.has(i) && (
+                    <span
+                      className="inline-flex items-center gap-1 text-neon-cyan/80"
+                      title="Bot"
+                    >
+                      <RobotIcon size={12} />
+                      <span className="text-[9px]">BOT</span>
+                    </span>
+                  )}
                 </p>
                 <p
                   className="font-arcade text-[9px]"
@@ -478,7 +492,7 @@ function Sidebar({
             : rolling || animating
               ? 'ROLLING…'
               : cpu
-                ? 'CPU THINKING…'
+                ? 'BOT THINKING…'
                 : `🎲 ROLL — ${players[turnIdx]}`}
         </button>
       </div>
