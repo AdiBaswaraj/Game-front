@@ -143,6 +143,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [history, setHistory] = useState([]) // {san, color, captured}[]
   const [room, setRoom] = useState(null)
   const [myColor, setMyColor] = useState(mode === 'computer' ? 'w' : null)
+  // Mirror room / myColor / user.id so the MP socket handlers can read
+  // the latest values without re-registering. Without this, the handler
+  // useEffect would tear down and re-attach listeners every time room
+  // changed — and any match_result that fired during the gap would be
+  // silently dropped.
+  const roomRef = useRef(room)
+  const myColorRef = useRef(myColor)
+  const userIdRef = useRef(null)
+  roomRef.current = room
+  myColorRef.current = myColor
+  userIdRef.current = user?.id ?? null
   const [result, setResult] = useState(null) // {winner: 'w'|'b'|'draw', reason}
   useArmGameOverFlash(!!result)
   const [error, setError] = useState(null)
@@ -535,7 +546,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     const finalizeResult = (data) => {
       const winnerId = pick(data, 'winnerId', 'winner_id', 'winner')
       const reason = pick(data, 'reason') ?? 'GAME OVER'
-      const players = room?.players ?? []
+      const players = roomRef.current?.players ?? []
+      const myId = userIdRef.current
+      const myCol = myColorRef.current
       const winnerIdx = players.findIndex(
         (p) =>
           (p.userId ?? p.user_id ?? p.id) === winnerId ||
@@ -546,19 +559,19 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           ? winnerIdx === 0
             ? 'w'
             : 'b'
-          : winnerId === user?.id
-            ? myColor
-            : myColor === 'w'
+          : winnerId === myId
+            ? myCol
+            : myCol === 'w'
               ? 'b'
               : 'w'
       if (reason === 'draw') winnerColor = 'draw'
       const youResigned =
         reason === 'resign' &&
-        winnerId !== user?.id &&
-        myColor &&
-        myColor !== winnerColor
+        winnerId !== myId &&
+        myCol &&
+        myCol !== winnerColor
       const opponentResigned =
-        reason === 'resign' && winnerId === user?.id
+        reason === 'resign' && winnerId === myId
       let displayReason = reason
       if (reason === 'resign') {
         displayReason = youResigned ? 'YOU RESIGNED' : 'OPPONENT RESIGNED'
@@ -575,10 +588,15 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     }
 
     const onMatchResult = (data) => {
-      console.log('[match_result] received:', data)
+      console.log('[match_result] RECEIVED:', data)
+      console.log('[match_result] winnerId:', data?.winnerId)
+      console.log('[match_result] myId:', userIdRef.current)
       finalizeResult(data)
     }
-    const onGameOver = (data) => finalizeResult(data)
+    const onGameOver = (data) => {
+      console.log('[game_over] RECEIVED:', data)
+      finalizeResult(data)
+    }
 
     const onOpponentLeft = () => {
       toast.warning('Opponent left the game.')
@@ -640,7 +658,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       socket.off('opponent_left', onOpponentLeft)
       socket.off('state_sync', onStateSync)
     }
-  }, [isMP, room, user?.id, myColor, toast])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMP])
 
   // ===== Local clock countdown =====
   // Runs in BOTH multiplayer and vs computer mode. In MP the
@@ -1008,11 +1027,11 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       return
     }
     if (!opponentId) {
-      console.warn('[resign] no opponentId resolved — winnerId would be undefined')
-      toast.show({
-        message: 'Could not resign — opponent unknown.',
-        duration: 3000,
-      })
+      console.error(
+        '[resign] no opponentId resolved — winnerId would be undefined; players:',
+        room?.players,
+      )
+      toast.error('Cannot resign — opponent not found.')
       return
     }
     const payload = {
