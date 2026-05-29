@@ -1207,18 +1207,33 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         className="relative mx-auto flex shrink-0 flex-col"
         style={{ width: boardSize }}
       >
-        <ClockRow
+        <PlayerHeader
           name={opponentLabel}
+          subtitle={isMP ? 'OPPONENT' : 'BOT'}
+          color={opponentColor}
           ms={liveClocks[opponentColor]}
           active={turn === opponentColor && !result && !flagged}
-          colorClass="bg-arcadia-surface"
           flash={clockFlash?.color === opponentColor ? clockFlash : null}
+          materialDelta={Math.max(
+            0,
+            materialScore(captured[myColor ?? 'w']) -
+              materialScore(captured[opponentColor]),
+          )}
+          alignment="top"
         />
         <CapturedRow
           pieces={captured[myColor === 'w' ? 'b' : 'w']}
           opponentPieces={captured[myColor === 'w' ? 'w' : 'b']}
           accent="green"
           label="CAPTURED"
+        />
+        <GameStatusRow
+          myTurn={myTurn}
+          isMP={isMP}
+          aiThinking={aiThinking}
+          inCheck={!!checkSquare}
+          result={result}
+          moveNumber={Math.floor(history.length / 2) + 1}
         />
         <div className="my-2 overflow-hidden rounded-lg border-2 border-neon-cyan/50 bg-arcadia-surface p-1 shadow-neon-cyan">
           <Chessboard
@@ -1246,12 +1261,19 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           accent="pink"
           label="LOST"
         />
-        <ClockRow
+        <PlayerHeader
           name={displayName ?? 'You'}
+          subtitle="YOU"
+          color={myColor ?? 'w'}
           ms={liveClocks[myColor ?? 'w']}
           active={turn === (myColor ?? 'w') && !result && !flagged}
-          colorClass="bg-arcadia-surface"
           flash={clockFlash?.color === (myColor ?? 'w') ? clockFlash : null}
+          materialDelta={Math.max(
+            0,
+            materialScore(captured[opponentColor]) -
+              materialScore(captured[myColor ?? 'w']),
+          )}
+          alignment="bottom"
         />
         {!isMP && history.length === 0 && !result && (
           <p className="mt-1 text-center font-arcade text-[9px] text-white/45">
@@ -1269,17 +1291,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         {isMP && reconnecting && !result && (
           <div className="lb-slide-in mt-3 rounded-md border border-neon-cyan/60 bg-arcadia-surface/85 px-4 py-3 text-center font-arcade text-[10px] text-neon-cyan">
             RECONNECTING…
-          </div>
-        )}
-
-        {!isMP && aiThinking && !result && (
-          <div className="mt-3 flex items-center justify-center gap-2 rounded-md border border-neon-cyan/40 bg-neon-cyan/5 px-3 py-2 font-arcade text-[10px] text-neon-cyan">
-            BOT IS THINKING
-            <span className="bot-dot-stack inline-flex gap-1" aria-hidden="true">
-              <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
-              <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
-              <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
-            </span>
           </div>
         )}
 
@@ -1315,20 +1326,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             </p>
           </div>
         )}
-        <PlayerStrip
-          name={opponentLabel}
-          subtitle={isMP ? 'OPPONENT' : 'BOT'}
-          color={opponentColor}
-          active={turn === opponentColor && !result}
-          thinking={!isMP && aiThinking}
-        />
-        <PlayerStrip
-          name={displayName ?? 'You'}
-          subtitle="YOU"
-          color={myColor ?? 'w'}
-          active={myTurn && !result}
-        />
-
         <MoveList history={sanHistory} scrollRef={moveListRef} />
 
         {!isMP && !result && (
@@ -1357,9 +1354,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           <button
             type="button"
             onClick={handleResign}
-            className="rounded-md border border-neon-pink/60 px-3 py-2 font-arcade text-[10px] text-neon-pink hover:bg-neon-pink/10 hover:shadow-neon-pink"
+            className="mt-1 self-center font-arcade text-[10px] text-neon-pink/55 transition hover:text-neon-pink hover:drop-shadow-[0_0_6px_rgba(255,0,110,0.7)]"
           >
-            🏳 RESIGN
+            ⚑ Resign
           </button>
         )}
       </aside>
@@ -1463,6 +1460,153 @@ function ClockRow({ name, ms, active, colorClass = '', flash }) {
       </span>
       <span className="neon-text font-arcade text-base tracking-wider">
         {dead ? '00:00' : fmtClock(ms)}
+      </span>
+    </div>
+  )
+}
+
+const TOTAL_CLOCK_MS = 600_000
+
+function PlayerHeader({
+  name,
+  subtitle,
+  color,
+  ms,
+  active,
+  flash,
+  materialDelta,
+  alignment,
+}) {
+  const ratio = Math.max(0, Math.min(1, ms / TOTAL_CLOCK_MS))
+  const low = ms < 30_000 && ms > 0
+  const warn = !low && ms < 120_000 && ms > 0
+  const barColor = low ? '#ff006e' : warn ? '#ffd700' : '#00ff88'
+  const dead = ms <= 0
+
+  const nameRow = (
+    <div className="flex items-center gap-2 px-3 py-1.5">
+      <Avatar name={name} size="sm" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-arcade text-[10px] text-white">
+          {name}
+          {materialDelta > 0 && (
+            <span className="ml-1.5 font-arcade text-[9px] text-neon-green">
+              +{materialDelta}
+            </span>
+          )}
+        </p>
+        <p className="font-arcade text-[8px] text-white/40">{subtitle}</p>
+      </div>
+      <span className="font-arcade text-[10px] text-white/55">
+        {color === 'w' ? '♙ w' : '♟ b'}
+      </span>
+    </div>
+  )
+
+  const clockBar = (
+    <div className="relative flex items-center gap-3 px-3 py-1.5">
+      <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-200"
+          style={{
+            width: `${ratio * 100}%`,
+            background: barColor,
+            boxShadow: active ? `0 0 8px ${barColor}` : 'none',
+          }}
+        />
+      </div>
+      <span
+        className={`font-arcade text-[11px] tabular-nums ${
+          low
+            ? 'chess-clock-low text-neon-pink'
+            : active
+              ? 'text-neon-green'
+              : 'text-white/60'
+        }`}
+      >
+        {dead ? '00:00' : fmtClock(ms)}
+      </span>
+      {flash && (
+        <span
+          key={flash.key}
+          className="badge-flip absolute -top-2 right-2 rounded-md border border-neon-green/60 bg-neon-green/15 px-1.5 py-0.5 font-arcade text-[9px] text-neon-green shadow-neon-green"
+        >
+          {flash.text}
+        </span>
+      )}
+    </div>
+  )
+
+  return (
+    <div
+      className={`glass-panel my-1 overflow-hidden ${
+        active ? 'pixel-corners' : 'pixel-corners pixel-corners-cyan'
+      }`}
+    >
+      {alignment === 'top' ? (
+        <>
+          {nameRow}
+          {clockBar}
+        </>
+      ) : (
+        <>
+          {clockBar}
+          {nameRow}
+        </>
+      )}
+    </div>
+  )
+}
+
+function GameStatusRow({
+  myTurn,
+  isMP,
+  aiThinking,
+  inCheck,
+  result,
+  moveNumber,
+}) {
+  let label = null
+  let cls = 'text-neon-green'
+  let dots = false
+  if (result) {
+    if (result.winner === 'draw') {
+      label = 'DRAW'
+      cls = 'text-neon-cyan'
+    } else {
+      label = result.reason || 'GAME OVER'
+      cls = 'text-neon-pink'
+    }
+  } else if (inCheck) {
+    label = 'CHECK!'
+    cls = 'text-neon-pink chess-clock-low'
+  } else if (myTurn) {
+    label = 'YOUR TURN'
+  } else if (!isMP && aiThinking) {
+    label = 'BOT THINKING'
+    cls = 'text-white/65'
+    dots = true
+  } else {
+    label = 'OPPONENT MOVES'
+    cls = 'text-white/55'
+  }
+  return (
+    <div className="my-1 flex items-center justify-between px-2 py-1 font-arcade text-[10px]">
+      <span className={`flex items-center gap-2 ${cls}`}>
+        {label}
+        {dots && (
+          <span
+            className="bot-dot-stack inline-flex items-center gap-1"
+            aria-hidden="true"
+          >
+            <span className="bot-dot inline-block h-1 w-1 rounded-full bg-current" />
+            <span className="bot-dot inline-block h-1 w-1 rounded-full bg-current" />
+            <span className="bot-dot inline-block h-1 w-1 rounded-full bg-current" />
+          </span>
+        )}
+      </span>
+      <span className="font-arcade text-[9px] tracking-wide text-white/40">
+        MOVE {moveNumber}
       </span>
     </div>
   )
