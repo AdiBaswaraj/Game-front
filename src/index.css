@@ -502,3 +502,49 @@ body,
 .hamburger-icon.open span:nth-child(1) { top: 6px; transform: rotate(45deg); }
 .hamburger-icon.open span:nth-child(2) { opacity: 0; }
 .hamburger-icon.open span:nth-child(3) { top: 6px; transform: rotate(-45deg); }
+
+/* ===== Side-panel orb + particle ambience ===== */
+
+@keyframes orb-drift-a {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(18px, 28px); }
+}
+@keyframes orb-drift-b {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(-24px, 20px); }
+}
+@keyframes orb-drift-c {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(14px, -22px); }
+}
+.orb-drift-a { animation: orb-drift-a 10s ease-in-out infinite; }
+.orb-drift-b { animation: orb-drift-b 12s ease-in-out infinite; }
+.orb-drift-c { animation: orb-drift-c 9s  ease-in-out infinite; }
+
+@keyframes panel-particle-drift {
+  0%   { transform: translate(0, 0); opacity: 0.18; }
+  50%  { transform: translate(var(--dx, 12px), var(--dy, -16px)); opacity: 0.32; }
+  100% { transform: translate(0, 0); opacity: 0.18; }
+}
+.panel-particle { animation: panel-particle-drift var(--dur, 9s) ease-in-out infinite; }
+
+/* ===== Snake — pixel-art rendering helpers ===== */
+
+@keyframes snake-food-bounce {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.2); }
+}
+.snake-food-bounce { animation: snake-food-bounce 800ms ease-in-out infinite; }
+
+/* ===== Game over overlay — high-score star burst ===== */
+
+@keyframes hs-burst {
+  0%   { transform: translate(0, 0) scale(0); opacity: 0; }
+  20%  { opacity: 1; }
+  100% { transform: translate(var(--dx, 0), var(--dy, 0)) scale(1); opacity: 0; }
+}
+.hs-burst {
+  position: absolute;
+  pointer-events: none;
+  animation: hs-burst 1.4s ease-out forwards;
+}

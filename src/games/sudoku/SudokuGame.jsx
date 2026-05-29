@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
-import {
-  LobbyBackLink,
-  useArmGameOverFlash,
-} from '../../context/GameOverFlashContext'
+import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
 import { useSquareGameSize } from '../../hooks/useViewport'
 import { postScore } from '../../lib/api'
-import Leaderboard from '../../components/Leaderboard'
-import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
+import GameOverPanel from '../../components/GameOverPanel'
 import {
   findConflicts,
   generatePuzzle,
@@ -228,27 +224,17 @@ export default function SudokuGame({ difficulty = 'easy' }) {
           size={boardSize}
           onSelect={setSelected}
         />
-        {status === 'won' && (
-          <WinOverlay
-            time={time}
-            difficulty={difficulty}
-            signedIn={!!user}
-            onPlayAgain={() => newGame()}
-          />
-        )}
       </div>
 
       <NumberPad onInput={handleInput} />
 
       {status === 'won' && (
-        <div className="lb-slide-in w-full max-w-md">
-          <Leaderboard
-            gameId={`sudoku-${difficulty}`}
-            scoreFormat="time"
-            lowerIsBetter
-            title={`SUDOKU · ${difficulty.toUpperCase()}`}
-          />
-        </div>
+        <SudokuWinPanel
+          time={time}
+          difficulty={difficulty}
+          signedIn={!!user}
+          onPlayAgain={() => newGame()}
+        />
       )}
 
       {!user && (
@@ -362,54 +348,24 @@ function NumberPad({ onInput }) {
   )
 }
 
-function WinOverlay({ time, difficulty, signedIn, onPlayAgain }) {
+function SudokuWinPanel({ time, difficulty, signedIn, onPlayAgain }) {
   const best = Number(
     localStorage.getItem(`arcadia:bestTime:sudoku:${difficulty}`) || 0,
   )
+  // localStorage was updated at win-time; if the saved best equals this
+  // run's time it means this run set it (or matched it on first run).
+  const isNewBest = best > 0 && time <= best
   return (
-    <div
-      className="go-overlay-in pixel-corners absolute inset-2 flex flex-col items-center justify-center overflow-hidden px-6 text-center"
-      style={{
-        background: 'rgba(5, 5, 8, 0.88)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        border: '1px solid rgba(0, 255, 136, 0.4)',
-        boxShadow: 'var(--glow-green)',
-        borderRadius: 12,
-      }}
-    >
-      <WinParticles />
-      <p className="relative font-arcade text-base text-neon-green drop-shadow-[0_0_12px_rgba(0,255,136,0.5)] md:text-xl">
-        <span className="go-icon-pop">★</span> COMPLETE{' '}
-        <span className="go-icon-pop">★</span>
-      </p>
-      <div className="relative mt-5 grid grid-cols-2 gap-4">
-        <div>
-          <p className="font-arcade text-[9px] text-white/45">TIME</p>
-          <p className="mt-1 font-arcade text-base text-neon-cyan">
-            {fmtTime(time)}
-          </p>
-        </div>
-        <div>
-          <p className="font-arcade text-[9px] text-white/45">BEST</p>
-          <p className="mt-1 font-arcade text-base text-neon-pink">
-            {best ? fmtTime(best) : '—'}
-          </p>
-        </div>
-      </div>
-      <div className="relative mt-5 flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={onPlayAgain}
-          className="rounded-md border border-neon-green/70 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
-        >
-          ▶ NEW PUZZLE
-        </button>
-        <HallOfFameButton signedIn={signedIn} />
-        <LobbyBackLink className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan">
-          BACK TO LOBBY
-        </LobbyBackLink>
-      </div>
-    </div>
+    <GameOverPanel
+      variant={isNewBest ? 'new-high' : 'win'}
+      title={isNewBest ? 'NEW BEST TIME!' : 'COMPLETE!'}
+      mainValue={fmtTime(time)}
+      mainLabel="YOUR TIME"
+      secondaryValue={best ? fmtTime(best) : '—'}
+      secondaryLabel="PERSONAL BEST"
+      signedIn={signedIn}
+      onPrimary={onPlayAgain}
+      primaryLabel="▶ NEW PUZZLE"
+    />
   )
 }

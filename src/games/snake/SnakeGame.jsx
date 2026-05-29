@@ -3,14 +3,10 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
-import {
-  LobbyBackLink,
-  useArmGameOverFlash,
-} from '../../context/GameOverFlashContext'
+import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
 import { getLeaderboard, postScore } from '../../lib/api'
 import { profileNameFor } from '../../lib/profile'
-import Leaderboard from '../../components/Leaderboard'
-import { HallOfFameButton } from '../../components/GameOverFX'
+import GameOverPanel from '../../components/GameOverPanel'
 import { useSquareGameSize } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
 
@@ -24,6 +20,88 @@ const RIGHT = { x: 1, y: 0 }
 
 const speedInterval = (level) =>
   Math.max(60, Math.round(200 * Math.pow(0.85, level - 1)))
+
+const DEATH_FLASH_MS = 450
+const DEATH_EXPLODE_MS = 400
+const DEATH_TOTAL_MS = DEATH_FLASH_MS + DEATH_EXPLODE_MS
+
+const BODY_GRADIENT = ['#00dd77', '#00bb66', '#00bb66', '#009955']
+const TAIL_DARK = '#007744'
+
+function bodySegmentColor(idx, total) {
+  if (idx === 0) return '#00ff88'
+  // Last two segments use the darkest shade.
+  if (idx >= total - 2 && total > 4) return TAIL_DARK
+  if (idx - 1 < BODY_GRADIENT.length) return BODY_GRADIENT[idx - 1]
+  return '#009955'
+}
+
+// Returns [{x, y}, {x, y}] eye top-left offsets inside the head cell
+// based on which direction the snake is moving.
+function eyeOffsets(dir, C, eyeSize) {
+  const near = Math.round(C * 0.18)
+  const far = C - eyeSize - near
+  if (dir.x === 1)
+    return [
+      { x: far, y: near },
+      { x: far, y: far },
+    ]
+  if (dir.x === -1)
+    return [
+      { x: near, y: near },
+      { x: near, y: far },
+    ]
+  if (dir.y === -1)
+    return [
+      { x: near, y: near },
+      { x: far, y: near },
+    ]
+  return [
+    { x: near, y: far },
+    { x: far, y: far },
+  ]
+}
+
+// Returns [[x, y, w, h], [x, y, w, h]] tongue prong rectangles
+// extending past the head in the snake's current direction.
+function tongueRects(head, dir, C) {
+  const hx = head.x * C
+  const hy = head.y * C
+  const w = Math.max(1, Math.round(C * 0.08))
+  const len = Math.max(2, Math.round(C * 0.22))
+  if (dir.x === 1) {
+    return [
+      [hx + C, hy + Math.round(C * 0.25), len, w],
+      [hx + C, hy + Math.round(C * 0.65), len, w],
+    ]
+  }
+  if (dir.x === -1) {
+    return [
+      [hx - len, hy + Math.round(C * 0.25), len, w],
+      [hx - len, hy + Math.round(C * 0.65), len, w],
+    ]
+  }
+  if (dir.y === -1) {
+    return [
+      [hx + Math.round(C * 0.25), hy - len, w, len],
+      [hx + Math.round(C * 0.65), hy - len, w, len],
+    ]
+  }
+  return [
+    [hx + Math.round(C * 0.25), hy + C, w, len],
+    [hx + Math.round(C * 0.65), hy + C, w, len],
+  ]
+}
+
+function paintRoundedRect(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) {
+    ctx.beginPath()
+    ctx.roundRect(x, y, w, h, r)
+    ctx.fill()
+  } else {
+    ctx.fillRect(x, y, w, h)
+  }
+}
 
 function makeFood(snake) {
   while (true) {
@@ -67,6 +145,9 @@ export default function SnakeGame() {
   const [score, setScore] = useState(0)
   const [level, setLevel] = useState(1)
   const [highScore, setHighScore] = useState(readHighScore)
+  // Status machine: 'idle' → 'playing' → 'dying' → 'gameover'.
+  // 'dying' lasts long enough for the death animation to play before
+  // the GAME OVER panel takes over.
   const [status, setStatus] = useState('idle')
   useArmGameOverFlash(status === 'gameover')
 
@@ -80,6 +161,10 @@ export default function SnakeGame() {
   // but keeps the snake / score drawn so the canvas doesn't go blank.
   const pausedRef = useRef(false)
   pausedRef.current = !!leaveModal && status === 'playing'
+
+  const dyingStartRef = useRef(0)
+  const explosionVecsRef = useRef([])
+  const wasNewHighRef = useRef(false)
 
   const { isFullscreen } = useFullscreen()
   // Reserve room for the slim score bar above the canvas (28px) plus
@@ -235,26 +320,46 @@ export default function SnakeGame() {
     let rafId
 
     const finishGame = () => {
+      if (statusRef.current !== 'playing') return
       const s = stateRef.current
       const finalScore = s.score
-      statusRef.current = 'gameover'
-      setStatus('gameover')
-      setHighScore((prev) => {
-        if (finalScore > prev) {
-          localStorage.setItem(HS_KEY, String(finalScore))
-          return finalScore
-        }
-        return prev
+      // Capture whether this run set a new personal best so the
+      // game-over panel can show the gold "NEW HIGH SCORE" variant.
+      wasNewHighRef.current =
+        finalScore > 0 && finalScore > readHighScore()
+      // Generate per-segment explosion vectors once, before the
+      // animation starts.
+      explosionVecsRef.current = s.snake.map(() => {
+        const angle = Math.random() * Math.PI * 2
+        const speed = 70 + Math.random() * 90
+        return { dx: Math.cos(angle) * speed, dy: Math.sin(angle) * speed }
       })
-      if (user && finalScore > 0) {
-        postScore({
-          userId: user.id,
-          gameId: 'snake',
-          score: finalScore,
+      dyingStartRef.current = performance.now()
+      statusRef.current = 'dying'
+      setStatus('dying')
+
+      window.setTimeout(() => {
+        statusRef.current = 'gameover'
+        setStatus('gameover')
+        setHighScore((prev) => {
+          if (finalScore > prev) {
+            localStorage.setItem(HS_KEY, String(finalScore))
+            return finalScore
+          }
+          return prev
         })
-          .then(() => toast.success(`SCORE SAVED · ${finalScore}`))
-          .catch(() => toast.error('Could not save score. Check connection.'))
-      }
+        if (user && finalScore > 0) {
+          postScore({
+            userId: user.id,
+            gameId: 'snake',
+            score: finalScore,
+          })
+            .then(() => toast.success(`SCORE SAVED · ${finalScore}`))
+            .catch(() =>
+              toast.error('Could not save score. Check connection.'),
+            )
+        }
+      }, DEATH_TOTAL_MS)
     }
 
     const tick = () => {
@@ -310,35 +415,88 @@ export default function SnakeGame() {
         ctx.stroke()
       }
 
+      // Glowing pulsing pink food — radius cellSize * 0.3
+      // (= diameter 0.6 per spec).
       const pulse = 1 + Math.sin(ts / 320) * 0.15
       ctx.save()
       ctx.shadowColor = '#ff006e'
-      ctx.shadowBlur = 22
+      ctx.shadowBlur = 18
       ctx.fillStyle = '#ff006e'
       ctx.beginPath()
       ctx.arc(
         s.food.x * C + C / 2,
         s.food.y * C + C / 2,
-        C * 0.36 * pulse,
+        C * 0.3 * pulse,
         0,
         Math.PI * 2,
       )
       ctx.fill()
       ctx.restore()
 
-      const pad1 = Math.max(1, C * 0.04)
-      const pad2 = Math.max(2, C * 0.08)
+      // Snake rendering — pixel-art head + gradient body + tongue.
+      const dying = statusRef.current === 'dying'
+      const dyingT = dying ? Math.max(0, ts - dyingStartRef.current) : 0
+      const flashing = dying && dyingT < DEATH_FLASH_MS
+      const exploding = dying && dyingT >= DEATH_FLASH_MS
+      const flashOn = flashing && Math.floor(dyingT / 150) % 2 === 0
+      const explodeProgress = exploding
+        ? Math.min(1, (dyingT - DEATH_FLASH_MS) / DEATH_EXPLODE_MS)
+        : 0
+      const vecs = explosionVecsRef.current
+
+      const headInset = (1 - 0.9) / 2 // 5% inset → head 90% of cell
+      const bodyInset = (1 - 0.75) / 2 // 12.5% inset → body 75% of cell
+
       s.snake.forEach((seg, i) => {
+        const baseX = seg.x * C
+        const baseY = seg.y * C
+        const offX = exploding ? (vecs[i]?.dx ?? 0) * explodeProgress : 0
+        const offY = exploding ? (vecs[i]?.dy ?? 0) * explodeProgress : 0
+        const alpha = exploding ? 1 - explodeProgress : 1
+
         if (i === 0) {
+          const inset = C * headInset
+          const x = baseX + inset + offX
+          const y = baseY + inset + offY
+          const w = C - inset * 2
+          const h = C - inset * 2
           ctx.save()
-          ctx.shadowColor = '#00ff88'
+          ctx.globalAlpha = alpha
+          ctx.fillStyle = flashOn ? '#ff006e' : '#00ff88'
+          ctx.shadowColor = flashOn ? '#ff006e' : '#00ff88'
           ctx.shadowBlur = 10
-          ctx.fillStyle = '#00ff88'
-          ctx.fillRect(seg.x * C + pad1, seg.y * C + pad1, C - pad1 * 2, C - pad1 * 2)
+          paintRoundedRect(ctx, x, y, w, h, Math.max(2, C * 0.16))
+          ctx.shadowBlur = 0
+
+          // Eyes
+          if (!exploding) {
+            const eyeSize = Math.max(2, Math.round(C * 0.16))
+            const eyes = eyeOffsets(s.dir, w, eyeSize)
+            ctx.fillStyle = '#ffffff'
+            eyes.forEach((e) => ctx.fillRect(x + e.x, y + e.y, eyeSize, eyeSize))
+          }
+
+          // Tongue — only when alive, flickers every other frame
+          if (!dying && Math.floor(ts / 120) % 2 === 0) {
+            ctx.fillStyle = '#ff006e'
+            tongueRects(seg, s.dir, C).forEach(([rx, ry, rw, rh]) => {
+              ctx.fillRect(rx, ry, rw, rh)
+            })
+          }
           ctx.restore()
         } else {
-          ctx.fillStyle = '#00cc6e'
-          ctx.fillRect(seg.x * C + pad2, seg.y * C + pad2, C - pad2 * 2, C - pad2 * 2)
+          const inset = C * bodyInset
+          const x = baseX + inset + offX
+          const y = baseY + inset + offY
+          const w = C - inset * 2
+          const h = C - inset * 2
+          ctx.save()
+          ctx.globalAlpha = alpha
+          ctx.fillStyle = flashOn
+            ? '#ff006e'
+            : bodySegmentColor(i, s.snake.length)
+          paintRoundedRect(ctx, x, y, w, h, Math.max(2, C * 0.18))
+          ctx.restore()
         }
       })
     }
@@ -362,32 +520,39 @@ export default function SnakeGame() {
     return () => cancelAnimationFrame(rafId)
   }, [user])
 
+  const personalBest = Math.max(highScore, score)
+
   return (
-    <div className="flex flex-col items-center gap-4 md:gap-6">
-      {/* Slim score bar above canvas — matches canvas width exactly */}
+    <div className="flex flex-1 flex-col items-center">
+      {/* Slim transparent score bar — sits ABOVE the canvas, separate
+          from its border. */}
       <div
         className="flex shrink-0 items-center justify-center font-arcade text-[9px] text-neon-green"
         style={{
           width: canvasSize,
-          height: 28,
-          background: 'rgba(0, 0, 0, 0.6)',
-          borderTopLeftRadius: 8,
-          borderTopRightRadius: 8,
-          borderBottom: '1px solid rgba(0, 255, 136, 0.2)',
+          padding: '4px 8px',
+          borderBottom: '1px solid rgba(0, 255, 136, 0.3)',
           letterSpacing: '0.08em',
         }}
         aria-label="Score, best, level"
       >
-        SCORE {score} · BEST {Math.max(highScore, score)} · LV {level}
+        SCORE {score} · BEST {personalBest} · LV {level}
       </div>
 
+      {/* Canvas wrapper — overlays (paused) render as siblings inside
+          this relative container so they stack predictably above the
+          canvas element. */}
       <div
-        className="game-touch relative -mt-4"
+        className="game-touch relative mt-3"
         style={{ width: canvasSize, height: canvasSize }}
       >
         <div
           className="rounded-xl border-2 border-neon-green/60 bg-arcadia-surface p-1 shadow-neon-green"
-          style={{ width: canvasSize, height: canvasSize, boxSizing: 'content-box' }}
+          style={{
+            width: canvasSize,
+            height: canvasSize,
+            boxSizing: 'content-box',
+          }}
         >
           <canvas
             ref={canvasRef}
@@ -398,7 +563,7 @@ export default function SnakeGame() {
 
         {pausedRef.current && (
           <div
-            className="absolute inset-2 flex items-center justify-center rounded-md"
+            className="absolute inset-2 z-10 flex items-center justify-center rounded-md"
             style={{
               background: 'rgba(5, 5, 8, 0.78)',
               backdropFilter: 'blur(4px)',
@@ -411,94 +576,69 @@ export default function SnakeGame() {
             </p>
           </div>
         )}
+      </div>
 
-        {status === 'idle' && (
-          <Overlay>
+      {/* Bottom section — centered prompt area below the canvas.
+          Houses either the READY? prompt with INSERT COIN, or the
+          control hint during play. */}
+      <div className="mt-4 flex w-full flex-1 flex-col items-center justify-center gap-3 px-4 pb-4 text-center">
+        {status === 'idle' ? (
+          <>
             <p className="font-arcade text-sm text-neon-green md:text-base">
               READY?
             </p>
-            <p className="mt-3 text-xs text-white/60">
+            <p className="text-xs text-white/60">
               Arrow keys, WASD, or swipe.
             </p>
             <button
               type="button"
               onClick={startGame}
-              className="mt-6 rounded-md border border-neon-green/70 bg-neon-green/10 px-5 py-2.5 font-arcade text-[11px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
+              className="rounded-md border border-neon-green/70 bg-neon-green/10 px-6 py-2.5 font-arcade text-[11px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
             >
               ▶ INSERT COIN
             </button>
-          </Overlay>
+          </>
+        ) : (
+          <p className="text-[10px] text-white/50">
+            ↑ ↓ ← → / WASD to move · Swipe on mobile
+          </p>
         )}
 
-        {status === 'gameover' && (
-          <Overlay>
-            <p className="go-shake font-arcade text-base text-neon-pink drop-shadow-[0_0_10px_rgba(255,0,110,0.6)] md:text-lg">
-              <span className="go-icon-pop">💥</span> GAME OVER
-            </p>
-            <div className="mt-4 grid grid-cols-2 gap-4 text-center">
-              <div>
-                <p className="font-arcade text-[9px] text-white/45">SCORE</p>
-                <p className="mt-1 font-arcade text-lg text-neon-green">
-                  {score}
-                </p>
-              </div>
-              <div>
-                <p className="font-arcade text-[9px] text-white/45">BEST</p>
-                <p className="mt-1 font-arcade text-lg text-neon-cyan">
-                  {Math.max(highScore, score)}
-                </p>
-              </div>
-            </div>
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-              <button
-                type="button"
-                onClick={startGame}
-                className="rounded-md border border-neon-green/70 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
-              >
-                ▶ PLAY AGAIN
-              </button>
-              <HallOfFameButton signedIn={!!user} />
-              <LobbyBackLink className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan">
-                BACK TO LOBBY
-              </LobbyBackLink>
-            </div>
-          </Overlay>
+        {!user && status !== 'idle' && (
+          <p className="text-[10px] text-white/35">
+            Log in to save scores to the global leaderboard.
+          </p>
         )}
       </div>
 
-      <p className="text-center text-[10px] text-white/50">
-        ↑ ↓ ← → / WASD to move · Swipe on mobile
-      </p>
+      {status === 'gameover' &&
+        (wasNewHighRef.current ? (
+          <GameOverPanel
+            variant="new-high"
+            title="NEW HIGH SCORE!"
+            mainValue={String(score).padStart(3, '0')}
+            mainLabel="YOUR SCORE"
+            secondaryValue={personalBest}
+            secondaryLabel="PERSONAL BEST"
+            signedIn={!!user}
+            onPrimary={startGame}
+            primaryLabel="▶ PLAY AGAIN"
+          />
+        ) : (
+          <GameOverPanel
+            variant="lose"
+            title="GAME OVER"
+            mainValue={String(score).padStart(3, '0')}
+            mainLabel="YOUR SCORE"
+            secondaryValue={personalBest}
+            secondaryLabel="PERSONAL BEST"
+            signedIn={!!user}
+            onPrimary={startGame}
+            primaryLabel="▶ PLAY AGAIN"
+          />
+        ))}
 
-      {!user && (
-        <p className="text-center text-[10px] text-white/35">
-          Log in to save scores to the global leaderboard.
-        </p>
-      )}
-
-      {status === 'gameover' && (
-        <div className="lb-slide-in w-full max-w-md">
-          <Leaderboard gameId="snake" scoreFormat="points" />
-        </div>
-      )}
       {leaveModal}
-    </div>
-  )
-}
-
-function Overlay({ children }) {
-  return (
-    <div
-      className="go-overlay-in pixel-corners pixel-corners-pink absolute inset-2 flex flex-col items-center justify-center px-6 text-center"
-      style={{
-        background: 'rgba(5, 5, 8, 0.85)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        border: '1px solid var(--glass-border)',
-        borderRadius: 12,
-      }}
-    >
-      {children}
     </div>
   )
 }

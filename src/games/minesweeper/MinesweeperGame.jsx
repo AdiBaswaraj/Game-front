@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
-import {
-  LobbyBackLink,
-  useArmGameOverFlash,
-} from '../../context/GameOverFlashContext'
+import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
 import LandscapeHint from '../../components/LandscapeHint'
 import { postScore } from '../../lib/api'
-import Leaderboard from '../../components/Leaderboard'
-import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
+import GameOverPanel from '../../components/GameOverPanel'
 
 const DIFFICULTIES = {
   easy: { rows: 9, cols: 9, mines: 10, label: 'EASY', cell: 32 },
@@ -310,24 +306,13 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
       </p>
 
       {(status === 'won' || status === 'lost') && (
-        <Result
+        <MinesweeperResultPanel
           status={status}
           time={time}
           difficulty={diff}
           signedIn={!!user}
           onReset={() => newGame()}
         />
-      )}
-
-      {status === 'won' && (
-        <div className="lb-slide-in w-full max-w-md">
-          <Leaderboard
-            gameId={`minesweeper-${diff}`}
-            scoreFormat="time"
-            lowerIsBetter
-            title={`MINESWEEPER · ${diff.toUpperCase()}`}
-          />
-        </div>
       )}
       {leaveModal}
     </div>
@@ -406,66 +391,40 @@ function Cell({ cell, size, onClick, onContextMenu }) {
   )
 }
 
-function Result({ status, time, difficulty, signedIn, onReset }) {
+function MinesweeperResultPanel({
+  status,
+  time,
+  difficulty,
+  signedIn,
+  onReset,
+}) {
   const won = status === 'won'
   const best = Number(
     localStorage.getItem(`arcadia:bestTime:minesweeper:${difficulty}`) || 0,
   )
+  const isNewBest = won && best > 0 && time <= best
+  if (!won) {
+    return (
+      <GameOverPanel
+        variant="lose"
+        title="BUSTED"
+        signedIn={signedIn}
+        onPrimary={onReset}
+        primaryLabel="▶ PLAY AGAIN"
+      />
+    )
+  }
   return (
-    <div
-      className={`go-overlay-in glass-panel pixel-corners ${
-        won ? '' : 'pixel-corners-pink'
-      } relative flex flex-col items-center gap-3 overflow-visible px-6 py-5 text-center ${
-        won ? 'shadow-neon-green' : 'shadow-neon-pink'
-      }`}
-      style={{
-        borderColor: won ? 'rgba(0,255,136,0.5)' : 'rgba(255,0,110,0.5)',
-      }}
-    >
-      {won && <WinParticles />}
-      <p
-        className={`relative font-arcade text-base ${
-          won ? 'text-neon-green' : 'go-shake text-neon-pink'
-        }`}
-      >
-        {won ? (
-          <>
-            <span className="go-icon-pop">★</span> CLEARED{' '}
-            <span className="go-icon-pop">★</span>
-          </>
-        ) : (
-          <>
-            <span className="go-icon-pop">💥</span> BUSTED
-          </>
-        )}
-      </p>
-      {won && (
-        <div className="relative grid grid-cols-2 gap-4">
-          <div>
-            <p className="font-arcade text-[9px] text-white/45">TIME</p>
-            <p className="mt-1 font-arcade text-sm text-neon-cyan">{time}s</p>
-          </div>
-          <div>
-            <p className="font-arcade text-[9px] text-white/45">BEST</p>
-            <p className="mt-1 font-arcade text-sm text-neon-green">
-              {best ? `${best}s` : '—'}
-            </p>
-          </div>
-        </div>
-      )}
-      <div className="relative mt-2 flex flex-col gap-2 sm:flex-row">
-        <button
-          type="button"
-          onClick={onReset}
-          className="rounded-md border border-neon-green/70 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
-        >
-          ▶ PLAY AGAIN
-        </button>
-        <HallOfFameButton signedIn={signedIn} />
-        <LobbyBackLink className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan">
-          BACK TO LOBBY
-        </LobbyBackLink>
-      </div>
-    </div>
+    <GameOverPanel
+      variant={isNewBest ? 'new-high' : 'win'}
+      title={isNewBest ? 'NEW BEST TIME!' : 'CLEARED!'}
+      mainValue={`${time}s`}
+      mainLabel="YOUR TIME"
+      secondaryValue={best ? `${best}s` : '—'}
+      secondaryLabel="PERSONAL BEST"
+      signedIn={signedIn}
+      onPrimary={onReset}
+      primaryLabel="▶ PLAY AGAIN"
+    />
   )
 }

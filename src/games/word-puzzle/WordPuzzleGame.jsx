@@ -1,15 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
-import {
-  LobbyBackLink,
-  useArmGameOverFlash,
-} from '../../context/GameOverFlashContext'
+import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
 import { createRoom, postScore } from '../../lib/api'
-import Leaderboard from '../../components/Leaderboard'
-import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
+import GameOverPanel from '../../components/GameOverPanel'
 import {
   getDailyDateKey,
   getDailyWord,
@@ -443,11 +439,13 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
       />
 
       {status === 'won' && (
-        <Overlay
-          tone="green"
-          title="GENIUS!"
-          subtitle={`Solved in ${currentRow + 1} / 6`}
+        <WordPuzzleResultPanel
+          won
+          guesses={currentRow + 1}
+          answer={answer}
           isDaily={isDaily}
+          revealed={revealed}
+          onReveal={null}
           countdown={countdown}
           signedIn={!!user}
           onShare={handleShare}
@@ -456,16 +454,10 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
       )}
 
       {status === 'lost' && (
-        <Overlay
-          tone="pink"
-          title="GAME OVER"
-          subtitle={
-            isDaily
-              ? revealed
-                ? `The word was ${answer.toUpperCase()}`
-                : null
-              : `The word was ${answer.toUpperCase()}`
-          }
+        <WordPuzzleResultPanel
+          won={false}
+          guesses={null}
+          answer={answer}
           isDaily={isDaily}
           revealed={revealed}
           onReveal={isDaily && !revealed ? handleReveal : null}
@@ -477,17 +469,6 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
       )}
 
       <Keyboard keyStates={keyStates} onKey={handleKeyInput} keyH={keyH} />
-
-      {isDaily && (status === 'won' || status === 'lost') && (
-        <div className="lb-slide-in w-full max-w-md">
-          <Leaderboard
-            gameId="word-puzzle"
-            scoreFormat="guesses"
-            lowerIsBetter
-            title="WORD PUZZLE · DAILY"
-          />
-        </div>
-      )}
 
       {isDaily && !user && status === 'playing' && (
         <p className="text-center text-[10px] text-white/40">
@@ -506,10 +487,10 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
 }
 
 
-function Overlay({
-  tone,
-  title,
-  subtitle,
+function WordPuzzleResultPanel({
+  won,
+  guesses,
+  answer,
   isDaily,
   revealed,
   onReveal,
@@ -518,83 +499,56 @@ function Overlay({
   onShare,
   onNewWord,
 }) {
-  const won = tone === 'green'
-  const accent = won
-    ? 'shadow-neon-green text-neon-green'
-    : 'shadow-neon-pink text-neon-pink'
-
-  return (
-    <div
-      className={`go-overlay-in glass-panel pixel-corners ${
-        won ? '' : 'pixel-corners-pink'
-      } relative w-full max-w-md overflow-visible px-6 py-5 text-center ${accent}`}
-      style={{
-        borderColor: won ? 'rgba(0,255,136,0.5)' : 'rgba(255,0,110,0.5)',
-        borderWidth: 2,
-      }}
-    >
-      {won && <WinParticles />}
-      <p
-        className={`relative font-arcade text-base drop-shadow-[0_0_10px_currentColor] md:text-lg ${
-          won ? '' : 'go-shake'
-        }`}
-      >
-        <span className="go-icon-pop">★</span> {title}{' '}
-        <span className="go-icon-pop">★</span>
-      </p>
-      {subtitle && (
-        <p className="relative mt-2 text-sm text-white/70">{subtitle}</p>
+  const title = won ? 'GENIUS!' : 'GAME OVER'
+  const showAnswer = !won && (!isDaily || revealed)
+  const extras = (
+    <div className="space-y-3">
+      {showAnswer && (
+        <p className="text-sm tracking-wide text-white/75">
+          The word was{' '}
+          <span className="neon-text font-arcade text-base text-neon-cyan">
+            {answer?.toUpperCase()}
+          </span>
+        </p>
       )}
-
-      {isDaily && onReveal && (
+      {!won && isDaily && !revealed && onReveal && (
         <button
           type="button"
           onClick={onReveal}
-          className="relative mt-4 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+          className="w-full rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
         >
           👁 REVEAL ANSWER
         </button>
       )}
-
       {isDaily && (
-        <>
-          <p className="relative mt-4 font-arcade text-[10px] text-white/50">
-            NEXT WORD IN
-          </p>
-          <p className="relative font-arcade text-base text-neon-cyan">
+        <div className="rounded-md border border-white/[0.06] bg-white/[0.02] px-3 py-2">
+          <p className="font-arcade text-[9px] text-white/50">NEXT WORD IN</p>
+          <p className="mt-1 font-arcade text-base text-neon-cyan">
             {countdown}
           </p>
-        </>
+        </div>
       )}
-
-      <div className="relative mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
-        {isDaily ? (
-          <button
-            type="button"
-            onClick={onShare}
-            className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
-          >
-            📋 SHARE RESULT
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onNewWord}
-            className="rounded-md border border-neon-green/60 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
-          >
-            ▶ NEW WORD
-          </button>
-        )}
-        {isDaily && <HallOfFameButton signedIn={signedIn} />}
-        <LobbyBackLink className="rounded-md border border-white/20 px-4 py-2 text-center font-arcade text-[10px] text-white/70 transition hover:border-neon-cyan/60 hover:text-neon-cyan">
-          BACK TO LOBBY
-        </LobbyBackLink>
-      </div>
       {isDaily && (
-        <p className="relative mt-3 text-[10px] text-white/35">
-          Come back tomorrow.
-        </p>
+        <button
+          type="button"
+          onClick={onShare}
+          className="w-full rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+        >
+          📋 SHARE RESULT
+        </button>
       )}
     </div>
+  )
+  return (
+    <GameOverPanel
+      variant={won ? 'win' : 'lose'}
+      title={title}
+      mainValue={won ? `${guesses}/6` : null}
+      mainLabel={won ? 'GUESSES' : null}
+      signedIn={signedIn}
+      onPrimary={isDaily ? null : onNewWord}
+      primaryLabel="▶ NEW WORD"
+      extras={extras}
+    />
   )
 }
