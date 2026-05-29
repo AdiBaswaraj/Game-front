@@ -94,7 +94,7 @@ export function preloadEngine() {
   loadWorker()
 }
 
-export async function getBestMove(fen, depth) {
+export async function getBestMove(fen, settings) {
   const worker = await loadWorker()
   if (!worker) return randomMoveFor(fen)
   // Serialize: cancel any prior request before issuing new one
@@ -103,6 +103,11 @@ export async function getBestMove(fen, depth) {
     pendingMove(null)
     pendingMove = null
   }
+  // Backward-compat: callers may still pass a bare depth number.
+  const cfg =
+    typeof settings === 'number'
+      ? { depth: settings, skillLevel: 20, limitStrength: false }
+      : settings ?? { depth: 8, skillLevel: 20, limitStrength: false }
   return new Promise((resolve) => {
     const timeout = setTimeout(() => {
       if (pendingMove) {
@@ -114,8 +119,14 @@ export async function getBestMove(fen, depth) {
       clearTimeout(timeout)
       resolve(move ?? randomMoveFor(fen))
     }
+    // Per-search difficulty knobs. UCI_LimitStrength + Skill Level lets
+    // the engine deliberately blunder at the lower tiers.
+    worker.postMessage(`setoption name Skill Level value ${cfg.skillLevel}`)
+    worker.postMessage(
+      `setoption name UCI_LimitStrength value ${cfg.limitStrength ? 'true' : 'false'}`,
+    )
     worker.postMessage(`position fen ${fen}`)
-    worker.postMessage(`go depth ${depth}`)
+    worker.postMessage(`go depth ${cfg.depth}`)
   })
 }
 
@@ -131,8 +142,29 @@ export function randomMoveFor(fen) {
   }
 }
 
+// Difficulty knobs sent to Stockfish before each search.
+// Easy/Medium use UCI_LimitStrength so the engine actively plays under
+// its full strength rather than just searching shallow.
+export const DIFFICULTY_SETTINGS = {
+  easy:   { skillLevel: 1,  depth: 1, limitStrength: true },
+  medium: { skillLevel: 8,  depth: 3, limitStrength: true },
+  hard:   { skillLevel: 15, depth: 8, limitStrength: false },
+}
+
+// Post-search "human-feel" delay before the bot actually plays its
+// move. [base, jitterRange] in ms — actual delay = base + random *
+// jitter. Stockfish at low depth can return in <10ms, so without this
+// the bot would snap-move and feel inhuman.
+export const DIFFICULTY_THINK_DELAY = {
+  easy:   [600,  600],
+  medium: [800,  800],
+  hard:   [1000, 1200],
+}
+
+// Back-compat — some call sites still import this. Kept as a thin
+// projection of DIFFICULTY_SETTINGS so removing it doesn't ripple.
 export const DIFFICULTY_DEPTH = {
-  easy: 2,
-  medium: 6,
-  hard: 14,
+  easy: DIFFICULTY_SETTINGS.easy.depth,
+  medium: DIFFICULTY_SETTINGS.medium.depth,
+  hard: DIFFICULTY_SETTINGS.hard.depth,
 }

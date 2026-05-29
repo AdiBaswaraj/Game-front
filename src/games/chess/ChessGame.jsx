@@ -17,7 +17,8 @@ import { useViewport } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import {
-  DIFFICULTY_DEPTH,
+  DIFFICULTY_SETTINGS,
+  DIFFICULTY_THINK_DELAY,
   getBestMove,
   preloadEngine,
   subscribeEngineState,
@@ -727,8 +728,22 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
 
     aiThinkingRef.current = true
     setAiThinking(true)
-    const depth = DIFFICULTY_DEPTH[difficulty] ?? 2
-    getBestMove(chessRef.current.fen(), depth)
+    const cfg = DIFFICULTY_SETTINGS[difficulty] ?? DIFFICULTY_SETTINGS.easy
+    const startedAt = Date.now()
+    const [delayBase, delayJitter] =
+      DIFFICULTY_THINK_DELAY[difficulty] ?? [600, 600]
+    const targetDelay = delayBase + Math.random() * delayJitter
+    getBestMove(chessRef.current.fen(), cfg)
+      .then((uci) => {
+        // Pad the engine response with a randomised "think" delay so the
+        // bot never snap-moves. The engine often returns in <50ms at low
+        // depths, which feels uncanny without this hold.
+        const elapsed = Date.now() - startedAt
+        const wait = Math.max(0, targetDelay - elapsed)
+        return new Promise((resolve) =>
+          window.setTimeout(() => resolve(uci), wait),
+        )
+      })
       .then((uci) => {
         if (!uci) return
         const from = uci.slice(0, 2)
@@ -1083,7 +1098,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
 
   const opponentLabel = isMP
     ? opponent?.username ?? 'Opponent'
-    : `STOCKFISH · ${difficulty.toUpperCase()}`
+    : `BOT (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})`
   const opponentColor = myColor === 'w' ? 'b' : 'w'
 
   if (error) {
@@ -1173,6 +1188,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           </div>
         )}
 
+        {!isMP && aiThinking && !result && (
+          <div className="mt-3 flex items-center justify-center gap-2 rounded-md border border-neon-cyan/40 bg-neon-cyan/5 px-3 py-2 font-arcade text-[10px] text-neon-cyan">
+            BOT IS THINKING
+            <span className="bot-dot-stack inline-flex gap-1" aria-hidden="true">
+              <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
+              <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
+              <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
+            </span>
+          </div>
+        )}
+
         {flagged && !result && (
           <div className="lb-slide-in mt-3 rounded-md border-2 border-neon-pink/70 bg-arcadia-surface/85 px-4 py-3 text-center font-arcade text-[11px] text-neon-pink shadow-neon-pink">
             ⚑ {flagged === myColor ? 'YOU' : 'OPPONENT'} FLAGGED · WAITING
@@ -1181,7 +1207,12 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         )}
 
         {result && (
-          <ResultPanel result={result} myColor={myColor} signedIn={!!user} />
+          <ResultPanel
+            result={result}
+            myColor={myColor}
+            signedIn={!!user}
+            isBot={!isMP}
+          />
         )}
       </div>
 
@@ -1194,15 +1225,15 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         )}
         {!isMP && engineState === 'fallback' && (
           <div className="rounded-lg border border-neon-pink/40 bg-neon-pink/10 px-3 py-2 text-[10px]">
-            <p className="font-arcade text-neon-pink">AI: BASIC MODE</p>
+            <p className="font-arcade text-neon-pink">BOT: BASIC MODE</p>
             <p className="mt-1 text-[9px] text-white/55">
-              Stockfish failed to load. Falling back to random legal moves.
+              Engine failed to load. Falling back to random legal moves.
             </p>
           </div>
         )}
         <PlayerStrip
           name={opponentLabel}
-          subtitle={isMP ? 'OPPONENT' : 'COMPUTER'}
+          subtitle={isMP ? 'OPPONENT' : 'BOT'}
           color={opponentColor}
           active={turn === opponentColor && !result}
           thinking={!isMP && aiThinking}
@@ -1468,10 +1499,18 @@ function DisconnectBanner({ username, secondsRemaining }) {
   )
 }
 
-function ResultPanel({ result, myColor, signedIn }) {
+function ResultPanel({ result, myColor, signedIn, isBot = false }) {
   const isDraw = result.winner === 'draw'
   const won = !isDraw && result.winner === myColor
-  const title = isDraw ? 'DRAW' : won ? 'YOU WIN!' : 'YOU LOST'
+  const title = isDraw
+    ? 'DRAW'
+    : isBot
+      ? won
+        ? 'YOU BEAT THE BOT!'
+        : 'BOT WINS'
+      : won
+        ? 'YOU WIN!'
+        : 'YOU LOST'
   const accent = won
     ? 'shadow-neon-green text-neon-green'
     : isDraw

@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
 
 const LEVELS = [
-  { id: 'easy', label: 'EASY', accent: 'green', tag: 'Depth 2 · Stockfish' },
-  { id: 'medium', label: 'MEDIUM', accent: 'cyan', tag: 'Depth 6 · Stockfish' },
-  { id: 'hard', label: 'HARD', accent: 'pink', tag: 'Depth 14 · Stockfish' },
+  { id: 'easy',   label: 'EASY',   accent: 'green', tag: 'Beginner — makes blunders' },
+  { id: 'medium', label: 'MEDIUM', accent: 'cyan',  tag: 'Casual — misses tactics' },
+  { id: 'hard',   label: 'HARD',   accent: 'pink',  tag: 'Club player — challenging' },
 ]
 
 const ACCENTS = {
@@ -29,7 +29,7 @@ export default function ChessDifficultySelect() {
           </Link>
           <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
             <span className="mr-2">🤖</span>
-            CHESS VS COMPUTER
+            BOT DIFFICULTY
           </h1>
           <span className="justify-self-end" />
         </div>
@@ -55,7 +55,7 @@ export default function ChessDifficultySelect() {
           ))}
         </div>
         <p className="mt-8 text-center text-[10px] text-white/35">
-          Engine runs in your browser. No leaderboard for VS COMPUTER.
+          Engine runs in your browser. No leaderboard for VS BOT.
         </p>
       </main>
     </div>

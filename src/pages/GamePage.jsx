@@ -47,10 +47,10 @@ const CHESS_CARDS = [
   {
     id: 'computer',
     to: '/game/chess/computer',
-    label: 'VS COMPUTER',
+    label: 'VS BOT',
     icon: '🤖',
     accent: 'cyan',
-    tag: 'Play against Stockfish AI',
+    tag: 'Play against the bot',
     subItems: ['Easy', 'Medium', 'Hard'],
   },
   {
@@ -163,7 +163,7 @@ function GamePageBody() {
       if (!VALID_DIFFICULTIES.has(variant)) return <ChessDifficultySelect />
       return (
         <GameLayout
-          title={`${title} · CPU · ${variant.toUpperCase()}`}
+          title={`${title} · BOT · ${variant.toUpperCase()}`}
           icon={icon}
           Icon={Icon}
           backTo="/game/chess/computer"
