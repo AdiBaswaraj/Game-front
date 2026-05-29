@@ -8,21 +8,30 @@ import { supabase } from '../lib/supabase'
 import { profileNameFor } from '../lib/profile'
 import Avatar from '../components/Avatar'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import {
+  ChessIcon,
+  MinesweeperIcon,
+  PersonIcon,
+  SnakeIcon,
+  SnakeLadderIcon,
+  SudokuIcon,
+  WordPuzzleIcon,
+} from '../assets/icons/index.jsx'
 
 const SINGLE_PLAYER_GAMES = [
-  { id: 'snake', name: 'Snake', icon: '🐍', scoreFormat: 'points', lowerIsBetter: false },
-  { id: 'sudoku-easy', name: 'Sudoku · Easy', icon: '🔢', scoreFormat: 'time', lowerIsBetter: true },
-  { id: 'sudoku-medium', name: 'Sudoku · Medium', icon: '🔢', scoreFormat: 'time', lowerIsBetter: true },
-  { id: 'sudoku-hard', name: 'Sudoku · Hard', icon: '🔢', scoreFormat: 'time', lowerIsBetter: true },
-  { id: 'minesweeper-easy', name: 'Minesweeper · Easy', icon: '💣', scoreFormat: 'time', lowerIsBetter: true },
-  { id: 'minesweeper-medium', name: 'Minesweeper · Medium', icon: '💣', scoreFormat: 'time', lowerIsBetter: true },
-  { id: 'minesweeper-hard', name: 'Minesweeper · Hard', icon: '💣', scoreFormat: 'time', lowerIsBetter: true },
-  { id: 'word-puzzle', name: 'Word Puzzle', icon: '🔤', scoreFormat: 'guesses', lowerIsBetter: true },
+  { id: 'snake', name: 'Snake', Icon: SnakeIcon, scoreFormat: 'points', lowerIsBetter: false },
+  { id: 'sudoku-easy', name: 'Sudoku · Easy', Icon: SudokuIcon, scoreFormat: 'time', lowerIsBetter: true },
+  { id: 'sudoku-medium', name: 'Sudoku · Medium', Icon: SudokuIcon, scoreFormat: 'time', lowerIsBetter: true },
+  { id: 'sudoku-hard', name: 'Sudoku · Hard', Icon: SudokuIcon, scoreFormat: 'time', lowerIsBetter: true },
+  { id: 'minesweeper-easy', name: 'Minesweeper · Easy', Icon: MinesweeperIcon, scoreFormat: 'time', lowerIsBetter: true },
+  { id: 'minesweeper-medium', name: 'Minesweeper · Medium', Icon: MinesweeperIcon, scoreFormat: 'time', lowerIsBetter: true },
+  { id: 'minesweeper-hard', name: 'Minesweeper · Hard', Icon: MinesweeperIcon, scoreFormat: 'time', lowerIsBetter: true },
+  { id: 'word-puzzle', name: 'Word Puzzle', Icon: WordPuzzleIcon, scoreFormat: 'guesses', lowerIsBetter: true },
 ]
 
 const MULTIPLAYER_GAMES = [
-  { id: 'chess', name: 'Chess', icon: '♟️' },
-  { id: 'snake-and-ladder', name: 'Snake & Ladder', icon: '🎲' },
+  { id: 'chess', name: 'Chess', Icon: ChessIcon },
+  { id: 'snake-and-ladder', name: 'Snake & Ladder', Icon: SnakeLadderIcon },
 ]
 
 function formatScore(format, n) {
@@ -310,7 +319,7 @@ export default function ProfilePage() {
           {SINGLE_PLAYER_GAMES.map((g) => (
             <StatCard
               key={g.id}
-              icon={g.icon}
+              Icon={g.Icon}
               name={g.name}
               stat={summarizeSP(g, stats?.[g.id])}
             />
@@ -318,7 +327,7 @@ export default function ProfilePage() {
           {MULTIPLAYER_GAMES.map((g) => (
             <StatCard
               key={g.id}
-              icon={g.icon}
+              Icon={g.Icon}
               name={g.name}
               stat={summarizeMP(stats?.[g.id])}
             />
@@ -349,7 +358,9 @@ export default function ProfilePage() {
                   key={`${r.gameId}-${r.completed_at}-${i}`}
                   className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-3 px-4 py-3"
                 >
-                  <span className="text-lg">{meta?.icon ?? '🎮'}</span>
+                  <span className="inline-flex h-4 w-4 items-center justify-center text-white/70">
+                    {meta?.Icon ? <meta.Icon size={16} aria-hidden="true" /> : null}
+                  </span>
                   <span className="font-arcade text-[10px] text-white">
                     {meta?.name ?? r.gameId}
                   </span>
@@ -404,11 +415,13 @@ function summarizeMP(rows) {
   }
 }
 
-function StatCard({ icon, name, stat }) {
+function StatCard({ Icon, name, stat }) {
   return (
     <div className="rounded-lg border border-white/10 bg-arcadia-surface/60 p-4">
       <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
+        <span className="inline-flex h-4 w-4 items-center justify-center text-white/80">
+          {Icon ? <Icon size={16} aria-hidden="true" /> : null}
+        </span>
         <span className="font-arcade text-[10px] text-white/70">{name}</span>
       </div>
       {!stat ? (
@@ -451,9 +464,9 @@ function Page({ children }) {
             <span aria-hidden="true">◀</span>
             LOBBY
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">👤</span>
-            PROFILE
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <PersonIcon size={22} aria-hidden="true" />
+            <span>PROFILE</span>
           </h1>
           <span className="justify-self-end" />
         </div>

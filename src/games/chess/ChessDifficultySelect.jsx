@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { ModeRobotIcon } from '../../assets/icons/index.jsx'
 
 const LEVELS = [
   { id: 'easy',   label: 'EASY',   accent: 'green', tag: 'Beginner — makes blunders' },
@@ -27,9 +28,9 @@ export default function ChessDifficultySelect() {
             <span aria-hidden="true">◀</span>
             MODE
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">🤖</span>
-            BOT DIFFICULTY
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <ModeRobotIcon size={22} aria-hidden="true" />
+            <span>BOT DIFFICULTY</span>
           </h1>
           <span className="justify-self-end" />
         </div>

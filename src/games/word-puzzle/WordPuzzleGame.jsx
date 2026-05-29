@@ -7,6 +7,11 @@ import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
 import { createRoom, postScore } from '../../lib/api'
 import GameOverPanel from '../../components/GameOverPanel'
 import {
+  CalendarIcon,
+  InfinityIcon,
+  SwordsIcon,
+} from '../../assets/icons/index.jsx'
+import {
   getDailyDateKey,
   getDailyWord,
   getRandomWord,
@@ -430,16 +435,21 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
               : 'border-neon-green/40 bg-neon-green/10 text-neon-green'
           }`}
         >
-          <span aria-hidden="true">{isDaily ? '📅' : '🔀'}</span>
+          {isDaily ? (
+            <CalendarIcon size={14} aria-hidden="true" />
+          ) : (
+            <InfinityIcon size={14} aria-hidden="true" />
+          )}
           {isDaily ? `DAILY · ${dateKey}` : `FREE · ${COLS} LETTERS`}
         </span>
         {isDaily && (
           <button
             type="button"
             onClick={handleBattle}
-            className="rounded-md border border-neon-pink/60 bg-neon-pink/10 px-3 py-1.5 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink"
+            className="inline-flex items-center gap-1.5 rounded-md border border-neon-pink/60 bg-neon-pink/10 px-3 py-1.5 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink"
           >
-            ⚔ 2P BATTLE
+            <SwordsIcon size={12} aria-hidden="true" />
+            <span>2P BATTLE</span>
           </button>
         )}
       </div>

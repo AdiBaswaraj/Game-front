@@ -2,19 +2,26 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Leaderboard from '../components/Leaderboard'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import {
+  MinesweeperIcon,
+  SnakeIcon,
+  SudokuIcon,
+  TrophyIcon,
+  WordPuzzleIcon,
+} from '../assets/icons/index.jsx'
 
 const GAMES = [
   {
     id: 'snake',
     name: 'Snake',
-    icon: '🐍',
+    Icon: SnakeIcon,
     scoreFormat: 'points',
     lowerIsBetter: false,
   },
   {
     id: 'sudoku',
     name: 'Sudoku',
-    icon: '🔢',
+    Icon: SudokuIcon,
     scoreFormat: 'time',
     lowerIsBetter: true,
     difficulties: ['easy', 'medium', 'hard'],
@@ -22,14 +29,14 @@ const GAMES = [
   {
     id: 'word-puzzle',
     name: 'Word Puzzle',
-    icon: '🔤',
+    Icon: WordPuzzleIcon,
     scoreFormat: 'guesses',
     lowerIsBetter: true,
   },
   {
     id: 'minesweeper',
     name: 'Minesweeper',
-    icon: '💣',
+    Icon: MinesweeperIcon,
     scoreFormat: 'time',
     lowerIsBetter: true,
     difficulties: ['easy', 'medium', 'hard'],
@@ -57,9 +64,9 @@ export default function LeaderboardPage() {
             <span aria-hidden="true">◀</span>
             LOBBY
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">🏆</span>
-            HALL OF FAME
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <TrophyIcon size={22} aria-hidden="true" />
+            <span>HALL OF FAME</span>
           </h1>
           <span className="justify-self-end" />
         </div>
@@ -77,14 +84,14 @@ export default function LeaderboardPage() {
                   setGame(g)
                   setDiff('easy')
                 }}
-                className={`rounded-md border px-3 py-1.5 font-arcade text-[10px] transition ${
+                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-arcade text-[10px] transition ${
                   active
                     ? 'border-neon-cyan/70 bg-neon-cyan/10 text-neon-cyan shadow-neon-cyan'
                     : 'border-white/15 text-white/60 hover:text-neon-cyan'
                 }`}
               >
-                <span className="mr-1.5">{g.icon}</span>
-                {g.name.toUpperCase()}
+                <g.Icon size={16} aria-hidden="true" />
+                <span>{g.name.toUpperCase()}</span>
               </button>
             )
           })}

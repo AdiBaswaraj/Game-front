@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { InfinityIcon } from '../../assets/icons/index.jsx'
 
 const LENGTHS = [
   { n: 4, label: '4 LETTERS', tag: 'Quick rounds', accent: 'green' },
@@ -26,9 +27,9 @@ export default function WordPuzzleLengthSelect() {
             <span aria-hidden="true">◀</span>
             MODE
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">🔤</span>
-            FREE PLAY
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <InfinityIcon size={22} aria-hidden="true" />
+            <span>FREE PLAY</span>
           </h1>
           <span className="justify-self-end" />
         </div>

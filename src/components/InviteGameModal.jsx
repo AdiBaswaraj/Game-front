@@ -5,11 +5,17 @@ import { useFriends } from '../context/FriendsContext'
 import { useToast } from '../context/ToastContext'
 import { createRoom } from '../lib/api'
 import { socket } from '../lib/socket'
+import {
+  ChessIcon,
+  SnakeLadderIcon,
+  SwordsIcon,
+  WordPuzzleIcon,
+} from '../assets/icons/index.jsx'
 
 const MP_GAMES = [
-  { id: 'chess', name: 'Chess', icon: '♟️', accent: 'pink' },
-  { id: 'snake-and-ladder', name: 'Snake & Ladder', icon: '🎲', accent: 'cyan' },
-  { id: 'word-puzzle', name: 'Word Puzzle Battle', icon: '🔤', accent: 'green' },
+  { id: 'chess', name: 'Chess', Icon: ChessIcon, accent: 'pink' },
+  { id: 'snake-and-ladder', name: 'Snake & Ladder', Icon: SnakeLadderIcon, accent: 'cyan' },
+  { id: 'word-puzzle', name: 'Word Puzzle Battle', Icon: WordPuzzleIcon, accent: 'green' },
 ]
 
 const ACCENTS = {
@@ -82,8 +88,9 @@ export default function InviteGameModal() {
       >
         <header className="flex items-center justify-between border-b border-white/5 px-5 py-4">
           <div>
-            <h3 className="font-arcade text-xs text-neon-pink">
-              ⚔ INVITE {inviteFriend.username?.toUpperCase()}
+            <h3 className="inline-flex items-center gap-1.5 font-arcade text-xs text-neon-pink">
+              <SwordsIcon size={14} aria-hidden="true" />
+              <span>INVITE {inviteFriend.username?.toUpperCase()}</span>
             </h3>
             <p className="mt-1 text-[10px] text-white/45">Pick a cabinet.</p>
           </div>
@@ -104,7 +111,7 @@ export default function InviteGameModal() {
               onClick={(e) => pickGame(g.id, e)}
               className={`flex items-center gap-4 rounded-lg border-2 bg-arcadia-bg/60 p-4 transition ${ACCENTS[g.accent]}`}
             >
-              <span className="text-2xl">{g.icon}</span>
+              <g.Icon size={24} aria-hidden="true" />
               <span className="font-arcade text-[11px]">{g.name}</span>
             </button>
           ))}

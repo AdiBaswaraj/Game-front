@@ -1797,7 +1797,7 @@ function ResignModal({ onCancel, onConfirm }) {
     >
       <div className="w-full max-w-sm rounded-xl border-2 border-neon-pink/60 bg-arcadia-surface p-6 shadow-neon-pink">
         <h3 className="font-arcade text-sm text-neon-pink">
-          ♟ RESIGN GAME?
+          RESIGN GAME?
         </h3>
         <p className="mt-3 text-xs text-white/65">
           Your opponent will be declared winner.

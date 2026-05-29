@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useFriends } from '../context/FriendsContext'
 import { socket } from '../lib/socket'
+import { SwordsIcon } from '../assets/icons/index.jsx'
 
 const GAME_NAMES = {
   chess: 'Chess',
@@ -41,8 +42,9 @@ export default function GameInviteBanner() {
     >
       <div className="lb-slide-in flex w-full max-w-md items-center gap-3 rounded-lg border-2 border-neon-pink/60 bg-arcadia-surface/95 px-4 py-3 shadow-neon-pink backdrop-blur">
         <div className="flex-1 text-sm">
-          <p className="font-arcade text-[10px] text-neon-pink">
-            ⚔ GAME INVITE
+          <p className="inline-flex items-center gap-1.5 font-arcade text-[10px] text-neon-pink">
+            <SwordsIcon size={12} aria-hidden="true" />
+            <span>GAME INVITE</span>
           </p>
           <p className="mt-1 text-white">
             <span className="font-arcade text-[11px] text-neon-cyan">

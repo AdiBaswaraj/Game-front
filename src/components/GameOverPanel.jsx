@@ -1,6 +1,7 @@
 import { createPortal } from 'react-dom'
 import { HallOfFameButton, WinParticles } from './GameOverFX'
 import { LobbyBackLink } from '../context/GameOverFlashContext'
+import { TrophyIcon } from '../assets/icons/index.jsx'
 
 // One game-over overlay surface used by every single-player game. The
 // outer layer is position: fixed inset 0 z-500 with a blurred dark
@@ -35,7 +36,7 @@ const VARIANTS = {
     borderColor: 'rgba(255, 215, 0, 0.6)',
     cornerCls: 'pixel-corners-amber',
     shake: false,
-    icon: '🏆',
+    IconComp: TrophyIcon,
     titleColor: 'text-amber-400',
     shadowCls: 'shadow-[0_0_18px_rgba(255,215,0,0.45)]',
     burst: 'gold',
@@ -122,7 +123,13 @@ export default function GameOverPanel({
             v.shake ? 'go-shake' : ''
           } md:text-lg`}
         >
-          <span className="go-icon-pop">{v.icon}</span>{' '}
+          <span className="go-icon-pop inline-flex items-center">
+            {v.IconComp ? (
+              <v.IconComp size={18} aria-hidden="true" />
+            ) : (
+              v.icon
+            )}
+          </span>{' '}
           {title}
         </p>
 

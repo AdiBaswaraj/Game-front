@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { TrophyIcon } from '../assets/icons/index.jsx'
 
 const PARTICLES = [
   { dx: -100, dy: -80, delay: 0,    color: '#00ff88' },
@@ -42,9 +43,10 @@ export function HallOfFameButton({ signedIn, className = '' }) {
   return (
     <Link
       to="/leaderboard"
-      className={`rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan ${className}`}
+      className={`inline-flex items-center justify-center gap-1.5 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan ${className}`}
     >
-      🏆 HALL OF FAME
+      <TrophyIcon size={14} aria-hidden="true" />
+      <span>HALL OF FAME</span>
     </Link>
   )
 }

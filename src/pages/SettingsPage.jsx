@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { GearIcon } from '../assets/icons/index.jsx'
 
 const SOUND_KEY = 'arcadia:soundEnabled'
 
@@ -29,9 +30,9 @@ export default function SettingsPage() {
             <span aria-hidden="true">◀</span>
             LOBBY
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">⚙</span>
-            SETTINGS
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <GearIcon size={22} aria-hidden="true" />
+            <span>SETTINGS</span>
           </h1>
           <span className="justify-self-end" />
         </div>

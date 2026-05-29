@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { SwordsIcon } from '../assets/icons/index.jsx'
 import { getRoom } from '../lib/api'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import LoadingScreen from '../components/LoadingScreen'
@@ -70,9 +71,9 @@ export default function JoinByCodePage() {
             <span aria-hidden="true">◀</span>
             LOBBY
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">⚔</span>
-            JOIN ROOM
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <SwordsIcon size={22} aria-hidden="true" />
+            <span>JOIN ROOM</span>
           </h1>
           <span className="justify-self-end" />
         </div>

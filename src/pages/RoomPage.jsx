@@ -7,11 +7,17 @@ import { socket } from '../lib/socket'
 import Avatar from '../components/Avatar'
 import { games as gameMeta } from '../data/games'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import {
+  ChessIcon,
+  SnakeLadderIcon,
+  SwordsIcon,
+  WordPuzzleIcon,
+} from '../assets/icons/index.jsx'
 
 const MP_GAME_NAMES = {
-  chess: { name: 'Chess', icon: '♟️' },
-  'snake-and-ladder': { name: 'Snake & Ladder', icon: '🎲' },
-  'word-puzzle': { name: 'Word Puzzle Battle', icon: '🔤' },
+  chess: { name: 'Chess', Icon: ChessIcon },
+  'snake-and-ladder': { name: 'Snake & Ladder', Icon: SnakeLadderIcon },
+  'word-puzzle': { name: 'Word Puzzle Battle', Icon: WordPuzzleIcon },
 }
 
 function pick(obj, ...keys) {
@@ -67,10 +73,9 @@ export default function RoomPage() {
       gameMeta.find((g) => g.id === room.gameId) &&
       (() => {
         const m = gameMeta.find((g) => g.id === room.gameId)
-        return { name: m.name, icon: m.icon }
+        return { name: m.name, Icon: m.Icon }
       })()) || {
       name: room?.gameId?.toUpperCase() ?? 'GAME',
-      icon: '🎮',
     }
 
   const me = useMemo(() => {
@@ -310,9 +315,9 @@ export default function RoomPage() {
 
       <section className="mt-8 flex flex-col items-center gap-2 text-center">
         <span className="font-arcade text-[9px] text-white/40">PLAYING</span>
-        <p className="font-arcade text-base text-neon-cyan md:text-lg">
-          <span className="mr-2">{gameInfo.icon}</span>
-          {gameInfo.name.toUpperCase()}
+        <p className="inline-flex items-center gap-2 font-arcade text-base text-neon-cyan md:text-lg">
+          {gameInfo.Icon && <gameInfo.Icon size={22} aria-hidden="true" />}
+          <span>{gameInfo.name.toUpperCase()}</span>
         </p>
       </section>
 
@@ -452,9 +457,9 @@ function Shell({ children }) {
             <span aria-hidden="true">◀</span>
             LOBBY
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">⚔</span>
-            ROOM
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <SwordsIcon size={22} aria-hidden="true" />
+            <span>ROOM</span>
           </h1>
           <span className="justify-self-end" />
         </div>

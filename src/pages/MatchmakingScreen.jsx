@@ -3,14 +3,21 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { socket } from '../lib/socket'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import {
+  ChessIcon,
+  DoorIcon,
+  SnakeLadderIcon,
+  SwordsIcon,
+  WordPuzzleIcon,
+} from '../assets/icons/index.jsx'
 
 const BASE = import.meta.env.VITE_BACKEND_URL || ''
 const TIMEOUT_S = 30
 
 const GAME_LABELS = {
-  chess: { name: 'CHESS', icon: '♟️' },
-  'snake-and-ladder': { name: 'SNAKE & LADDER', icon: '🎲' },
-  'word-puzzle': { name: 'WORD PUZZLE', icon: '🔤' },
+  chess: { name: 'CHESS', Icon: ChessIcon },
+  'snake-and-ladder': { name: 'SNAKE & LADDER', Icon: SnakeLadderIcon },
+  'word-puzzle': { name: 'WORD PUZZLE', Icon: WordPuzzleIcon },
 }
 
 function pick(o, ...keys) {
@@ -159,7 +166,7 @@ export default function MatchmakingScreen() {
 
   if (!authLoading && !user) {
     return (
-      <Shell title={label.name} icon={label.icon} backTo={`/game/${gameId}/mode`}>
+      <Shell title={label.name} Icon={label.Icon} backTo={`/game/${gameId}/mode`}>
         <div className="flex flex-col items-center gap-3 py-16 text-center">
           <p className="font-arcade text-sm text-neon-pink">
             Login required for matchmaking.
@@ -177,7 +184,7 @@ export default function MatchmakingScreen() {
   }
 
   return (
-    <Shell title={label.name} icon={label.icon} backTo={`/game/${gameId}/mode`} backLabel="MODE">
+    <Shell title={label.name} Icon={label.Icon} backTo={`/game/${gameId}/mode`} backLabel="MODE">
       <main className="mx-auto flex max-w-2xl flex-col items-center px-4 py-10 md:py-16">
         {phase === 'searching' && (
           <SearchingView
@@ -284,9 +291,10 @@ function TimeoutView({ onRetry, onPrivateRoom }) {
         <button
           type="button"
           onClick={onPrivateRoom}
-          className="rounded-md border border-neon-cyan/70 bg-neon-cyan/10 px-5 py-2.5 font-arcade text-[11px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+          className="inline-flex items-center gap-1.5 rounded-md border border-neon-cyan/70 bg-neon-cyan/10 px-5 py-2.5 font-arcade text-[11px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
         >
-          ⚔ CREATE PRIVATE ROOM
+          <DoorIcon size={12} aria-hidden="true" />
+          <span>CREATE PRIVATE ROOM</span>
         </button>
       </div>
     </div>
@@ -322,7 +330,7 @@ function Radar({ children }) {
   )
 }
 
-function Shell({ title, icon, backTo, backLabel = 'LOBBY', children }) {
+function Shell({ title, icon, Icon, backTo, backLabel = 'LOBBY', children }) {
   return (
     <div className="relative min-h-screen bg-arcadia-bg text-white">
       <header className="sticky top-0 z-30 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md">
@@ -334,9 +342,13 @@ function Shell({ title, icon, backTo, backLabel = 'LOBBY', children }) {
             <span aria-hidden="true">◀</span>
             {backLabel}
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            {icon && <span className="mr-2">{icon}</span>}
-            {title}
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            {Icon ? (
+              <Icon size={22} aria-hidden="true" />
+            ) : (
+              icon && <span>{icon}</span>
+            )}
+            <span>{title}</span>
           </h1>
           <span className="justify-self-end" />
         </div>

@@ -577,6 +577,27 @@ export function SwordsIcon({ size = 32, ...rest }) {
   )
 }
 
+// Pixel person — head, neck, shoulders, collar cutout — for profile
+// page header.
+export function PersonIcon({ size = 20, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Profile"
+      {...rest}
+    >
+      <rect x="7" y="1" width="6" height="6" />
+      <rect x="9" y="7" width="2" height="2" />
+      <rect x="4" y="9" width="12" height="8" />
+      <rect x="8" y="9" width="4" height="3" fill="var(--bg-base)" />
+    </svg>
+  )
+}
+
 // Lookup by game id — consumers use ICONS_BY_ID[gameId] when they
 // don't already have access to the games.js entry.
 export const ICONS_BY_ID = {
