@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
@@ -46,6 +46,19 @@ export default function SideNavDrawer({ open, onClose }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // Swipe-left to close on touch devices.
+  const touchStartX = useRef(null)
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0]?.clientX ?? null
+  }
+  const onTouchEnd = (e) => {
+    const start = touchStartX.current
+    touchStartX.current = null
+    if (start == null) return
+    const end = e.changedTouches[0]?.clientX ?? start
+    if (start - end > 60) onClose()
+  }
+
   if (typeof document === 'undefined') return null
 
   const handleLogin = () => {
@@ -59,99 +72,137 @@ export default function SideNavDrawer({ open, onClose }) {
 
   const drawer = (
     <>
-      <div
+      <button
+        type="button"
         onClick={onClose}
-        className={`fixed inset-0 z-[1000] bg-black/60 transition-opacity duration-200 ${
+        aria-label="Close navigation"
+        tabIndex={open ? 0 : -1}
+        className={`fixed inset-0 z-[1000] cursor-pointer transition-opacity duration-200 ${
           open ? 'opacity-100' : 'pointer-events-none opacity-0'
         }`}
-        style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+        style={{
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(3px)',
+          WebkitBackdropFilter: 'blur(3px)',
+          border: 0,
+        }}
       />
       <aside
         aria-label="Navigation"
         aria-hidden={!open}
-        className={`fixed inset-y-0 right-0 z-[1010] flex w-full flex-col text-white sm:w-80 ${
-          open ? 'translate-x-0' : 'translate-x-full'
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+        className={`fixed inset-y-0 left-0 z-[1010] flex flex-col text-white ${
+          open ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{
-          background: 'rgba(5, 5, 8, 0.95)',
+          width: 'min(360px, 50vw)',
+          minWidth: 'min(320px, 75vw)',
+          background: 'rgba(5, 5, 8, 0.85)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderLeft: '2px solid rgba(0, 255, 136, 0.2)',
-          transition: 'transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+          borderRight: '1px solid rgba(0, 255, 136, 0.15)',
+          boxShadow: '4px 0 24px rgba(0, 0, 0, 0.5)',
+          transition: 'transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1)',
         }}
       >
-        <header className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-5 py-4">
-          <span className="neon-text font-arcade text-sm text-neon-green">
-            <span className="text-neon-cyan">★</span> ARCADIA
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="grid h-9 w-9 place-items-center rounded-md font-arcade text-xs text-white/50 transition hover:bg-white/[0.06] hover:text-neon-pink"
-            aria-label="Close navigation"
+        <header className="flex shrink-0 items-center border-b border-white/[0.06] px-5 py-4">
+          <span
+            className="font-arcade text-sm"
+            style={{
+              color: '#7fffc0',
+              textShadow: '0 0 8px rgba(0, 255, 136, 0.4)',
+            }}
           >
-            ✕
-          </button>
+            <span style={{ color: 'var(--neon-cyan-soft)' }}>★</span> ARCADIA
+          </span>
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {loading ? (
-            <ProfileSkeleton />
-          ) : user ? (
-            <SignedInCard
-              name={displayName}
-              joinDate={user.created_at}
-              onClose={onClose}
-            />
-          ) : isGuest ? (
-            <GuestCard name={displayName} onLogin={handleLogin} />
-          ) : (
-            <SignedOutCard onLogin={handleLogin} />
-          )}
+          <StaggerItem delay={open ? 50 : 0}>
+            {loading ? (
+              <ProfileSkeleton />
+            ) : user ? (
+              <SignedInCard
+                name={displayName}
+                joinDate={user.created_at}
+                onClose={onClose}
+              />
+            ) : isGuest ? (
+              <GuestCard name={displayName} onLogin={handleLogin} />
+            ) : (
+              <SignedOutCard onLogin={handleLogin} />
+            )}
+          </StaggerItem>
 
-          <DividerLabel>NAVIGATE</DividerLabel>
+          <StaggerItem delay={open ? 100 : 0}>
+            <DividerLabel>NAVIGATE</DividerLabel>
+          </StaggerItem>
 
           <nav aria-label="Primary" className="px-3">
             <ul className="space-y-1">
-              {NAV_LINKS.map((item) => (
-                <NavLinkItem key={item.to} item={item} onClose={onClose} />
+              {NAV_LINKS.map((item, i) => (
+                <StaggerItem
+                  key={item.to}
+                  delay={open ? 100 + (i + 1) * 30 : 0}
+                >
+                  <NavLinkItem item={item} onClose={onClose} />
+                </StaggerItem>
               ))}
             </ul>
           </nav>
 
           {user && (
             <>
-              <DividerLabel>FRIENDS</DividerLabel>
-              <FriendsSection
-                onClose={onClose}
-                displayName={displayName}
-                userId={user.id}
-              />
+              <StaggerItem delay={open ? 200 : 0}>
+                <DividerLabel>FRIENDS</DividerLabel>
+              </StaggerItem>
+              <StaggerItem delay={open ? 220 : 0}>
+                <FriendsSection
+                  onClose={onClose}
+                  displayName={displayName}
+                  userId={user.id}
+                />
+              </StaggerItem>
             </>
           )}
         </div>
 
         {user && (
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="flex shrink-0 items-center gap-4 border-t border-white/[0.06] px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-neon-pink/10 hover:shadow-[inset_0_0_20px_rgba(255,0,110,0.15)]"
-          >
-            <span className="text-lg" aria-hidden="true">
-              ↩
-            </span>
-            <span>SIGN OUT</span>
-          </button>
+          <StaggerItem delay={open ? 300 : 0}>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="flex w-full shrink-0 items-center gap-4 border-t border-white/[0.06] px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-neon-pink/10 hover:shadow-[inset_0_0_20px_rgba(255,0,110,0.15)]"
+            >
+              <span className="text-lg" aria-hidden="true">
+                ↩
+              </span>
+              <span>SIGN OUT</span>
+            </button>
+          </StaggerItem>
         )}
 
-        <footer className="shrink-0 border-t border-white/[0.06] px-5 py-3 text-center font-arcade text-[9px] text-white/30">
-          © ARCADIA 2026
+        <footer className="shrink-0 border-t border-white/[0.06] px-5 py-3 text-center font-arcade text-[8px] text-white/25">
+          <p>TAP OUTSIDE TO CLOSE</p>
+          <p className="mt-1 text-white/20">© ARCADIA 2026</p>
         </footer>
       </aside>
     </>
   )
 
   return createPortal(drawer, document.body)
+}
+
+function StaggerItem({ delay = 0, children }) {
+  return (
+    <div
+      className="fade-slide-in"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  )
 }
 
 function DividerLabel({ children }) {

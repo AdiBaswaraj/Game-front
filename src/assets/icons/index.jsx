@@ -236,6 +236,35 @@ export function WordPuzzleIcon({ size = 48, ...rest }) {
   )
 }
 
+// Pixel house — base rectangle + stepped triangular roof + door.
+// Tinted via currentColor so the button can drive it.
+export function HomeIcon({ size = 16, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Home"
+      {...rest}
+    >
+      {/* roof — staircase of rectangles forming a triangle */}
+      <rect x="7" y="2" width="2" height="2" />
+      <rect x="5" y="4" width="6" height="1" />
+      <rect x="3" y="5" width="10" height="1" />
+      <rect x="2" y="6" width="12" height="1" />
+      {/* body */}
+      <rect x="3" y="7" width="10" height="7" />
+      {/* door — punched out via background-tinted overlay */}
+      <rect x="7" y="10" width="2" height="4" fill="#050508" />
+      {/* window */}
+      <rect x="5" y="9" width="1" height="1" fill="#050508" />
+      <rect x="10" y="9" width="1" height="1" fill="#050508" />
+    </svg>
+  )
+}
+
 // Lookup by game id — consumers use ICONS_BY_ID[gameId] when they
 // don't already have access to the games.js entry.
 export const ICONS_BY_ID = {

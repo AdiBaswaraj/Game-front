@@ -43,17 +43,33 @@ export default function Navbar() {
         <div className="flex items-center gap-3 md:gap-5">
           <button
             type="button"
-            onClick={() => setNavOpen(true)}
-            className="grid h-10 w-10 place-items-center rounded-md border border-white/15 font-arcade text-xs text-white/70 transition hover:border-neon-green/60 hover:text-neon-green"
-            aria-label="Open navigation"
+            onClick={() => setNavOpen((v) => !v)}
+            className="grid h-11 w-11 place-items-center rounded-md border border-white/15 bg-white/[0.02] text-white/70 transition hover:border-neon-green/60 hover:bg-white/[0.06] hover:text-neon-green"
+            aria-label={navOpen ? 'Close navigation' : 'Open navigation'}
+            aria-expanded={navOpen}
+            style={{
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+            }}
           >
-            ☰
+            <span
+              className={`hamburger-icon ${navOpen ? 'open' : ''}`}
+              aria-hidden="true"
+            >
+              <span />
+              <span />
+              <span />
+            </span>
           </button>
           <Link
             to="/"
-            className="neon-text inline-flex items-center gap-2 font-arcade text-base text-neon-green md:text-xl"
+            className="inline-flex items-center gap-2 font-arcade text-base md:text-xl"
+            style={{
+              color: '#7fffc0',
+              textShadow: '0 0 8px rgba(0, 255, 136, 0.4)',
+            }}
           >
-            <span aria-hidden="true" className="text-neon-cyan">
+            <span aria-hidden="true" style={{ color: 'var(--neon-cyan-soft)' }}>
               ★
             </span>
             ARCADIA

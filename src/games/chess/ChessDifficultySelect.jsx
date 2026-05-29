@@ -18,7 +18,7 @@ export default function ChessDifficultySelect() {
 
   return (
     <div className="relative min-h-screen bg-arcadia-bg text-white">
-      <header className="sticky top-0 z-30 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md">
+      <header className="sticky top-0 z-30 border-b" style={{ background: "rgba(5, 5, 8, 0.9)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottomColor: "rgba(0, 255, 136, 0.1)" }}>
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-4 py-4 md:px-8">
           <Link
             to="/game/chess"

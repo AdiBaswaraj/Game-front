@@ -24,6 +24,10 @@
   --neon-pink: #ff006e;
   --neon-purple: #7000ff;
 
+  /* Softened neon (text on dark backgrounds — easier on the eye) */
+  --neon-green-soft: #7fffc0;
+  --neon-cyan-soft: #a8f0e0;
+
   /* Neon glows */
   --glow-green: 0 0 20px rgba(0, 255, 136, 0.5);
   --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.5);
@@ -115,6 +119,13 @@ body,
       0 0 7px currentColor,
       0 0 10px currentColor,
       0 0 21px currentColor;
+  }
+
+  /* Softer glow for large/persistent display text (hero, headers). */
+  .neon-text-soft {
+    text-shadow:
+      0 0 4px currentColor,
+      0 0 12px rgba(255, 255, 255, 0.18);
   }
 
   /* Subtle CRT scanline overlay — applied once at the app root. */
@@ -454,3 +465,40 @@ body,
   100% { opacity: 0; }
 }
 .flash-fade { animation: flash-fade 200ms ease-in-out forwards; }
+
+/* ===== Fix pass — side panel stagger + snake food pulse + hamburger ===== */
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.fade-slide-in { animation: fadeSlideIn 250ms ease-out both; }
+
+@keyframes snake-food-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.95; }
+  50%      { transform: scale(1.15); opacity: 1; }
+}
+.snake-food-pulse { animation: snake-food-pulse 1s ease-in-out infinite; }
+
+/* Hamburger ↔ X morphing icon (12×12 inner stack of 2px bars) */
+.hamburger-icon {
+  position: relative;
+  width: 18px;
+  height: 14px;
+  display: inline-block;
+}
+.hamburger-icon span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  transition: transform 250ms ease, opacity 200ms ease, top 250ms ease;
+}
+.hamburger-icon span:nth-child(1) { top: 0; }
+.hamburger-icon span:nth-child(2) { top: 6px; }
+.hamburger-icon span:nth-child(3) { top: 12px; }
+.hamburger-icon.open span:nth-child(1) { top: 6px; transform: rotate(45deg); }
+.hamburger-icon.open span:nth-child(2) { opacity: 0; }
+.hamburger-icon.open span:nth-child(3) { top: 6px; transform: rotate(-45deg); }

@@ -34,7 +34,10 @@ function SectionHeader() {
     <div ref={ref} className={`io-fade-in mb-8 ${inView ? 'io-visible' : ''}`}>
       <div className="flex items-end justify-between gap-4">
         <div>
-          <h2 className="neon-text font-arcade text-lg text-white md:text-2xl">
+          <h2
+            className="neon-text-soft font-arcade text-lg md:text-2xl"
+            style={{ color: 'var(--neon-green-soft)' }}
+          >
             SELECT YOUR GAME
           </h2>
           <p className="mt-2 text-sm text-white/50">

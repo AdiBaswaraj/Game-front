@@ -76,17 +76,20 @@ export default function SnakeGame() {
     active: status === 'playing',
     kind: 'single',
   })
+  // The RAF loop reads this ref every frame; flipping it freezes ticks
+  // but keeps the snake / score drawn so the canvas doesn't go blank.
+  const pausedRef = useRef(false)
+  pausedRef.current = !!leaveModal && status === 'playing'
 
   const { isFullscreen } = useFullscreen()
-  // Reserve room for the bottom HUD (Stat cards + controls hint).
-  // Bigger reservation when not fullscreen (the HUD column lives
-  // below the canvas on mobile and beside it on desktop).
+  // Reserve room for the slim score bar above the canvas (28px) plus
+  // a single line of control hints below it (~24px). No HUD column.
   const canvasSize = useSquareGameSize({
     headerHeight: isFullscreen ? 56 : 72,
-    controlsHeight: isFullscreen ? 32 : 240,
+    controlsHeight: isFullscreen ? 32 : 96,
     padding: isFullscreen ? 8 : 16,
     minSize: 260,
-    maxSize: isFullscreen ? 760 : 560,
+    maxSize: isFullscreen ? 760 : 620,
   })
   const cellSize = canvasSize / GRID
 
@@ -307,16 +310,16 @@ export default function SnakeGame() {
         ctx.stroke()
       }
 
-      const pulse = 1 + Math.sin(ts / 220) * 0.18
+      const pulse = 1 + Math.sin(ts / 320) * 0.15
       ctx.save()
       ctx.shadowColor = '#ff006e'
-      ctx.shadowBlur = 18
+      ctx.shadowBlur = 22
       ctx.fillStyle = '#ff006e'
       ctx.beginPath()
       ctx.arc(
         s.food.x * C + C / 2,
         s.food.y * C + C / 2,
-        C * 0.32 * pulse,
+        C * 0.36 * pulse,
         0,
         Math.PI * 2,
       )
@@ -342,12 +345,15 @@ export default function SnakeGame() {
 
     const loop = (ts) => {
       const s = stateRef.current
-      if (statusRef.current === 'playing') {
+      if (statusRef.current === 'playing' && !pausedRef.current) {
         if (s.lastTick === 0) s.lastTick = ts
         if (ts - s.lastTick >= s.interval) {
           tick()
           s.lastTick = ts
         }
+      } else if (pausedRef.current) {
+        // Reset lastTick so the snake doesn't catch up on resume.
+        s.lastTick = 0
       }
       draw(ts)
       rafId = requestAnimationFrame(loop)
@@ -357,10 +363,26 @@ export default function SnakeGame() {
   }, [user])
 
   return (
-    <div className="flex flex-col items-center gap-4 md:gap-8">
-    <div className="flex flex-col items-center gap-4 lg:flex-row lg:items-start lg:justify-center">
+    <div className="flex flex-col items-center gap-4 md:gap-6">
+      {/* Slim score bar above canvas — matches canvas width exactly */}
       <div
-        className="game-touch relative"
+        className="flex shrink-0 items-center justify-center font-arcade text-[9px] text-neon-green"
+        style={{
+          width: canvasSize,
+          height: 28,
+          background: 'rgba(0, 0, 0, 0.6)',
+          borderTopLeftRadius: 8,
+          borderTopRightRadius: 8,
+          borderBottom: '1px solid rgba(0, 255, 136, 0.2)',
+          letterSpacing: '0.08em',
+        }}
+        aria-label="Score, best, level"
+      >
+        SCORE {score} · BEST {Math.max(highScore, score)} · LV {level}
+      </div>
+
+      <div
+        className="game-touch relative -mt-4"
         style={{ width: canvasSize, height: canvasSize }}
       >
         <div
@@ -373,13 +395,22 @@ export default function SnakeGame() {
             aria-label="Snake game canvas"
           />
         </div>
-        {/* Score overlay inside canvas — top-left corner */}
-        <div
-          className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/55 px-2.5 py-1 font-arcade text-[9px] leading-tight text-neon-green"
-          aria-hidden="true"
-        >
-          SCORE {score} · BEST {Math.max(highScore, score)} · LV {level}
-        </div>
+
+        {pausedRef.current && (
+          <div
+            className="absolute inset-2 flex items-center justify-center rounded-md"
+            style={{
+              background: 'rgba(5, 5, 8, 0.78)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+            }}
+            aria-hidden="true"
+          >
+            <p className="neon-text font-arcade text-base text-neon-cyan md:text-xl">
+              PAUSED
+            </p>
+          </div>
+        )}
 
         {status === 'idle' && (
           <Overlay>
@@ -435,13 +466,15 @@ export default function SnakeGame() {
         )}
       </div>
 
-      <Hud
-        score={score}
-        highScore={Math.max(highScore, score)}
-        level={level}
-        signedIn={!!user}
-      />
-    </div>
+      <p className="text-center text-[10px] text-white/50">
+        ↑ ↓ ← → / WASD to move · Swipe on mobile
+      </p>
+
+      {!user && (
+        <p className="text-center text-[10px] text-white/35">
+          Log in to save scores to the global leaderboard.
+        </p>
+      )}
 
       {status === 'gameover' && (
         <div className="lb-slide-in w-full max-w-md">
@@ -470,36 +503,3 @@ function Overlay({ children }) {
   )
 }
 
-function Hud({ score, highScore, level, signedIn }) {
-  return (
-    <aside className="flex w-full flex-col gap-3 lg:w-56">
-      <Stat label="SCORE" value={score} accent="text-neon-green" />
-      <Stat label="HIGH" value={highScore} accent="text-neon-cyan" />
-      <Stat label="SPEED" value={`LV ${level}`} accent="text-neon-pink" />
-      <div className="mt-2 rounded-md border border-white/10 bg-arcadia-surface/60 p-3">
-        <p className="font-arcade text-[9px] text-white/45">CONTROLS</p>
-        <ul className="mt-2 space-y-1 text-xs text-white/70">
-          <li>↑ ↓ ← → / WASD</li>
-          <li>Swipe on mobile</li>
-          <li>Space — start</li>
-        </ul>
-      </div>
-      {!signedIn && (
-        <p className="text-[10px] leading-snug text-white/40">
-          Log in to save scores to the global leaderboard.
-        </p>
-      )}
-    </aside>
-  )
-}
-
-function Stat({ label, value, accent }) {
-  return (
-    <div className="glass-panel pixel-corners flex items-center justify-between px-4 py-3">
-      <span className="font-arcade text-[9px] text-white/45">{label}</span>
-      <span className={`neon-text font-arcade text-base ${accent}`}>
-        {value}
-      </span>
-    </div>
-  )
-}

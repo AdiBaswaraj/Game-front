@@ -4,13 +4,14 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import { useFullscreen } from '../hooks/useFullscreen'
 import { useLeaveGuardContext } from '../context/LeaveGuardContext'
 import GameLoadingScreen from './GameLoadingScreen'
+import { HomeIcon } from '../assets/icons/index.jsx'
 
 const ACCENTS = {
-  green:  { color: 'text-neon-green',  border: 'border-neon-green/15' },
-  cyan:   { color: 'text-neon-cyan',   border: 'border-neon-cyan/15' },
-  pink:   { color: 'text-neon-pink',   border: 'border-neon-pink/15' },
-  purple: { color: 'text-neon-purple', border: 'border-neon-purple/15' },
-  amber:  { color: 'text-amber-400',   border: 'border-amber-400/15' },
+  green:  { color: 'text-neon-green' },
+  cyan:   { color: 'text-neon-cyan' },
+  pink:   { color: 'text-neon-pink' },
+  purple: { color: 'text-neon-purple' },
+  amber:  { color: 'text-amber-400' },
 }
 
 export default function GameLayout({
@@ -44,11 +45,12 @@ export default function GameLayout({
   return (
     <div className="game-page relative flex min-h-[100dvh] flex-col bg-arcadia-bg text-white">
       <header
-        className={`sticky top-0 z-30 shrink-0 border-b ${a.border}`}
+        className="sticky top-0 z-30 shrink-0 border-b"
         style={{
           background: 'rgba(5, 5, 8, 0.9)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderBottomColor: 'rgba(0, 255, 136, 0.1)',
         }}
       >
         <div
@@ -95,7 +97,7 @@ export default function GameLayout({
               aria-label="Home"
               title="Home"
             >
-              <span aria-hidden="true">🏠</span>
+              <HomeIcon size={16} aria-hidden="true" />
               <span className={labelHidden}>HOME</span>
             </Link>
           </div>

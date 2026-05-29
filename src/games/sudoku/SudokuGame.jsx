@@ -192,13 +192,31 @@ export default function SudokuGame({ difficulty = 'easy' }) {
         >
           CHECK
         </button>
-        <button
-          type="button"
-          onClick={() => newGame()}
-          className="rounded-md border border-neon-pink/60 px-4 py-2 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/15 hover:shadow-neon-pink"
-        >
-          NEW PUZZLE
-        </button>
+        {time === 0 || status === 'won' ? (
+          <button
+            type="button"
+            onClick={() => newGame()}
+            className="rounded-md border border-neon-pink/60 px-4 py-2 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/15 hover:shadow-neon-pink"
+          >
+            NEW PUZZLE
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Give up and reveal the solution? A new puzzle will start.',
+                )
+              ) {
+                newGame()
+              }
+            }}
+            className="rounded-md border border-neon-pink/60 px-4 py-2 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/15 hover:shadow-neon-pink"
+          >
+            🏳 GIVE UP
+          </button>
+        )}
       </div>
 
       <div className="relative">
