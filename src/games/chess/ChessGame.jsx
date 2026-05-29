@@ -170,6 +170,33 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [pendingPromotion, setPendingPromotion] = useState(null) // {from,to}
   const [undosLeft, setUndosLeft] = useState(5)
   const [clockFlash, setClockFlash] = useState(null) // {color, text, key}
+  const [lastMove, setLastMove] = useState(null) // {from, to}
+
+  // Derive last move + check king square from chess.js whenever the
+  // position changes. Covers SP moves, bot moves, and MP move_accepted
+  // alike without having to plumb the highlight through every code path.
+  useEffect(() => {
+    const verbose = chessRef.current.history({ verbose: true })
+    const last = verbose[verbose.length - 1]
+    setLastMove(last ? { from: last.from, to: last.to } : null)
+  }, [fen])
+
+  const checkSquare = useMemo(() => {
+    const c = chessRef.current
+    if (!c || !c.inCheck()) return null
+    const turn = c.turn()
+    const board = c.board()
+    for (let r = 0; r < 8; r++) {
+      for (let cIdx = 0; cIdx < 8; cIdx++) {
+        const sq = board[r][cIdx]
+        if (sq && sq.type === 'k' && sq.color === turn) {
+          return `${String.fromCharCode(97 + cIdx)}${8 - r}`
+        }
+      }
+    }
+    return null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fen])
   const [resumeOffer, setResumeOffer] = useState(null) // saved snapshot offered for resume
   const spLoadHandledRef = useRef(false)
 
@@ -1059,6 +1086,18 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   // ===== Click-to-move highlight styles =====
   const squareStyles = useMemo(() => {
     const styles = {}
+    // Layer order matters: lastMove → check king → selection → legal
+    // moves. Each later layer overwrites the previous on the same
+    // square so the most relevant cue wins.
+    if (lastMove) {
+      styles[lastMove.from] = { backgroundColor: 'rgba(0, 212, 255, 0.2)' }
+      styles[lastMove.to] = { backgroundColor: 'rgba(0, 212, 255, 0.3)' }
+    }
+    if (checkSquare) {
+      styles[checkSquare] = {
+        animation: 'chess-check-pulse 800ms ease-in-out infinite',
+      }
+    }
     if (selectedSquare) {
       styles[selectedSquare] = {
         background: 'rgba(0, 212, 255, 0.28)',
@@ -1077,7 +1116,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       }
     }
     return styles
-  }, [selectedSquare, legalMoves])
+  }, [selectedSquare, legalMoves, lastMove, checkSquare])
 
   // Clear highlights whenever the board changes (e.g. opponent moves)
   useEffect(() => {
@@ -1190,6 +1229,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
               onSquareClick,
               squareStyles,
               allowDragging: myTurn,
+              animationDuration: 150,
               boardStyle: {
                 borderRadius: 4,
                 width: boardSize,
