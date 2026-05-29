@@ -8,12 +8,21 @@ import { createRoom, searchUsers } from '../lib/api'
 import { socket } from '../lib/socket'
 import Avatar from './Avatar'
 import PanelAmbience from './PanelAmbience'
-import { ChessIcon, SnakeLadderIcon, WordPuzzleIcon } from '../assets/icons/index.jsx'
+import {
+  ChessIcon,
+  FriendsIcon,
+  GearIcon,
+  NavHomeIcon,
+  SignOutIcon,
+  SnakeLadderIcon,
+  TrophyIcon,
+  WordPuzzleIcon,
+} from '../assets/icons/index.jsx'
 
 const NAV_LINKS = [
-  { to: '/', icon: '🏠', label: 'HOME' },
-  { to: '/leaderboard', icon: '🏆', label: 'HALL OF FAME' },
-  { to: '/settings', icon: '⚙', label: 'SETTINGS' },
+  { to: '/', Icon: NavHomeIcon, label: 'HOME' },
+  { to: '/leaderboard', Icon: TrophyIcon, label: 'HALL OF FAME' },
+  { to: '/settings', Icon: GearIcon, label: 'SETTINGS' },
 ]
 
 const MP_GAMES = [
@@ -184,7 +193,7 @@ function MainPanel({
         NAV_LINKS[1],
         {
           to: '__friends__',
-          icon: '👥',
+          Icon: FriendsIcon,
           label: 'FRIENDS',
           badge: onlineCount,
           onClick: onOpenFriends,
@@ -259,8 +268,11 @@ function MainPanel({
               onClick={onSignOut}
               className="flex w-full shrink-0 items-center gap-4 border-t border-white/[0.06] px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-neon-pink/10 hover:shadow-[inset_0_0_20px_rgba(255,0,110,0.15)]"
             >
-              <span className="text-lg" aria-hidden="true">
-                ↩
+              <span
+                className="inline-flex h-5 w-5 items-center justify-center"
+                aria-hidden="true"
+              >
+                <SignOutIcon size={20} />
               </span>
               <span>SIGN OUT</span>
             </button>
@@ -467,13 +479,17 @@ function NavLinkItem({ item, onClose }) {
       : 'text-white/80 hover:bg-white/[0.05] hover:text-neon-cyan'
   }`
 
+  const IconComp = item.Icon
   const inner = (
     <>
       {isActive && (
         <span className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-neon-green shadow-neon-green" />
       )}
-      <span className="text-lg" aria-hidden="true">
-        {item.icon}
+      <span
+        className="inline-flex h-5 w-5 items-center justify-center"
+        aria-hidden="true"
+      >
+        {IconComp ? <IconComp size={20} /> : item.icon}
       </span>
       <span className="flex-1">{item.label}</span>
       {typeof item.badge === 'number' && item.badge > 0 && (

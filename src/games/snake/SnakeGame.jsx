@@ -62,37 +62,6 @@ function eyeOffsets(dir, C, eyeSize) {
   ]
 }
 
-// Returns [[x, y, w, h], [x, y, w, h]] tongue prong rectangles
-// extending past the head in the snake's current direction.
-function tongueRects(head, dir, C) {
-  const hx = head.x * C
-  const hy = head.y * C
-  const w = Math.max(1, Math.round(C * 0.08))
-  const len = Math.max(2, Math.round(C * 0.22))
-  if (dir.x === 1) {
-    return [
-      [hx + C, hy + Math.round(C * 0.25), len, w],
-      [hx + C, hy + Math.round(C * 0.65), len, w],
-    ]
-  }
-  if (dir.x === -1) {
-    return [
-      [hx - len, hy + Math.round(C * 0.25), len, w],
-      [hx - len, hy + Math.round(C * 0.65), len, w],
-    ]
-  }
-  if (dir.y === -1) {
-    return [
-      [hx + Math.round(C * 0.25), hy - len, w, len],
-      [hx + Math.round(C * 0.65), hy - len, w, len],
-    ]
-  }
-  return [
-    [hx + Math.round(C * 0.25), hy + C, w, len],
-    [hx + Math.round(C * 0.65), hy + C, w, len],
-  ]
-}
-
 function paintRoundedRect(ctx, x, y, w, h, r) {
   if (ctx.roundRect) {
     ctx.beginPath()
@@ -476,13 +445,6 @@ export default function SnakeGame() {
             eyes.forEach((e) => ctx.fillRect(x + e.x, y + e.y, eyeSize, eyeSize))
           }
 
-          // Tongue — only when alive, flickers every other frame
-          if (!dying && Math.floor(ts / 120) % 2 === 0) {
-            ctx.fillStyle = '#ff006e'
-            tongueRects(seg, s.dir, C).forEach(([rx, ry, rw, rh]) => {
-              ctx.fillRect(rx, ry, rw, rh)
-            })
-          }
           ctx.restore()
         } else {
           const inset = C * bodyInset
@@ -578,10 +540,13 @@ export default function SnakeGame() {
         )}
       </div>
 
-      {/* Bottom section — centered prompt area below the canvas.
-          Houses either the READY? prompt with INSERT COIN, or the
-          control hint during play. */}
-      <div className="mt-4 flex w-full flex-1 flex-col items-center justify-center gap-3 px-4 pb-4 text-center">
+      {/* Bottom section — sits 8px below the canvas. Houses either the
+          READY? prompt with INSERT COIN, or the control hint line. */}
+      <div
+        className={`mt-2 flex w-full flex-col items-center gap-3 px-4 pb-4 text-center ${
+          status === 'idle' ? 'mt-6' : ''
+        }`}
+      >
         {status === 'idle' ? (
           <>
             <p className="font-arcade text-sm text-neon-green md:text-base">

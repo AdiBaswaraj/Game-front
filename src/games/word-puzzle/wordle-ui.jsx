@@ -137,8 +137,17 @@ function Tile({ tile, index, cellSize = 56 }) {
 }
 
 export function Keyboard({ keyStates, onKey, keyH = 48 }) {
+  // Break out of the parent's max-width / padding so the keyboard
+  // spans the full viewport regardless of where it's rendered.
   return (
-    <div className="flex w-full flex-col items-center gap-1.5">
+    <div
+      className="relative flex flex-col items-stretch gap-1.5 px-1"
+      style={{
+        width: '100vw',
+        left: '50%',
+        transform: 'translateX(-50%)',
+      }}
+    >
       {KEY_ROWS.map((row, ri) => (
         <div key={ri} className="flex w-full justify-center gap-1.5">
           {row.map((k) => (
@@ -173,8 +182,8 @@ function KeyButton({ label, state, onClick, wide, keyH = 48 }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex select-none items-center justify-center rounded-md border font-arcade uppercase transition ${cls} ${
-        wide ? 'flex-[1.6]' : 'flex-1'
+      className={`flex min-w-[30px] max-w-[42px] flex-1 select-none items-center justify-center rounded-md border font-arcade uppercase transition ${cls} ${
+        wide ? 'flex-[1.6] max-w-[64px]' : ''
       }`}
       style={{
         height: keyH,

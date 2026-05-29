@@ -265,6 +265,120 @@ export function HomeIcon({ size = 16, ...rest }) {
   )
 }
 
+// ===== Side-nav menu icons — 20x20, currentColor =====
+
+export function NavHomeIcon({ size = 20, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Home"
+      {...rest}
+    >
+      <rect x="9" y="2" width="2" height="2" />
+      <rect x="7" y="4" width="6" height="2" />
+      <rect x="5" y="6" width="10" height="2" />
+      <rect x="4" y="8" width="12" height="8" />
+      <rect x="8" y="12" width="4" height="4" fill="var(--bg-base)" />
+    </svg>
+  )
+}
+
+export function TrophyIcon({ size = 20, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Hall of fame"
+      {...rest}
+    >
+      <rect x="6" y="2" width="8" height="6" />
+      <rect x="4" y="4" width="2" height="4" />
+      <rect x="14" y="4" width="2" height="4" />
+      <rect x="8" y="8" width="4" height="3" />
+      <rect x="6" y="14" width="8" height="2" />
+      <rect x="5" y="16" width="10" height="2" />
+    </svg>
+  )
+}
+
+export function FriendsIcon({ size = 20, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Friends"
+      {...rest}
+    >
+      <rect x="2" y="2" width="4" height="4" />
+      <rect x="1" y="7" width="6" height="6" />
+      <rect x="14" y="2" width="4" height="4" />
+      <rect x="13" y="7" width="6" height="6" />
+      <rect x="9" y="8" width="2" height="2" opacity="0.5" />
+    </svg>
+  )
+}
+
+export function GearIcon({ size = 20, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Settings"
+      {...rest}
+    >
+      <rect x="8" y="8" width="4" height="4" />
+      <rect x="8" y="4" width="4" height="3" />
+      <rect x="8" y="13" width="4" height="3" />
+      <rect x="4" y="8" width="3" height="4" />
+      <rect x="13" y="8" width="3" height="4" />
+      <rect x="5" y="5" width="2" height="2" />
+      <rect x="13" y="5" width="2" height="2" />
+      <rect x="5" y="13" width="2" height="2" />
+      <rect x="13" y="13" width="2" height="2" />
+    </svg>
+  )
+}
+
+// Pixel doorway with an outline cutout + arrow exiting to the right.
+export function SignOutIcon({ size = 20, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Sign out"
+      {...rest}
+    >
+      {/* doorway frame */}
+      <rect x="3" y="2" width="8" height="2" />
+      <rect x="3" y="16" width="8" height="2" />
+      <rect x="3" y="2" width="2" height="16" />
+      {/* arrow shaft */}
+      <rect x="9" y="9" width="8" height="2" />
+      {/* arrow head */}
+      <rect x="14" y="7" width="2" height="2" />
+      <rect x="15" y="8" width="2" height="2" />
+      <rect x="14" y="11" width="2" height="2" />
+      <rect x="15" y="10" width="2" height="2" />
+    </svg>
+  )
+}
+
 // Lookup by game id — consumers use ICONS_BY_ID[gameId] when they
 // don't already have access to the games.js entry.
 export const ICONS_BY_ID = {
