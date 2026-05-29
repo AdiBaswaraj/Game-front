@@ -158,6 +158,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [legalMoves, setLegalMoves] = useState([]) // verbose moves
   const [pendingPromotion, setPendingPromotion] = useState(null) // {from,to}
   const [undosLeft, setUndosLeft] = useState(5)
+  const [clockFlash, setClockFlash] = useState(null) // {color, text, key}
   const [resumeOffer, setResumeOffer] = useState(null) // saved snapshot offered for resume
   const spLoadHandledRef = useRef(false)
 
@@ -648,6 +649,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   // flips activeColor whenever the FEN turn changes.
   useEffect(() => {
     if (result || flagged) return
+    // SP-only: don't tick until the player has actually made a move.
+    // Before the first move the clock just shows 10:00 statically.
+    if (!isMP && history.length === 0) return
     let lastDebugLog = 0
     const id = setInterval(() => {
       const now = Date.now()
@@ -676,7 +680,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         if (!isMP) {
           setResult({
             winner: 'b',
-            reason: myColor === 'w' ? 'YOU FLAGGED' : 'STOCKFISH FLAGGED',
+            reason:
+              myColor === 'w' ? 'YOU TIMED OUT' : 'BOT TIMED OUT',
           })
         }
       }
@@ -686,13 +691,14 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         if (!isMP) {
           setResult({
             winner: 'w',
-            reason: myColor === 'b' ? 'YOU FLAGGED' : 'STOCKFISH FLAGGED',
+            reason:
+              myColor === 'b' ? 'YOU TIMED OUT' : 'BOT TIMED OUT',
           })
         }
       }
     }, 100)
     return () => clearInterval(id)
-  }, [isMP, clockBase, result, flagged, myColor])
+  }, [isMP, clockBase, result, flagged, myColor, history.length])
 
   // ===== SP clock driver =====
   // In vs-computer mode there is no server, so we have to commit the
@@ -933,6 +939,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   )
 
   // Single-player undo: undo last two plies (player + computer reply).
+  // Compensates the player with +15s on their clock so undo can't be
+  // weaponised to stall for time.
   const handleUndo = useCallback(() => {
     if (isMP) return
     if (result) return
@@ -946,7 +954,26 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     setSelectedSquare(null)
     setLegalMoves([])
     setUndosLeft((n) => n - 1)
-  }, [isMP, result, undosLeft])
+
+    const me = myColor ?? 'w'
+    setClockBase((prev) => ({
+      ...prev,
+      [me]: prev[me] + 15_000,
+      baseTime: Date.now(),
+    }))
+    setLiveClocks((prev) => ({
+      ...prev,
+      [me]: prev[me] + 15_000,
+    }))
+    setClockFlash({ color: me, text: '+15s', key: Date.now() })
+  }, [isMP, result, undosLeft, myColor])
+
+  // Auto-dismiss the clock flash after 1s.
+  useEffect(() => {
+    if (!clockFlash) return
+    const id = window.setTimeout(() => setClockFlash(null), 1000)
+    return () => window.clearTimeout(id)
+  }, [clockFlash])
 
   // Clicking RESIGN just opens the modal — actual emit is in onResignConfirm
   const handleResign = useCallback(() => {
@@ -1127,6 +1154,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           ms={liveClocks[opponentColor]}
           active={turn === opponentColor && !result && !flagged}
           colorClass="bg-arcadia-surface"
+          flash={clockFlash?.color === opponentColor ? clockFlash : null}
         />
         <CapturedRow
           pieces={captured[myColor === 'w' ? 'b' : 'w']}
@@ -1164,7 +1192,13 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           ms={liveClocks[myColor ?? 'w']}
           active={turn === (myColor ?? 'w') && !result && !flagged}
           colorClass="bg-arcadia-surface"
+          flash={clockFlash?.color === (myColor ?? 'w') ? clockFlash : null}
         />
+        {!isMP && history.length === 0 && !result && (
+          <p className="mt-1 text-center font-arcade text-[9px] text-white/45">
+            MAKE YOUR FIRST MOVE TO START THE CLOCK
+          </p>
+        )}
 
         {isMP && (
           <div className="mt-2 rounded-md border border-white/10 bg-arcadia-bg/70 px-2 py-1 font-mono text-[9px] text-white/55">
@@ -1349,7 +1383,7 @@ function ResumeModal({ savedAt, difficulty, onResume, onNewGame }) {
   )
 }
 
-function ClockRow({ name, ms, active, colorClass = '' }) {
+function ClockRow({ name, ms, active, colorClass = '', flash }) {
   const low = ms < 60_000 && ms > 0
   const dead = ms <= 0
   const cornerCls = active
@@ -1364,8 +1398,16 @@ function ClockRow({ name, ms, active, colorClass = '' }) {
     : 'text-white/45'
   return (
     <div
-      className={`glass-panel ${cornerCls} my-1 flex items-center justify-between px-3 py-1.5 font-mono ${colorClass} ${stateCls}`}
+      className={`glass-panel ${cornerCls} relative my-1 flex items-center justify-between px-3 py-1.5 font-mono ${colorClass} ${stateCls}`}
     >
+      {flash && (
+        <span
+          key={flash.key}
+          className="badge-flip pointer-events-none absolute -top-3 right-2 rounded-md border border-neon-green/60 bg-neon-green/15 px-1.5 py-0.5 font-arcade text-[9px] text-neon-green shadow-neon-green"
+        >
+          {flash.text}
+        </span>
+      )}
       <span className="truncate font-arcade text-[9px] text-white/55">
         {name}
       </span>
