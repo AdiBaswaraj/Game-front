@@ -1,4 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom'
+import {
+  CalendarIcon,
+  InfinityIcon,
+  SwordsIcon,
+  WordPuzzleIcon,
+} from '../../assets/icons/index.jsx'
 
 export default function WordPuzzleModeSelect() {
   const navigate = useNavigate()
@@ -14,9 +20,9 @@ export default function WordPuzzleModeSelect() {
             <span aria-hidden="true">◀</span>
             LOBBY
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">🔤</span>
-            WORD PUZZLE
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            <WordPuzzleIcon size={22} aria-hidden="true" />
+            <span>WORD PUZZLE</span>
           </h1>
           <span className="justify-self-end" />
         </div>
@@ -30,12 +36,10 @@ export default function WordPuzzleModeSelect() {
           <button
             type="button"
             onClick={() => navigate('/game/word-puzzle/daily')}
-            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-cyan/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-cyan hover:shadow-neon-cyan"
+            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-cyan/60 bg-arcadia-surface/70 p-6 text-neon-cyan transition-all duration-200 hover:-translate-y-1 hover:border-neon-cyan hover:shadow-neon-cyan"
           >
-            <span className="text-3xl">📅</span>
-            <span className="font-arcade text-base text-neon-cyan">
-              DAILY CHALLENGE
-            </span>
+            <CalendarIcon size={32} />
+            <span className="font-arcade text-base">DAILY CHALLENGE</span>
             <span className="text-xs uppercase tracking-widest text-white/45">
               One word a day · ranked
             </span>
@@ -43,12 +47,10 @@ export default function WordPuzzleModeSelect() {
           <button
             type="button"
             onClick={() => navigate('/game/word-puzzle/free')}
-            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-green/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-green hover:shadow-neon-green"
+            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-green/60 bg-arcadia-surface/70 p-6 text-neon-green transition-all duration-200 hover:-translate-y-1 hover:border-neon-green hover:shadow-neon-green"
           >
-            <span className="text-3xl">∞</span>
-            <span className="font-arcade text-base text-neon-green">
-              FREE PLAY
-            </span>
+            <InfinityIcon size={32} />
+            <span className="font-arcade text-base">FREE PLAY</span>
             <span className="text-xs uppercase tracking-widest text-white/45">
               Unlimited rounds · unranked
             </span>
@@ -56,12 +58,10 @@ export default function WordPuzzleModeSelect() {
           <button
             type="button"
             onClick={() => navigate('/game/word-puzzle/mode')}
-            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-pink/60 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 hover:border-neon-pink hover:shadow-neon-pink"
+            className="mode-card group flex flex-col items-center gap-3 rounded-xl border-2 border-neon-pink/60 bg-arcadia-surface/70 p-6 text-neon-pink transition-all duration-200 hover:-translate-y-1 hover:border-neon-pink hover:shadow-neon-pink"
           >
-            <span className="text-3xl">⚔</span>
-            <span className="font-arcade text-base text-neon-pink">
-              BATTLE
-            </span>
+            <SwordsIcon size={32} />
+            <span className="font-arcade text-base">BATTLE</span>
             <span className="text-xs uppercase tracking-widest text-white/45">
               Head-to-head · same word
             </span>

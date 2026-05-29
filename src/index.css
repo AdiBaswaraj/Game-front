@@ -54,6 +54,17 @@ body,
   font-family: var(--font-body);
 }
 
+/* Pinch + double-tap zoom safety net for the whole app. The viewport
+   meta locks the initial scale, but on iOS Safari the meta isn't
+   always honoured for double-tap; touch-action: manipulation drops
+   double-tap zoom while keeping single-tap responsive. */
+html {
+  touch-action: manipulation;
+}
+* {
+  -webkit-touch-callout: none;
+}
+
 @layer utilities {
   .arcade-grid-bg {
     background-image:

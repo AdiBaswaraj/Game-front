@@ -10,6 +10,11 @@ import WordPuzzleModeSelect from '../games/word-puzzle/WordPuzzleModeSelect'
 import WordPuzzleLengthSelect from '../games/word-puzzle/WordPuzzleLengthSelect'
 import SnakeAndLadderLocalSelect from '../games/snake-and-ladder/SnakeAndLadderLocalSelect'
 import ChessDifficultySelect from '../games/chess/ChessDifficultySelect'
+import {
+  DoorIcon,
+  LightningIcon,
+  ModeRobotIcon,
+} from '../assets/icons/index.jsx'
 import { games } from '../data/games'
 
 const SnakeGame = lazy(() => import('../games/snake/SnakeGame'))
@@ -48,7 +53,7 @@ const CHESS_CARDS = [
     id: 'computer',
     to: '/game/chess/computer',
     label: 'VS BOT',
-    icon: '🤖',
+    Icon: ModeRobotIcon,
     accent: 'cyan',
     tag: 'Play against the bot',
     subItems: ['Easy', 'Medium', 'Hard'],
@@ -57,7 +62,7 @@ const CHESS_CARDS = [
     id: 'matchmaking',
     to: '/game/chess/matchmaking',
     label: 'QUICK MATCH',
-    icon: '⚡',
+    Icon: LightningIcon,
     accent: 'green',
     tag: 'Auto-match with a random opponent',
   },
@@ -65,7 +70,7 @@ const CHESS_CARDS = [
     id: 'room',
     to: '/game/chess/room',
     label: 'PRIVATE ROOM',
-    icon: '🚪',
+    Icon: DoorIcon,
     accent: 'pink',
     tag: 'Play with a friend using a room code',
   },
@@ -76,7 +81,7 @@ const SL_CARDS = [
     id: 'computer',
     to: '/game/snake-and-ladder/computer',
     label: 'VS BOT',
-    icon: '🤖',
+    Icon: ModeRobotIcon,
     accent: 'cyan',
     tag: 'Pick 2–4 players · Bots fill the rest',
   },
@@ -84,7 +89,7 @@ const SL_CARDS = [
     id: 'matchmaking',
     to: '/game/snake-and-ladder/matchmaking',
     label: 'QUICK MATCH',
-    icon: '⚡',
+    Icon: LightningIcon,
     accent: 'green',
     tag: 'Auto-match with a random opponent',
   },
@@ -92,7 +97,7 @@ const SL_CARDS = [
     id: 'room',
     to: '/game/snake-and-ladder/room',
     label: 'PRIVATE ROOM',
-    icon: '🚪',
+    Icon: DoorIcon,
     accent: 'pink',
     tag: 'Play with a friend using a room code',
   },
@@ -103,7 +108,7 @@ const WP_BATTLE_CARDS = [
     id: 'matchmaking',
     to: '/game/word-puzzle/matchmaking',
     label: 'QUICK MATCH',
-    icon: '⚡',
+    Icon: LightningIcon,
     accent: 'green',
     tag: 'Auto-match with a random opponent',
   },
@@ -111,7 +116,7 @@ const WP_BATTLE_CARDS = [
     id: 'room',
     to: '/game/word-puzzle/room',
     label: 'PRIVATE ROOM',
-    icon: '🚪',
+    Icon: DoorIcon,
     accent: 'pink',
     tag: 'Play with a friend using a room code',
   },

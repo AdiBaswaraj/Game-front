@@ -286,7 +286,10 @@ export default function WordPuzzleBattle({ roomCode }) {
   const opponentWonFirst = opponentSolved && status !== 'won'
 
   return (
-    <div className="mx-auto grid max-w-3xl grid-cols-1 gap-6 lg:grid-cols-[1fr_15rem]">
+    <div
+      className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-6 overflow-x-hidden lg:grid-cols-[1fr_15rem]"
+      style={{ touchAction: 'manipulation' }}
+    >
       <div className="flex flex-col items-center gap-5">
         {opponentWonFirst && (
           <div className="lb-slide-in w-full max-w-md rounded-lg border-2 border-neon-pink/60 bg-arcadia-surface/95 px-4 py-3 text-center shadow-neon-pink">

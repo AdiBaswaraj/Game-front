@@ -148,32 +148,49 @@ function Tile({ tile, index, cellSize = 56 }) {
   )
 }
 
+// Middle row has 9 keys vs. 10 in the top row — a small horizontal
+// inset centres it without forcing fixed widths on any key.
+const MIDDLE_INSET_PCT = 5
+
 export function Keyboard({ keyStates, onKey, keyH = 48 }) {
-  // Break out of the parent's max-width / padding so the keyboard
-  // spans the full viewport regardless of where it's rendered.
   return (
     <div
-      className="relative flex flex-col items-stretch gap-1.5 px-1"
+      className="flex flex-col items-stretch gap-1.5"
       style={{
-        width: '100vw',
-        left: '50%',
-        transform: 'translateX(-50%)',
+        width: '100%',
+        maxWidth: '100vw',
+        boxSizing: 'border-box',
+        padding: '0 4px',
+        margin: 0,
+        overflow: 'hidden',
       }}
     >
-      {KEY_ROWS.map((row, ri) => (
-        <div key={ri} className="flex w-full justify-center gap-1.5">
-          {row.map((k) => (
-            <KeyButton
-              key={k}
-              label={k}
-              state={keyStates[k]}
-              onClick={() => onKey(k)}
-              wide={k === 'ENTER' || k === '⌫'}
-              keyH={keyH}
-            />
-          ))}
-        </div>
-      ))}
+      {KEY_ROWS.map((row, ri) => {
+        const isMiddle = ri === 1
+        return (
+          <div
+            key={ri}
+            className="flex w-full"
+            style={{
+              gap: '4px',
+              boxSizing: 'border-box',
+              paddingLeft: isMiddle ? `${MIDDLE_INSET_PCT}%` : 0,
+              paddingRight: isMiddle ? `${MIDDLE_INSET_PCT}%` : 0,
+            }}
+          >
+            {row.map((k) => (
+              <KeyButton
+                key={k}
+                label={k}
+                state={keyStates[k]}
+                onClick={() => onKey(k)}
+                wide={k === 'ENTER' || k === '⌫'}
+                keyH={keyH}
+              />
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -194,10 +211,10 @@ function KeyButton({ label, state, onClick, wide, keyH = 48 }) {
     <button
       type="button"
       onClick={onClick}
-      className={`flex min-w-[30px] max-w-[42px] flex-1 select-none items-center justify-center rounded-md border font-arcade uppercase transition ${cls} ${
-        wide ? 'flex-[1.6] max-w-[64px]' : ''
-      }`}
+      className={`flex select-none items-center justify-center rounded-md border font-arcade uppercase transition ${cls}`}
       style={{
+        flex: wide ? '1.5 1 0' : '1 1 0',
+        minWidth: 0,
         height: keyH,
         fontSize: wide ? Math.max(7, fontSize - 1) : fontSize,
       }}

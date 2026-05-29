@@ -408,6 +408,175 @@ export function RobotIcon({ size = 12, ...rest }) {
   )
 }
 
+// ===== Mode-select pixel icons (20×20, currentColor) =====
+
+export function ModeRobotIcon({ size = 32, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Bot"
+      {...rest}
+    >
+      <rect x="9" y="0" width="2" height="2" />
+      <rect x="8" y="2" width="4" height="1" />
+      <rect x="4" y="3" width="12" height="8" />
+      <rect x="6" y="5" width="3" height="3" fill="var(--bg-base)" />
+      <rect x="11" y="5" width="3" height="3" fill="var(--bg-base)" />
+      <rect x="7" y="6" width="1" height="1" fill="var(--neon-cyan)" />
+      <rect x="12" y="6" width="1" height="1" fill="var(--neon-cyan)" />
+      <rect x="6" y="9" width="8" height="1" />
+      <rect x="5" y="12" width="10" height="6" />
+      <rect x="2" y="12" width="3" height="4" />
+      <rect x="15" y="12" width="3" height="4" />
+      <rect x="6" y="18" width="3" height="2" />
+      <rect x="11" y="18" width="3" height="2" />
+    </svg>
+  )
+}
+
+export function LightningIcon({ size = 32, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Quick match"
+      {...rest}
+    >
+      <rect x="10" y="0" width="6" height="2" />
+      <rect x="8" y="2" width="6" height="2" />
+      <rect x="6" y="4" width="8" height="2" />
+      <rect x="4" y="6" width="10" height="2" />
+      <rect x="6" y="8" width="8" height="2" />
+      <rect x="8" y="10" width="6" height="2" />
+      <rect x="4" y="12" width="8" height="2" />
+      <rect x="2" y="14" width="8" height="2" />
+      <rect x="4" y="16" width="6" height="2" />
+      <rect x="6" y="18" width="4" height="2" />
+    </svg>
+  )
+}
+
+export function DoorIcon({ size = 32, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Private room"
+      {...rest}
+    >
+      <rect x="3" y="1" width="14" height="18" />
+      <rect x="5" y="3" width="10" height="14" fill="var(--bg-base)" />
+      <rect x="13" y="10" width="2" height="2" />
+      <rect x="6" y="4" width="4" height="5" fill="rgba(255,0,110,0.15)" />
+      <rect x="10" y="4" width="4" height="5" fill="rgba(255,0,110,0.15)" />
+      <rect x="6" y="10" width="4" height="5" fill="rgba(255,0,110,0.15)" />
+      <rect x="10" y="10" width="4" height="5" fill="rgba(255,0,110,0.15)" />
+    </svg>
+  )
+}
+
+export function CalendarIcon({ size = 32, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Daily challenge"
+      {...rest}
+    >
+      <rect x="2" y="3" width="16" height="15" />
+      <rect x="2" y="3" width="16" height="4" fill="var(--neon-cyan)" />
+      <rect x="6" y="1" width="2" height="4" />
+      <rect x="12" y="1" width="2" height="4" />
+      <rect x="3" y="7" width="14" height="10" fill="var(--bg-base)" />
+      <rect x="6" y="9" width="2" height="4" fill="var(--neon-cyan)" />
+      <rect x="9" y="9" width="2" height="1" fill="var(--neon-cyan)" />
+      <rect x="9" y="11" width="2" height="1" fill="var(--neon-cyan)" />
+      <rect x="11" y="9" width="2" height="4" fill="var(--neon-cyan)" />
+      <rect x="9" y="13" width="4" height="1" fill="var(--neon-cyan)" />
+    </svg>
+  )
+}
+
+export function InfinityIcon({ size = 32, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Free play"
+      {...rest}
+    >
+      <rect x="2" y="7" width="2" height="2" />
+      <rect x="4" y="5" width="2" height="2" />
+      <rect x="6" y="4" width="2" height="2" />
+      <rect x="8" y="5" width="2" height="2" />
+      <rect x="2" y="11" width="2" height="2" />
+      <rect x="4" y="13" width="2" height="2" />
+      <rect x="6" y="14" width="2" height="2" />
+      <rect x="8" y="13" width="2" height="2" />
+      <rect x="2" y="9" width="2" height="2" />
+      <rect x="9" y="9" width="2" height="2" />
+      <rect x="16" y="7" width="2" height="2" />
+      <rect x="14" y="5" width="2" height="2" />
+      <rect x="12" y="4" width="2" height="2" />
+      <rect x="10" y="5" width="2" height="2" />
+      <rect x="16" y="11" width="2" height="2" />
+      <rect x="14" y="13" width="2" height="2" />
+      <rect x="12" y="14" width="2" height="2" />
+      <rect x="10" y="13" width="2" height="2" />
+      <rect x="16" y="9" width="2" height="2" />
+    </svg>
+  )
+}
+
+export function SwordsIcon({ size = 32, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      width={size}
+      height={size}
+      fill="currentColor"
+      role="img"
+      aria-label="Battle"
+      {...rest}
+    >
+      <rect x="2" y="2" width="2" height="2" />
+      <rect x="4" y="4" width="2" height="2" />
+      <rect x="6" y="6" width="2" height="2" />
+      <rect x="8" y="8" width="2" height="2" />
+      <rect x="10" y="10" width="2" height="2" />
+      <rect x="12" y="12" width="2" height="2" />
+      <rect x="14" y="14" width="2" height="2" />
+      <rect x="16" y="16" width="2" height="2" />
+      <rect x="6" y="4" width="2" height="6" />
+      <rect x="16" y="2" width="2" height="2" />
+      <rect x="14" y="4" width="2" height="2" />
+      <rect x="12" y="6" width="2" height="2" />
+      <rect x="10" y="8" width="2" height="2" />
+      <rect x="8" y="10" width="2" height="2" />
+      <rect x="6" y="12" width="2" height="2" />
+      <rect x="4" y="14" width="2" height="2" />
+      <rect x="2" y="16" width="2" height="2" />
+      <rect x="12" y="4" width="2" height="6" />
+    </svg>
+  )
+}
+
 // Lookup by game id — consumers use ICONS_BY_ID[gameId] when they
 // don't already have access to the games.js entry.
 export const ICONS_BY_ID = {

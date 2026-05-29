@@ -418,7 +418,10 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-xl flex-col items-center gap-6">
+    <div
+      className="mx-auto flex w-full max-w-xl flex-col items-center gap-6 overflow-x-hidden"
+      style={{ touchAction: 'manipulation' }}
+    >
       <div className="flex w-full items-center justify-between text-[10px] text-white/45">
         <span
           className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-arcade ${

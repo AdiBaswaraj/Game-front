@@ -59,7 +59,11 @@ export default function ModeSelect({
               className={`mode-card group flex h-full flex-col items-center justify-between gap-3 rounded-xl border-2 bg-arcadia-surface/70 p-6 transition-all duration-200 hover:-translate-y-1 ${ACCENTS[card.accent] ?? ACCENTS.cyan}`}
             >
               <div className="flex flex-col items-center gap-3">
-                {card.icon && <span className="text-3xl">{card.icon}</span>}
+                {card.Icon ? (
+                  <card.Icon size={32} aria-hidden="true" />
+                ) : (
+                  card.icon && <span className="text-3xl">{card.icon}</span>
+                )}
                 <span className="font-arcade text-base">{card.label}</span>
                 {card.tag && (
                   <span className="text-center text-xs leading-relaxed text-white/55">
