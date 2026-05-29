@@ -214,11 +214,16 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
 
     setBoard(nextBoard)
     setRevealing(true)
-    updateKeyStates(states, currentGuess)
 
-    const revealMs = COLS * 300 + 100
+    // Tiles flip sequentially: 200ms per-letter delay + 400ms flip.
+    // For a COLS-letter word the last tile finishes at 200*(COLS-1)+400.
+    const revealMs = (COLS - 1) * 200 + 400
     setTimeout(() => {
       setRevealing(false)
+      // Defer keyboard color update until the reveal animation finishes
+      // so the keys don't recolor before the player sees the letter
+      // states resolve on the board.
+      updateKeyStates(states, currentGuess)
       const won = currentGuess.toLowerCase() === answer.toLowerCase()
       if (won) {
         finishGame(nextBoard, currentRow, true)
@@ -415,8 +420,15 @@ export default function WordPuzzleGame({ mode = 'daily', length = 5 }) {
   return (
     <div className="mx-auto flex max-w-xl flex-col items-center gap-6">
       <div className="flex w-full items-center justify-between text-[10px] text-white/45">
-        <span className="font-arcade">
-          {isDaily ? `DAILY · ${dateKey}` : `FREE PLAY · ${COLS} LETTERS`}
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-1 font-arcade ${
+            isDaily
+              ? 'border-neon-cyan/40 bg-neon-cyan/10 text-neon-cyan'
+              : 'border-neon-green/40 bg-neon-green/10 text-neon-green'
+          }`}
+        >
+          <span aria-hidden="true">{isDaily ? '📅' : '🔀'}</span>
+          {isDaily ? `DAILY · ${dateKey}` : `FREE · ${COLS} LETTERS`}
         </span>
         {isDaily && (
           <button

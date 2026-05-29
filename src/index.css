@@ -174,9 +174,9 @@ body,
   100% { transform: scale(1); }
 }
 
-.wp-tile-correct { animation: wp-flip-correct 0.55s ease-in-out forwards; }
-.wp-tile-present { animation: wp-flip-present 0.55s ease-in-out forwards; }
-.wp-tile-absent { animation: wp-flip-absent 0.55s ease-in-out forwards; }
+.wp-tile-correct { animation: wp-flip-correct 0.4s ease-in-out forwards; }
+.wp-tile-present { animation: wp-flip-present 0.4s ease-in-out forwards; }
+.wp-tile-absent  { animation: wp-flip-absent  0.4s ease-in-out forwards; }
 .wp-row-shake { animation: wp-shake 0.4s ease-in-out; }
 .wp-tile-pop { animation: wp-pop 0.12s ease-out; }
 

@@ -88,22 +88,32 @@ export function Board({
       className="flex flex-col"
       style={{ perspective: '600px', gap: `${rowGap}px` }}
     >
-      {board.map((row, r) => (
-        <div
-          key={r}
-          className={`grid ${
-            shakeRow && r === activeRow ? 'wp-row-shake' : ''
-          }`}
-          style={{
-            gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
-            gap: `${rowGap}px`,
-          }}
-        >
-          {row.map((tile, c) => (
-            <Tile key={c} tile={tile} index={c} cellSize={cellSize} />
-          ))}
-        </div>
-      ))}
+      {board.map((row, r) => {
+        const isActive = r === activeRow
+        return (
+          <div
+            key={r}
+            className={`relative grid ${
+              shakeRow && isActive ? 'wp-row-shake' : ''
+            }`}
+            style={{
+              gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+              gap: `${rowGap}px`,
+              // 3px neon-green indicator on the active row's left edge.
+              paddingLeft: isActive ? 8 : 0,
+              marginLeft: isActive ? -8 : 0,
+              borderLeft: isActive
+                ? '3px solid rgba(0, 255, 136, 0.4)'
+                : '3px solid transparent',
+              transition: 'border-color 200ms ease',
+            }}
+          >
+            {row.map((tile, c) => (
+              <Tile key={c} tile={tile} index={c} cellSize={cellSize} />
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -128,7 +138,9 @@ function Tile({ tile, index, cellSize = 56 }) {
         width: cellSize,
         height: cellSize,
         fontSize,
-        animationDelay: animClass ? `${index * 0.3}s` : undefined,
+        // 200ms cascade per letter — matches the new 400ms wp-flip-*
+        // duration so a 5-letter row reveals in ~1200ms total.
+        animationDelay: animClass ? `${index * 0.2}s` : undefined,
       }}
     >
       {tile.letter}
