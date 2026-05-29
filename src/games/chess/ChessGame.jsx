@@ -1200,15 +1200,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           </p>
         )}
 
-        {isMP && (
-          <div className="mt-2 rounded-md border border-white/10 bg-arcadia-bg/70 px-2 py-1 font-mono text-[9px] text-white/55">
-            myColor: {myColor ?? 'null'} · activeColor:{' '}
-            {clockBase.activeColor} · w: {Math.floor(liveClocks.w / 1000)}s ·
-            b: {Math.floor(liveClocks.b / 1000)}s · ticking:{' '}
-            {!result && !flagged ? 'yes' : 'no'}
-          </div>
-        )}
-
         {isMP && opponentDc.disconnected && !result && (
           <DisconnectBanner
             username={opponentDc.username}
