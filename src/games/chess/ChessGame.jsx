@@ -398,6 +398,13 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         const players = data?.players ?? []
         setRoom({ ...data, players })
 
+        // Backend now sends myColor explicitly. Read it directly so we
+        // never depend on derivation when the field is present.
+        const explicit = pick(
+          data,
+          'myColor',
+          'my_color',
+        ) ?? pick(data?.gameState ?? data?.game_state, 'myColor', 'my_color')
         // Note: players[0] = white, players[1] = black (backend contract)
         const idx = players.findIndex(
           (p) =>
@@ -406,6 +413,14 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
               displayName?.toLowerCase(),
         )
         const myDerivedColor = idx === 0 ? 'w' : idx === 1 ? 'b' : null
+        const finalColor =
+          explicit === 'w' || explicit === 'b' ? explicit : myDerivedColor
+        if (!explicit) {
+          console.warn(
+            '[chess] myColor not in REST payload, derived:',
+            myDerivedColor,
+          )
+        }
         console.log('[chess MP] mount state:', {
           roomCode,
           myUserId: user?.id,
@@ -414,7 +429,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             username: p.username ?? p.name,
           })),
           myIndex: idx,
-          myColor: myDerivedColor,
+          myColor: finalColor,
+          fromPayload: !!explicit,
           gameState: data?.gameState ?? data?.game_state ?? null,
         })
         console.log('[clock] initial raw:', data?.clock)
@@ -422,7 +438,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           '[clock] initial raw gameState:',
           (data?.gameState ?? data?.game_state)?.clock,
         )
-        setMyColor(myDerivedColor)
+        setMyColor(finalColor)
 
         const gs = data?.gameState ?? data?.game_state
         const startingFen = pick(gs, 'fen', 'position')
@@ -630,6 +646,13 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     }
 
     const onStateSync = (data) => {
+      // Pick up the explicit myColor first — backend now sends it on
+      // every state-sync emission. Falls through to whatever's already
+      // in state when missing.
+      const explicit = pick(data, 'myColor', 'my_color')
+      if (explicit === 'w' || explicit === 'b') {
+        setMyColor(explicit)
+      }
       // Mid-game reconnect: rehydrate board, clocks, and (if available)
       // move history from a PGN string.
       const stateFen = pick(data, 'fen', 'position')
@@ -671,12 +694,42 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       setReconnecting(false)
     }
 
+    const onGameStart = (data) => {
+      // Backend emits game_start with myColor + clock when both
+      // players have readied up. The room navigator usually fires
+      // first, but listening here too means a mid-match reconnect or
+      // re-start picks up the latest color/clock state.
+      const explicit = pick(data, 'myColor', 'my_color')
+      if (explicit === 'w' || explicit === 'b') {
+        setMyColor(explicit)
+      }
+      const rawClock = pick(data, 'clocks', 'clock')
+      const clocks = readClocks(rawClock)
+      console.log('[clock] game_start', {
+        myColor: explicit,
+        raw: rawClock,
+        parsed: clocks,
+      })
+      if (clocks) {
+        const fenNow = chessRef.current.fen()
+        setClockBase({
+          w: clocks.w,
+          b: clocks.b,
+          activeColor: fenTurn(fenNow),
+          baseTime: Date.now(),
+        })
+        setLiveClocks({ w: clocks.w, b: clocks.b })
+        setFlagged(null)
+      }
+    }
+
     socket.on('move_accepted', onMoveAccepted)
     socket.on('error', onError)
     socket.on('match_result', onMatchResult)
     socket.on('game_over', onGameOver)
     socket.on('opponent_left', onOpponentLeft)
     socket.on('state_sync', onStateSync)
+    socket.on('game_start', onGameStart)
     return () => {
       socket.off('move_accepted', onMoveAccepted)
       socket.off('error', onError)
@@ -684,6 +737,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       socket.off('game_over', onGameOver)
       socket.off('opponent_left', onOpponentLeft)
       socket.off('state_sync', onStateSync)
+      socket.off('game_start', onGameStart)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMP])
@@ -1243,7 +1297,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
               onPieceDrop,
               onSquareClick,
               squareStyles,
-              allowDragging: myTurn,
+              // Per-piece guard: even if it's my turn, only pieces of
+              // my colour can be picked up. Stops accidental drags of
+              // the opponent's pieces in click-to-move mode.
+              allowDragging: ({ piece }) => {
+                if (!myTurn || !myColor) return false
+                const code =
+                  typeof piece === 'string'
+                    ? piece
+                    : piece?.pieceType ?? piece?.piece ?? ''
+                return typeof code === 'string' && code.startsWith(myColor)
+              },
               animationDuration: 150,
               boardStyle: {
                 borderRadius: 4,
@@ -1279,6 +1343,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           <p className="mt-1 text-center font-arcade text-[9px] text-white/45">
             MAKE YOUR FIRST MOVE TO START THE CLOCK
           </p>
+        )}
+
+        {/* Temporary diagnostic banner for verifying the new
+            myColor-in-payload flow. Remove once confirmed working. */}
+        {isMP && (
+          <div className="mt-2 rounded-md border border-white/10 bg-arcadia-bg/70 px-2 py-1 font-mono text-[9px] text-white/55">
+            myColor: {myColor ?? 'null'} · activeColor:{' '}
+            {clockBase.activeColor} · w: {Math.floor(liveClocks.w / 1000)}s
+            · b: {Math.floor(liveClocks.b / 1000)}s · ticking:{' '}
+            {!result && !flagged ? 'yes' : 'no'}
+          </div>
         )}
 
         {isMP && opponentDc.disconnected && !result && (
