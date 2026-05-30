@@ -7,11 +7,20 @@ import GameLoadingScreen from './GameLoadingScreen'
 import { HomeIcon } from '../assets/icons/index.jsx'
 
 const ACCENTS = {
-  green:  { color: 'text-neon-green' },
-  cyan:   { color: 'text-neon-cyan' },
-  pink:   { color: 'text-neon-pink' },
-  purple: { color: 'text-neon-purple' },
-  amber:  { color: 'text-amber-400' },
+  green:  { color: 'text-neon-green',  glow: 'neon-text' },
+  cyan:   { color: 'text-neon-cyan',   glow: 'neon-text' },
+  pink:   { color: 'text-neon-pink',   glow: 'neon-text' },
+  // Chess: deliberately softer than the other accents so the dense
+  // purple title doesn't fatigue the eye over a long game.
+  purple: {
+    color: '',
+    glow: '',
+    style: {
+      color: 'rgba(147, 51, 234, 0.7)',
+      textShadow: '0 0 6px rgba(147, 51, 234, 0.3)',
+    },
+  },
+  amber:  { color: 'text-amber-400',   glow: 'neon-text' },
 }
 
 export default function GameLayout({
@@ -67,9 +76,10 @@ export default function GameLayout({
             <span className={labelHidden}>{backLabel}</span>
           </Link>
           <h1
-            className={`neon-text inline-flex items-center justify-self-center gap-2 font-arcade ${
+            className={`${a.glow} inline-flex items-center justify-self-center gap-2 font-arcade ${
               isFullscreen ? 'text-xs md:text-sm' : 'text-sm md:text-lg'
             } ${a.color}`}
+            style={a.style}
           >
             {Icon ? (
               <Icon size={isFullscreen ? 18 : 22} aria-hidden="true" />

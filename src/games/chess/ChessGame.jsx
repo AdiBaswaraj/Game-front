@@ -244,28 +244,27 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const { width: vw, height: vh } = useViewport()
   const { isFullscreen } = useFullscreen()
   const isDesktop = vw >= 768
-  // Desktop: the board lives in the left ~58% column. We must also
-  // reserve room for the right info panel (clocks + captures + move
-  // list) and never exceed the viewport on Samsung/wide layouts.
-  // Mobile: the board takes the full width minus padding; the
-  // additional 160px is for the compact controls row + bottom clock.
-  const headerH = isFullscreen ? 56 : 72
+  // Mobile reservation = navbar (60) + opponent card (70) + your card
+  // (70) + controls row (50) + padding (30) = 280. Tightened so the
+  // board doesn't bleed past the viewport on narrow / Samsung phones.
+  // Desktop: board sits in the left 58% column with room for the
+  // right info panel and clocks above + below.
   const pad = isFullscreen ? 8 : 16
   let boardSize
   if (isDesktop) {
     const availW = Math.max(0, vw * 0.58 - pad * 2)
     const availH = Math.max(
       0,
-      vh - headerH - (isFullscreen ? 120 : 160) - pad,
+      vh - (isFullscreen ? 120 : 200),
     )
     boardSize = Math.max(260, Math.min(availW, availH, 640))
   } else {
-    const availW = Math.max(0, vw - pad * 2)
+    const availW = Math.max(0, vw - 16) // 8px breathing room each side
     const availH = Math.max(
       0,
-      vh - headerH - (isFullscreen ? 200 : 240) - pad,
+      vh - (isFullscreen ? 200 : 280),
     )
-    boardSize = Math.max(240, Math.min(availW, availH, 480))
+    boardSize = Math.max(240, Math.min(availW, availH, 520))
   }
 
   // ===== Computer mode: subscribe to Stockfish state =====
@@ -590,6 +589,22 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         })
         setLiveClocks({ w: clocks.w, b: clocks.b })
         setFlagged(null)
+      } else {
+        // No clock in payload — at minimum flip activeColor so the
+        // tick interval stops draining the side that just moved.
+        // Without this, both clocks appear to tick simultaneously.
+        const nextActive = fenTurn(nextFen ?? chessRef.current.fen())
+        setClockBase((prev) => ({
+          ...prev,
+          w: prev.activeColor === 'w'
+            ? Math.max(0, prev.w - (Date.now() - prev.baseTime))
+            : prev.w,
+          b: prev.activeColor === 'b'
+            ? Math.max(0, prev.b - (Date.now() - prev.baseTime))
+            : prev.b,
+          activeColor: nextActive,
+          baseTime: Date.now(),
+        }))
       }
 
       if (isCheckmate) {
@@ -787,10 +802,10 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   // flips activeColor whenever the FEN turn changes.
   useEffect(() => {
     if (result || flagged) return
-    // SP-only: don't tick until the player has actually made a move.
-    // Before the first move the clock just shows 10:00 statically.
-    if (!isMP && history.length === 0) return
-    // MP: pause the clock while the opponent is in their grace period.
+    // Clock holds at 10:00 until the first move lands, then ticks for
+    // every side from then on — applies equally to SP and MP.
+    if (history.length === 0) return
+    // MP: also pause while the opponent is in their grace window.
     if (isMP && opponentDc.disconnected) return
     let lastDebugLog = 0
     const id = setInterval(() => {
@@ -1175,16 +1190,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     console.log('[resign] game_over emitted')
   }, [displayName, isMP, myColor, room, roomCode, toast, user?.id])
 
-  const handleSync = useCallback(() => {
-    if (!isMP) return
-    if (reconnecting) return
-    setReconnecting(true)
-    if (socket.connected && user?.id) {
-      socket.emit('reconnect_to_room', { roomCode, username: displayName })
-    }
-    setTimeout(() => setReconnecting(false), 5000)
-  }, [displayName, isMP, reconnecting, roomCode, user?.id])
-
   // ===== Click-to-move highlight styles =====
   const squareStyles = useMemo(() => {
     const styles = {}
@@ -1387,9 +1392,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           )}
           alignment="bottom"
         />
-        {!isMP && history.length === 0 && !result && (
+        {history.length === 0 && !result && (
           <p className="mt-1 text-center font-arcade text-[9px] text-white/45">
-            MAKE YOUR FIRST MOVE TO START THE CLOCK
+            CLOCK STARTS ON FIRST MOVE
           </p>
         )}
 
@@ -1427,48 +1432,69 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         )}
         {/* Move list — full width on desktop, hidden behind a toggle
             on mobile to keep the chess screen scroll-free. */}
+        {/* Desktop: inline MoveList. */}
         <div className="hidden md:block">
           <MoveList history={sanHistory} scrollRef={moveListRef} />
         </div>
-        <button
-          type="button"
-          onClick={() => setShowMovesSheet(true)}
-          className="rounded-md border border-white/15 px-3 py-2 font-arcade text-[10px] text-white/65 transition hover:border-neon-cyan/60 hover:text-neon-cyan md:hidden"
-        >
-          MOVES ▼ {history.length > 0 && `(${history.length})`}
-        </button>
 
+        {/* Desktop UNDO button (SP only). */}
         {!isMP && !result && (
           <button
             type="button"
             onClick={handleUndo}
             disabled={undosLeft <= 0 || history.length < 2}
-            className="rounded-md border border-neon-cyan/50 px-3 py-2 font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/10 hover:shadow-neon-cyan disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none"
+            className="hidden rounded-md border border-neon-cyan/50 px-3 py-2 font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/10 hover:shadow-neon-cyan disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none md:block"
           >
             ↩ UNDO ({undosLeft} left)
           </button>
         )}
 
-        {isMP && !result && (
-          <button
-            type="button"
-            onClick={handleSync}
-            disabled={reconnecting}
-            className="rounded-md border border-white/15 px-3 py-2 font-arcade text-[9px] text-white/55 hover:border-neon-cyan/60 hover:text-neon-cyan disabled:opacity-50"
-          >
-            {reconnecting ? 'SYNCING…' : '↻ SYNC'}
-          </button>
-        )}
-
+        {/* Desktop resign link. */}
         {!result && (
           <button
             type="button"
             onClick={handleResign}
-            className="mt-1 self-center font-arcade text-[10px] text-neon-pink/55 transition hover:text-neon-pink hover:drop-shadow-[0_0_6px_rgba(255,0,110,0.7)]"
+            className="mt-1 hidden self-center font-arcade text-[10px] text-neon-pink/55 transition hover:text-neon-pink hover:drop-shadow-[0_0_6px_rgba(255,0,110,0.7)] md:block"
           >
             ⚑ Resign
           </button>
         )}
+
+        {/* Mobile: single 40px row with MOVES toggle on the left,
+            UNDO (SP) in the middle, and the resign link on the right. */}
+        <div
+          className="flex items-center justify-between gap-2 md:hidden"
+          style={{ height: 40 }}
+        >
+          <button
+            type="button"
+            onClick={() => setShowMovesSheet(true)}
+            className="flex-1 rounded-md border border-white/15 px-3 font-arcade text-[10px] text-white/65 transition hover:border-neon-cyan/60 hover:text-neon-cyan"
+            style={{ height: 40 }}
+          >
+            MOVES ▼ {history.length > 0 && `(${history.length})`}
+          </button>
+          {!isMP && !result && (
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={undosLeft <= 0 || history.length < 2}
+              className="flex-1 rounded-md border border-neon-cyan/50 px-3 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/10 hover:shadow-neon-cyan disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:shadow-none"
+              style={{ height: 40 }}
+            >
+              ↩ UNDO
+            </button>
+          )}
+          {!result && (
+            <button
+              type="button"
+              onClick={handleResign}
+              className="flex-1 self-center text-right font-arcade text-[10px] text-neon-pink/55 transition hover:text-neon-pink"
+            >
+              ⚑ Resign
+            </button>
+          )}
+        </div>
       </aside>
 
       {leaveModal}
@@ -1897,52 +1923,64 @@ function MovesSheet({ history, onClose }) {
 // frozen — the tick effect bails on opponentDc.disconnected.
 function DisconnectPauseOverlay({ username, secondsRemaining }) {
   if (typeof document === 'undefined') return null
-  const totalGrace = 60
-  const ratio = Math.max(0, Math.min(1, secondsRemaining / totalGrace))
-  let barColor = '#00ff88'
-  if (secondsRemaining <= 10) barColor = '#ff006e'
-  else if (secondsRemaining <= 30) barColor = '#ffd700'
+  let countColor = 'var(--neon-green)'
+  if (secondsRemaining <= 10) countColor = 'var(--neon-pink)'
+  else if (secondsRemaining <= 30) countColor = '#ffd700'
   return createPortal(
     <div
       role="alertdialog"
       aria-live="assertive"
       className="fixed inset-0 z-[500] flex items-center justify-center px-4"
       style={{
-        background: 'rgba(5, 5, 8, 0.92)',
+        background: 'rgba(5, 5, 8, 0.95)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
       }}
     >
-      <div className="glass-panel pixel-corners w-full max-w-[360px] px-6 py-6 text-center">
+      <div
+        className="pixel-corners pixel-corners-pink relative w-full max-w-[360px] px-6 py-7 text-center"
+        style={{
+          background: 'rgba(5, 5, 8, 0.95)',
+          border: '1px solid rgba(255, 0, 110, 0.3)',
+          borderRadius: 12,
+        }}
+      >
         <p className="neon-text font-arcade text-base text-neon-pink md:text-lg">
-          ⏸ GAME PAUSED
+          ░░ CONNECTION LOST ░░
         </p>
-        <p className="mt-4 font-arcade text-[11px] text-white">
+        <p className="mt-5 font-arcade text-[11px] text-white">
           {username ?? 'Opponent'} disconnected
         </p>
-        <p className="mt-2 text-[11px] text-white/60">
-          Waiting for reconnect…
-        </p>
-        <div className="mt-5 flex items-center gap-3">
-          <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-200"
-              style={{
-                width: `${ratio * 100}%`,
-                background: barColor,
-                boxShadow: `0 0 10px ${barColor}`,
-              }}
-            />
-          </div>
+
+        <div
+          className="mx-auto mt-5 inline-flex items-center gap-1.5 rounded-md border border-white/[0.06] bg-white/[0.02] px-3 py-1.5"
+          aria-label="Waiting"
+        >
+          <span className="font-arcade text-[10px] text-white/70">
+            WAITING
+          </span>
           <span
-            className="neon-text font-arcade text-base tabular-nums"
-            style={{ color: barColor }}
+            className="waiting-dots inline-flex gap-[3px] text-neon-cyan"
+            aria-hidden="true"
           >
-            {secondsRemaining}s
+            <span className="waiting-dot inline-block h-1 w-1 rounded-full bg-current" />
+            <span className="waiting-dot inline-block h-1 w-1 rounded-full bg-current" />
+            <span className="waiting-dot inline-block h-1 w-1 rounded-full bg-current" />
           </span>
         </div>
-        <p className="mt-5 text-[10px] text-white/45">
-          If they don't return, you win automatically.
+
+        <p
+          className="neon-text mt-6 font-arcade text-4xl tabular-nums md:text-5xl"
+          style={{ color: countColor }}
+        >
+          {secondsRemaining}
+        </p>
+        <p className="mt-1 font-arcade text-[9px] tracking-wider text-white/55">
+          SECONDS
+        </p>
+
+        <p className="mt-6 text-[11px] leading-relaxed text-white/55">
+          Win by default if they don't return in time.
         </p>
       </div>
     </div>,
@@ -2022,28 +2060,41 @@ function ResultPanel({ result, myColor, signedIn, isBot = false }) {
       ? 'rgba(0,212,255,0.5)'
       : 'rgba(255,0,110,0.5)'
 
-  return (
+  if (typeof document === 'undefined') return null
+  return createPortal(
     <div
-      className={`go-overlay-in glass-panel pixel-corners ${cornerCls} relative mt-4 overflow-visible px-5 py-4 text-center ${accent}`}
-      style={{ borderColor, borderWidth: 2 }}
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[500] flex items-center justify-center px-4"
+      style={{
+        background: 'rgba(5, 5, 8, 0.88)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
     >
-      {won && <WinParticles />}
-      <p
-        className={`relative font-arcade text-base drop-shadow-[0_0_10px_currentColor] ${
-          !won && !isDraw ? 'go-shake' : ''
-        }`}
+      <div
+        className={`go-overlay-in glass-panel pixel-corners ${cornerCls} relative w-[90%] max-w-[340px] overflow-visible px-6 py-6 text-center ${accent}`}
+        style={{ borderColor, borderWidth: 2 }}
       >
-        <span className="go-icon-pop">★</span> {title}{' '}
-        <span className="go-icon-pop">★</span>
-      </p>
-      <p className="relative mt-1 text-xs text-white/60">{result.reason}</p>
-      <div className="relative mt-4 flex flex-col justify-center gap-2 sm:flex-row">
-        <HallOfFameButton signedIn={signedIn} />
-        <LobbyBackLink className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan">
-          BACK TO LOBBY
-        </LobbyBackLink>
+        {won && <WinParticles />}
+        <p
+          className={`relative font-arcade text-base drop-shadow-[0_0_10px_currentColor] md:text-lg ${
+            !won && !isDraw ? 'go-shake' : ''
+          }`}
+        >
+          <span className="go-icon-pop">★</span> {title}{' '}
+          <span className="go-icon-pop">★</span>
+        </p>
+        <p className="relative mt-2 text-xs text-white/60">{result.reason}</p>
+        <div className="relative mt-5 flex flex-col gap-2">
+          <HallOfFameButton signedIn={signedIn} className="w-full" />
+          <LobbyBackLink className="w-full rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan">
+            BACK TO LOBBY
+          </LobbyBackLink>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
