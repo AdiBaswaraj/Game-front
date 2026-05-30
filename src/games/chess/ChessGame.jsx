@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
@@ -115,8 +116,12 @@ function readClocks(source) {
     )
     return null
   }
-  const parsed = { w, b }
-  console.log('[clock] readClocks output:', parsed)
+  // Unit normalisation. Chess time controls are realistically ≥60s.
+  // If both values are <60_000, they're seconds (backend convention)
+  // and need promotion to milliseconds for the client tick loop.
+  const inSeconds = w < 60_000 && b < 60_000
+  const parsed = inSeconds ? { w: w * 1000, b: b * 1000 } : { w, b }
+  console.log('[clock] readClocks output:', parsed, { inSeconds })
   return parsed
 }
 
@@ -170,6 +175,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [pendingPromotion, setPendingPromotion] = useState(null) // {from,to}
   const [undosLeft, setUndosLeft] = useState(5)
   const [clockFlash, setClockFlash] = useState(null) // {color, text, key}
+  const [showMovesSheet, setShowMovesSheet] = useState(false)
   const [lastMove, setLastMove] = useState(null) // {from, to}
 
   // Derive last move + check king square from chess.js whenever the
@@ -223,10 +229,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   useEffect(() => {
     if (!isMP) return
     if (opponentDc.disconnected && !wasDcRef.current) {
+      // Full-screen pause overlay replaces the old toast. We still
+      // track wasDcRef so the reconnect toast fires exactly once.
       wasDcRef.current = true
-      toast.warning(
-        `${opponentDc.username ?? 'Opponent'} disconnected. Waiting for reconnect…`,
-      )
     } else if (!opponentDc.disconnected && wasDcRef.current) {
       wasDcRef.current = false
       toast.success('Opponent reconnected.')
@@ -238,23 +243,30 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   // a vertical strip for the same controls stacked below the board.
   const { width: vw, height: vh } = useViewport()
   const { isFullscreen } = useFullscreen()
-  const isDesktop = vw >= 1024
-  const sidebarWidth = isDesktop ? 304 : 0
+  const isDesktop = vw >= 768
+  // Desktop: the board lives in the left ~58% column. We must also
+  // reserve room for the right info panel (clocks + captures + move
+  // list) and never exceed the viewport on Samsung/wide layouts.
+  // Mobile: the board takes the full width minus padding; the
+  // additional 160px is for the compact controls row + bottom clock.
   const headerH = isFullscreen ? 56 : 72
-  // Mobile strip = top clock + bottom clock + captured rows + move
-  // list panel + buttons. Desktop sidebar covers all of that.
-  const controlsH = isDesktop
-    ? 24
-    : isFullscreen
-      ? 200
-      : 280
   const pad = isFullscreen ? 8 : 16
-  const availW = Math.max(0, vw - sidebarWidth - pad * 2)
-  const availH = Math.max(0, vh - headerH - controlsH - pad * 2)
-  const boardSize = Math.max(
-    260,
-    Math.min(availW, availH, isFullscreen ? 720 : 560),
-  )
+  let boardSize
+  if (isDesktop) {
+    const availW = Math.max(0, vw * 0.58 - pad * 2)
+    const availH = Math.max(
+      0,
+      vh - headerH - (isFullscreen ? 120 : 160) - pad,
+    )
+    boardSize = Math.max(260, Math.min(availW, availH, 640))
+  } else {
+    const availW = Math.max(0, vw - pad * 2)
+    const availH = Math.max(
+      0,
+      vh - headerH - (isFullscreen ? 200 : 240) - pad,
+    )
+    boardSize = Math.max(240, Math.min(availW, availH, 480))
+  }
 
   // ===== Computer mode: subscribe to Stockfish state =====
   useEffect(() => {
@@ -465,14 +477,27 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             }
           } catch {}
         }
-        const rawClock = pick(gs, 'clocks', 'clock')
-        const clocks = readClocks(rawClock)
+        // Clock can land in several locations depending on which
+        // backend path produced the payload — accept all of them and
+        // fall back to the 10-minute defaults so the clock never
+        // initialises to 0.
+        const rawClock =
+          pick(gs, 'clocks', 'clock') ??
+          pick(data, 'clock', 'clocks') ??
+          pick(data?.room, 'clock', 'clocks')
+        let clocks = readClocks(rawClock)
+        if (!clocks) {
+          console.warn(
+            '[clock] no clock in REST payload, defaulting to 10:00',
+          )
+          clocks = { w: DEFAULT_CLOCK_MS, b: DEFAULT_CLOCK_MS }
+        }
         console.log('[clock] initial', {
           raw: rawClock,
           parsed: clocks,
           fen: startingFen,
         })
-        if (clocks) {
+        {
           const activeColor = fenTurn(startingFen ?? chessRef.current.fen())
           setClockBase({
             w: clocks.w,
@@ -678,19 +703,25 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           )
         } catch {}
       }
-      const rawClock = pick(data, 'clocks', 'clock')
-      const clocks = readClocks(rawClock)
+      const rawClock =
+        pick(data, 'clocks', 'clock') ??
+        pick(data?.gameState ?? data?.game_state, 'clocks', 'clock')
+      let clocks = readClocks(rawClock)
       console.log('[clock] state_sync', { raw: rawClock, parsed: clocks })
-      if (clocks) {
-        setClockBase({
-          w: clocks.w,
-          b: clocks.b,
-          activeColor: fenTurn(stateFen ?? chessRef.current.fen()),
-          baseTime: Date.now(),
-        })
-        setLiveClocks({ w: clocks.w, b: clocks.b })
-        setFlagged(null)
+      if (!clocks) {
+        console.warn(
+          '[clock] no clock in state_sync, defaulting to 10:00',
+        )
+        clocks = { w: DEFAULT_CLOCK_MS, b: DEFAULT_CLOCK_MS }
       }
+      setClockBase({
+        w: clocks.w,
+        b: clocks.b,
+        activeColor: fenTurn(stateFen ?? chessRef.current.fen()),
+        baseTime: Date.now(),
+      })
+      setLiveClocks({ w: clocks.w, b: clocks.b })
+      setFlagged(null)
       setReconnecting(false)
     }
 
@@ -703,24 +734,31 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       if (explicit === 'w' || explicit === 'b') {
         setMyColor(explicit)
       }
-      const rawClock = pick(data, 'clocks', 'clock')
-      const clocks = readClocks(rawClock)
+      const rawClock =
+        pick(data, 'clocks', 'clock') ??
+        pick(data?.room?.gameState, 'clocks', 'clock') ??
+        pick(data?.gameState ?? data?.game_state, 'clocks', 'clock')
+      let clocks = readClocks(rawClock)
       console.log('[clock] game_start', {
         myColor: explicit,
         raw: rawClock,
         parsed: clocks,
       })
-      if (clocks) {
-        const fenNow = chessRef.current.fen()
-        setClockBase({
-          w: clocks.w,
-          b: clocks.b,
-          activeColor: fenTurn(fenNow),
-          baseTime: Date.now(),
-        })
-        setLiveClocks({ w: clocks.w, b: clocks.b })
-        setFlagged(null)
+      if (!clocks) {
+        console.warn(
+          '[clock] no clock in game_start, defaulting to 10:00',
+        )
+        clocks = { w: DEFAULT_CLOCK_MS, b: DEFAULT_CLOCK_MS }
       }
+      const fenNow = chessRef.current.fen()
+      setClockBase({
+        w: clocks.w,
+        b: clocks.b,
+        activeColor: fenTurn(fenNow),
+        baseTime: Date.now(),
+      })
+      setLiveClocks({ w: clocks.w, b: clocks.b })
+      setFlagged(null)
     }
 
     socket.on('move_accepted', onMoveAccepted)
@@ -752,6 +790,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     // SP-only: don't tick until the player has actually made a move.
     // Before the first move the clock just shows 10:00 statically.
     if (!isMP && history.length === 0) return
+    // MP: pause the clock while the opponent is in their grace period.
+    if (isMP && opponentDc.disconnected) return
     let lastDebugLog = 0
     const id = setInterval(() => {
       const now = Date.now()
@@ -798,7 +838,15 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       }
     }, 100)
     return () => clearInterval(id)
-  }, [isMP, clockBase, result, flagged, myColor, history.length])
+  }, [
+    isMP,
+    clockBase,
+    result,
+    flagged,
+    myColor,
+    history.length,
+    opponentDc.disconnected,
+  ])
 
   // ===== SP clock driver =====
   // In vs-computer mode there is no server, so we have to commit the
@@ -1258,8 +1306,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     <div className="flex h-full flex-col gap-3 lg:grid lg:grid-cols-[auto_18rem] lg:gap-5">
       <div
         ref={containerRef}
-        className="relative mx-auto flex shrink-0 flex-col"
-        style={{ width: boardSize }}
+        className="relative mx-auto flex shrink-0 flex-col overflow-hidden"
+        style={{ width: boardSize, maxWidth: '100%' }}
       >
         <PlayerHeader
           name={opponentLabel}
@@ -1345,36 +1393,12 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           </p>
         )}
 
-        {/* Temporary diagnostic banner for verifying the new
-            myColor-in-payload flow. Remove once confirmed working. */}
-        {isMP && (
-          <div className="mt-2 rounded-md border border-white/10 bg-arcadia-bg/70 px-2 py-1 font-mono text-[9px] text-white/55">
-            myColor: {myColor ?? 'null'} · activeColor:{' '}
-            {clockBase.activeColor} · w: {Math.floor(liveClocks.w / 1000)}s
-            · b: {Math.floor(liveClocks.b / 1000)}s · ticking:{' '}
-            {!result && !flagged ? 'yes' : 'no'}
-          </div>
-        )}
-
-        {isMP && opponentDc.disconnected && !result && (
-          <DisconnectBanner
-            username={opponentDc.username}
-            secondsRemaining={opponentDc.secondsRemaining}
-          />
-        )}
-
         {isMP && reconnecting && !result && (
           <div className="lb-slide-in mt-3 rounded-md border border-neon-cyan/60 bg-arcadia-surface/85 px-4 py-3 text-center font-arcade text-[10px] text-neon-cyan">
             RECONNECTING…
           </div>
         )}
 
-        {flagged && !result && (
-          <div className="lb-slide-in mt-3 rounded-md border-2 border-neon-pink/70 bg-arcadia-surface/85 px-4 py-3 text-center font-arcade text-[11px] text-neon-pink shadow-neon-pink">
-            ⚑ {flagged === myColor ? 'YOU' : 'OPPONENT'} FLAGGED · WAITING
-            FOR SERVER…
-          </div>
-        )}
 
         {result && (
           <ResultPanel
@@ -1401,7 +1425,18 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             </p>
           </div>
         )}
-        <MoveList history={sanHistory} scrollRef={moveListRef} />
+        {/* Move list — full width on desktop, hidden behind a toggle
+            on mobile to keep the chess screen scroll-free. */}
+        <div className="hidden md:block">
+          <MoveList history={sanHistory} scrollRef={moveListRef} />
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowMovesSheet(true)}
+          className="rounded-md border border-white/15 px-3 py-2 font-arcade text-[10px] text-white/65 transition hover:border-neon-cyan/60 hover:text-neon-cyan md:hidden"
+        >
+          MOVES ▼ {history.length > 0 && `(${history.length})`}
+        </button>
 
         {!isMP && !result && (
           <button
@@ -1441,6 +1476,24 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         <ResignModal
           onCancel={() => setResignConfirm(false)}
           onConfirm={onResignConfirm}
+        />
+      )}
+
+      {isMP && opponentDc.disconnected && !result && (
+        <DisconnectPauseOverlay
+          username={opponentDc.username}
+          secondsRemaining={opponentDc.secondsRemaining}
+        />
+      )}
+
+      {isMP && flagged && !result && (
+        <TimeUpOverlay flaggedColor={flagged} myColor={myColor} />
+      )}
+
+      {showMovesSheet && (
+        <MovesSheet
+          history={sanHistory}
+          onClose={() => setShowMovesSheet(false)}
         />
       )}
 
@@ -1789,24 +1842,155 @@ function MoveList({ history, scrollRef }) {
   )
 }
 
-function DisconnectBanner({ username, secondsRemaining }) {
-  return (
+// Mobile-only slide-up sheet listing the move history. Triggered by
+// the "MOVES ▼" toggle. Dismisses on backdrop tap.
+function MovesSheet({ history, onClose }) {
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <>
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close move list"
+        className="fixed inset-0 z-[490] cursor-pointer"
+        style={{
+          background: 'rgba(0, 0, 0, 0.5)',
+          backdropFilter: 'blur(3px)',
+          WebkitBackdropFilter: 'blur(3px)',
+          border: 0,
+        }}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="fixed inset-x-0 bottom-0 z-[495] mx-auto max-h-[60vh] w-full max-w-md overflow-hidden rounded-t-xl border-t-2 border-neon-cyan/40"
+        style={{
+          background: 'rgba(5, 5, 8, 0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          animation: 'go-overlay-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        }}
+      >
+        <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+          <p className="font-arcade text-[11px] text-neon-cyan">MOVES</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="grid h-8 w-8 place-items-center rounded-md font-arcade text-xs text-white/50 transition hover:bg-white/[0.06] hover:text-neon-pink"
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="max-h-[50vh] overflow-y-auto px-3 py-3">
+          <MoveList history={history} />
+        </div>
+      </div>
+    </>,
+    document.body,
+  )
+}
+
+// Full-screen, blur-backed pause overlay shown while the opponent is
+// in their reconnect grace window. Replaces the old inline banner +
+// toast. Board stays visible behind the blur but the game state is
+// frozen — the tick effect bails on opponentDc.disconnected.
+function DisconnectPauseOverlay({ username, secondsRemaining }) {
+  if (typeof document === 'undefined') return null
+  const totalGrace = 60
+  const ratio = Math.max(0, Math.min(1, secondsRemaining / totalGrace))
+  let barColor = '#00ff88'
+  if (secondsRemaining <= 10) barColor = '#ff006e'
+  else if (secondsRemaining <= 30) barColor = '#ffd700'
+  return createPortal(
     <div
-      role="alert"
-      className="lb-slide-in mt-3 flex items-center justify-between gap-3 rounded-md border-2 border-neon-pink/60 bg-arcadia-surface/95 px-4 py-3 shadow-neon-pink"
+      role="alertdialog"
+      aria-live="assertive"
+      className="fixed inset-0 z-[500] flex items-center justify-center px-4"
+      style={{
+        background: 'rgba(5, 5, 8, 0.92)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
     >
-      <div className="min-w-0">
-        <p className="font-arcade text-[10px] text-neon-pink">
-          {username ?? 'OPPONENT'} DISCONNECTED
+      <div className="glass-panel pixel-corners w-full max-w-[360px] px-6 py-6 text-center">
+        <p className="neon-text font-arcade text-base text-neon-pink md:text-lg">
+          ⏸ GAME PAUSED
         </p>
-        <p className="mt-1 text-[10px] text-white/60">
-          Waiting for reconnect — board paused
+        <p className="mt-4 font-arcade text-[11px] text-white">
+          {username ?? 'Opponent'} disconnected
+        </p>
+        <p className="mt-2 text-[11px] text-white/60">
+          Waiting for reconnect…
+        </p>
+        <div className="mt-5 flex items-center gap-3">
+          <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-white/[0.06]">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-200"
+              style={{
+                width: `${ratio * 100}%`,
+                background: barColor,
+                boxShadow: `0 0 10px ${barColor}`,
+              }}
+            />
+          </div>
+          <span
+            className="neon-text font-arcade text-base tabular-nums"
+            style={{ color: barColor }}
+          >
+            {secondsRemaining}s
+          </span>
+        </div>
+        <p className="mt-5 text-[10px] text-white/45">
+          If they don't return, you win automatically.
         </p>
       </div>
-      <span className="font-arcade text-lg text-neon-pink">
-        {secondsRemaining}s
-      </span>
-    </div>
+    </div>,
+    document.body,
+  )
+}
+
+// Full-screen overlay shown the moment a player flags. In SP the
+// finalizer immediately sets result and this never renders; in MP the
+// component waits here for match_result from the server, after which
+// the standard ResultPanel takes over.
+function TimeUpOverlay({ flaggedColor, myColor }) {
+  if (typeof document === 'undefined') return null
+  const youFlagged = flaggedColor === myColor
+  return createPortal(
+    <div
+      role="alertdialog"
+      aria-live="assertive"
+      className="fixed inset-0 z-[500] flex items-center justify-center px-4"
+      style={{
+        background: 'rgba(5, 5, 8, 0.92)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
+      <div className="glass-panel pixel-corners pixel-corners-pink w-full max-w-[360px] px-6 py-6 text-center">
+        <p className="neon-text font-arcade text-lg text-neon-pink md:text-xl">
+          ⏱ TIME'S UP
+        </p>
+        <p className="mt-4 text-sm text-white/80">
+          {youFlagged ? 'Your clock ran out.' : "Opponent's clock ran out."}
+        </p>
+        <div className="mt-5 flex items-center justify-center gap-2 text-neon-cyan">
+          <span
+            className="bot-dot-stack inline-flex gap-1"
+            aria-hidden="true"
+          >
+            <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
+            <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
+            <span className="bot-dot inline-block h-1.5 w-1.5 rounded-full bg-neon-cyan" />
+          </span>
+          <span className="font-arcade text-[10px]">
+            Confirming result…
+          </span>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
