@@ -99,6 +99,9 @@ export function FriendsProvider({ children }) {
     if (!user) return
 
     const onFriendOnline = ({ userId, username }) => {
+      // Never count the local user themselves — guards against a
+      // user_connected echo landing in our own friends list.
+      if (userId && user?.id && userId === user.id) return
       setFriends((prev) => {
         const exists = prev.some((f) => f.userId === userId)
         if (exists) {
@@ -260,6 +263,13 @@ export function FriendsProvider({ children }) {
     [pendingSent],
   )
 
+  // FRIENDS-only online count for the side-panel badge. Filters
+  // against user.id so the local user never inflates their own count.
+  const friendsOnlineCount = useMemo(() => {
+    const myId = user?.id
+    return friends.filter((f) => f.isOnline && f.userId !== myId).length
+  }, [friends, user?.id])
+
   const dismissIncomingInvite = useCallback(
     () => setIncomingInvite(null),
     [],
@@ -273,6 +283,7 @@ export function FriendsProvider({ children }) {
       requestsLoading,
       incomingInvite,
       onlineCount,
+      friendsOnlineCount,
       refreshFriends,
       refreshPending,
       sendRequest,
@@ -289,6 +300,7 @@ export function FriendsProvider({ children }) {
       requestsLoading,
       incomingInvite,
       onlineCount,
+      friendsOnlineCount,
       refreshFriends,
       refreshPending,
       sendRequest,

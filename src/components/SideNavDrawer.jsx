@@ -52,7 +52,10 @@ export default function SideNavDrawer({ open, onClose }) {
   }
   const { user, isGuest, displayName, loading, openLogin, signOut } = auth
   const friendsCtx = useFriends() ?? {}
-  const onlineCount = friendsCtx?.onlineCount ?? 0
+  // FRIENDS-only count for the side-panel badges. Never includes the
+  // local user — that's the global socket count which is rendered
+  // elsewhere as "X PLAYERS ONLINE" in the navbar.
+  const onlineCount = friendsCtx?.friendsOnlineCount ?? 0
 
   const [view, setView] = useState('main') // 'main' | 'friends'
 
@@ -306,7 +309,7 @@ function FriendsPanel({ visible, open, displayName, userId, onClose, onBack }) {
     sendRequest,
     isAlreadyFriend,
     isPendingOutgoing,
-    onlineCount = 0,
+    friendsOnlineCount: onlineCount = 0,
   } = friendsCtx
 
   const [tab, setTab] = useState('ONLINE')
@@ -402,7 +405,7 @@ function FriendsPanel({ visible, open, displayName, userId, onClose, onBack }) {
         <div key={tabKey} className="fade-slide-in min-h-0 flex-1 overflow-y-auto px-3 py-3">
           {tab === 'ONLINE' && (
             <OnlineList
-              friends={friends}
+              friends={friends.filter((f) => f.userId !== userId)}
               loading={friendsLoading}
               onClose={onClose}
               invitingFriendId={invitingFriendId}
