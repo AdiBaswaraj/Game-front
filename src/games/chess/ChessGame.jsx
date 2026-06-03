@@ -838,6 +838,24 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             reason:
               myColor === 'w' ? 'YOU TIMED OUT' : 'BOT TIMED OUT',
           })
+        } else {
+          // Server-side timeout only fires on next move attempt — emit
+          // game_over from the client when local clock hits 0 so the
+          // match resolves even when no one moves.
+          const opp = roomRef.current?.players?.find(
+            (p) => (p.userId ?? p.user_id ?? p.id) !== userIdRef.current,
+          )
+          const oppId = opp?.userId ?? opp?.user_id ?? opp?.id
+          const myFlagged = myColorRef.current === 'w'
+          if (socket.connected && oppId) {
+            socket.emit('game_over', {
+              roomCode,
+              winnerId: myFlagged ? oppId : userIdRef.current,
+              loserId: myFlagged ? userIdRef.current : oppId,
+              score: 0,
+              reason: 'timeout',
+            })
+          }
         }
       }
       if (bRem === 0 && clockBase.activeColor === 'b') {
@@ -849,6 +867,21 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             reason:
               myColor === 'b' ? 'YOU TIMED OUT' : 'BOT TIMED OUT',
           })
+        } else {
+          const opp = roomRef.current?.players?.find(
+            (p) => (p.userId ?? p.user_id ?? p.id) !== userIdRef.current,
+          )
+          const oppId = opp?.userId ?? opp?.user_id ?? opp?.id
+          const myFlagged = myColorRef.current === 'b'
+          if (socket.connected && oppId) {
+            socket.emit('game_over', {
+              roomCode,
+              winnerId: myFlagged ? oppId : userIdRef.current,
+              loserId: myFlagged ? userIdRef.current : oppId,
+              score: 0,
+              reason: 'timeout',
+            })
+          }
         }
       }
     }, 100)
