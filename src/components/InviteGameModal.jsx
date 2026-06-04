@@ -50,8 +50,21 @@ export default function InviteGameModal() {
       e.preventDefault?.()
       e.stopPropagation?.()
     }
+    // Race the createRoom request against an 8-second deadline. If the
+    // backend stalls we surface a typed toast and bail out instead of
+    // leaving the invite modal in a forever-spinning state.
+    let timedOut = false
+    const timeout = new Promise((_, reject) => {
+      window.setTimeout(() => {
+        timedOut = true
+        reject(new Error('Room creation timed out. Please try again.'))
+      }, 8000)
+    })
     try {
-      const res = await createRoom({ gameId, username: displayName })
+      const res = await Promise.race([
+        createRoom({ gameId, username: displayName }),
+        timeout,
+      ])
       const roomCode = res?.roomCode ?? res?.room_code ?? res?.code
       if (!roomCode) {
         toast.error('Could not create room. Try again.')
@@ -68,9 +81,13 @@ export default function InviteGameModal() {
       closeDrawer()
       navigate(`/room/${roomCode}`)
     } catch (err) {
-      toast.error(
-        `Could not create room — ${err?.message ?? 'unknown error'}`,
-      )
+      if (timedOut) {
+        toast.error('Room creation timed out. Please try again.')
+      } else {
+        toast.error(
+          `Could not create room — ${err?.message ?? 'unknown error'}`,
+        )
+      }
     }
   }
 

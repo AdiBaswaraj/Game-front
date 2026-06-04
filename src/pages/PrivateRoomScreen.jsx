@@ -123,12 +123,15 @@ function CreateTab({ gameId, username, userId }) {
   const toast = useToast()
   const [code, setCode] = useState(null)
   const [error, setError] = useState(null)
+  const [isCreating, setIsCreating] = useState(false)
   const [copied, setCopied] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   // requestedRef guards against duplicate create calls (StrictMode
-  // double-mount and any re-render-triggered re-fire).
+  // double-mount and any re-render-triggered re-fire). It's cleared
+  // when the user hits "TRY AGAIN" so retries actually fire.
   const requestedRef = useRef(false)
   const joinedRef = useRef(false)
+  const timeoutRef = useRef(null)
   // mountedRef lets us safely commit state from an async resolution
   // without using a cancellation flag — which previously bailed out of
   // a successful response if the component re-rendered between the
@@ -139,12 +142,71 @@ function CreateTab({ gameId, username, userId }) {
     mountedRef.current = true
     return () => {
       mountedRef.current = false
+      if (timeoutRef.current) {
+        window.clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
     }
   }, [])
 
-  // Auto-create on first mount, but only when the username is actually
-  // available. Calling createRoom with a null/undefined username races
-  // with auth resolution and the backend can return 400.
+  // Single create attempt with an 8-second deadline. The timeout
+  // captures the in-flight request so a slow backend doesn't strand
+  // the player on the CREATING ROOM… spinner forever.
+  const attemptCreate = useCallback(() => {
+    if (!username) return
+    if (requestedRef.current) return
+    requestedRef.current = true
+    setError(null)
+    setIsCreating(true)
+    if (timeoutRef.current) window.clearTimeout(timeoutRef.current)
+    timeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = null
+      if (!mountedRef.current) return
+      requestedRef.current = false
+      setIsCreating(false)
+      setError('Room creation timed out. Please try again.')
+    }, 8000)
+
+    console.log('[room] CreateTab calling createRoom', { gameId, username })
+    createRoom({ gameId, username })
+      .then((res) => {
+        if (timeoutRef.current) {
+          window.clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        console.log('[room] CreateTab handler running', {
+          mounted: mountedRef.current,
+          res,
+        })
+        if (!mountedRef.current) return
+        const c = res?.roomCode ?? res?.room_code ?? res?.code
+        if (!c) {
+          requestedRef.current = false
+          setIsCreating(false)
+          const msg = 'Could not create room — no code in response.'
+          setError(msg)
+          toast.error(msg)
+          return
+        }
+        setIsCreating(false)
+        setCode(String(c).toUpperCase())
+      })
+      .catch((err) => {
+        if (timeoutRef.current) {
+          window.clearTimeout(timeoutRef.current)
+          timeoutRef.current = null
+        }
+        console.error('[room] CreateTab createRoom failed', err)
+        if (!mountedRef.current) return
+        requestedRef.current = false
+        setIsCreating(false)
+        const msg = `Could not create room — ${err?.message ?? 'unknown error'}`
+        setError(msg)
+        toast.error(msg)
+      })
+  }, [gameId, username, toast])
+
+  // Auto-fire on first mount once the username is available.
   useEffect(() => {
     console.log('[room] CreateTab effect:', {
       username,
@@ -155,33 +217,8 @@ function CreateTab({ gameId, username, userId }) {
       console.log('[room] waiting for username…')
       return
     }
-    if (requestedRef.current) return
-    requestedRef.current = true
-    console.log('[room] CreateTab calling createRoom', { gameId, username })
-    createRoom({ gameId, username })
-      .then((res) => {
-        console.log('[room] CreateTab handler running', {
-          mounted: mountedRef.current,
-          res,
-        })
-        if (!mountedRef.current) return
-        const c = res?.roomCode ?? res?.room_code ?? res?.code
-        if (!c) {
-          const msg = 'Could not create room — no code in response.'
-          setError(msg)
-          toast.show({ message: msg, duration: 4500 })
-          return
-        }
-        setCode(String(c).toUpperCase())
-      })
-      .catch((err) => {
-        console.error('[room] CreateTab createRoom failed', err)
-        if (!mountedRef.current) return
-        const msg = `Could not create room — ${err?.message ?? 'unknown error'}`
-        setError(msg)
-        toast.show({ message: msg, duration: 4500 })
-      })
-  }, [gameId, username, userId, toast])
+    attemptCreate()
+  }, [username, userId, attemptCreate])
 
   // Once we have a code, subscribe to room socket events and join the
   // socket room so we receive room_update when opponent arrives.
@@ -289,12 +326,22 @@ function CreateTab({ gameId, username, userId }) {
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-center">
         <p className="font-arcade text-sm text-neon-pink">{error}</p>
-        <Link
-          to={`/game/${gameId}/mode`}
-          className="rounded-md border border-white/20 px-4 py-2 font-arcade text-[10px] text-white/70 hover:border-neon-cyan/60 hover:text-neon-cyan"
-        >
-          BACK
-        </Link>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={attemptCreate}
+            disabled={isCreating || !username}
+            className="rounded-md border border-neon-green/70 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green disabled:opacity-40"
+          >
+            {isCreating ? 'TRYING…' : '↻ TRY AGAIN'}
+          </button>
+          <Link
+            to={`/game/${gameId}/mode`}
+            className="rounded-md border border-white/20 px-4 py-2 font-arcade text-[10px] text-white/70 hover:border-neon-cyan/60 hover:text-neon-cyan"
+          >
+            BACK
+          </Link>
+        </div>
       </div>
     )
   }
