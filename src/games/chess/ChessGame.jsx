@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Chess } from 'chess.js'
 import { Chessboard } from 'react-chessboard'
 import { useAuth } from '../../context/AuthContext'
@@ -142,6 +142,19 @@ function materialScore(pieces) {
 
 export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const { user, displayName } = useAuth()
+  const navigate = useNavigate()
+
+  // Finished-room re-entry guard. If we hold a sessionStorage marker
+  // for this roomCode we already saw it end — bail out before any
+  // socket activity so the server never re-emits an old result.
+  useEffect(() => {
+    if (mode !== 'multiplayer' || !roomCode) return
+    if (sessionStorage.getItem('finishedRoom') === roomCode) {
+      sessionStorage.removeItem('finishedRoom')
+      navigate('/', { replace: true })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const toast = useToast()
   const chessRef = useRef(new Chess())
   const [fen, setFen] = useState(() => chessRef.current.fen())
@@ -518,11 +531,23 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         }
         setReconnecting(false)
       })
-      .catch(() => {
-        if (!cancelled) {
-          setError('Could not load room.')
-          setReconnecting(false)
+      .catch((err) => {
+        if (cancelled) return
+        // Backend returns 410 GONE for rooms that have already
+        // finished. Mark the room so any re-entry attempt is blocked
+        // and bounce to the lobby.
+        if (err?.status === 410) {
+          if (roomCode) {
+            try {
+              sessionStorage.setItem('finishedRoom', roomCode)
+            } catch {}
+          }
+          toast.error('This game has already ended.')
+          navigate('/', { replace: true })
+          return
         }
+        setError('Could not load room.')
+        setReconnecting(false)
       })
     return () => {
       cancelled = true
@@ -620,6 +645,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
     const onMoveAccepted = (data) => ingestMove(data)
 
     const onError = (data) => {
+      const code = pick(data, 'code', 'error_code', 'errorCode')
+      if (code === 'ROOM_FINISHED') {
+        if (roomCode) {
+          try {
+            sessionStorage.setItem('finishedRoom', roomCode)
+          } catch {}
+        }
+        toast.error('This game has already ended.')
+        navigate('/', { replace: true })
+        return
+      }
       toast.show({
         message: pick(data, 'message') ?? 'Invalid move.',
         duration: 2000,
@@ -668,6 +704,13 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         displayReason = String(reason).toUpperCase().replace(/_/g, ' ')
       }
       setResult({ winner: winnerColor, reason: displayReason })
+      // Mark this room as finished. The mount guard above will redirect
+      // the player back to the lobby if they try to re-enter.
+      if (roomCode) {
+        try {
+          sessionStorage.setItem('finishedRoom', roomCode)
+        } catch {}
+      }
     }
 
     const onMatchResult = (data) => {
