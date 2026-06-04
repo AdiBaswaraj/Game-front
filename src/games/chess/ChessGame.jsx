@@ -1406,7 +1406,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         />
         <CapturedRow
           pieces={captured[myColor === 'w' ? 'b' : 'w']}
-          opponentPieces={captured[myColor === 'w' ? 'w' : 'b']}
           accent="green"
           label="CAPTURED"
         />
@@ -1450,7 +1449,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         </div>
         <CapturedRow
           pieces={captured[myColor === 'w' ? 'w' : 'b']}
-          opponentPieces={captured[myColor === 'w' ? 'b' : 'w']}
           accent="pink"
           label="LOST"
         />
@@ -1842,28 +1840,21 @@ function GameStatusRow({
   )
 }
 
-function CapturedRow({ pieces, opponentPieces, accent, label }) {
-  const myScore = materialScore(pieces)
-  const theirScore = materialScore(opponentPieces)
-  const advantage = myScore - theirScore
+// Renders the row of pieces one side has captured from the other.
+// The +N material delta is intentionally NOT shown here — that lives
+// next to the player's name in PlayerHeader so it appears beside the
+// leading side. CapturedRow is just the visual list of pieces.
+function CapturedRow({ pieces, accent, label }) {
   if (!pieces || pieces.length === 0) {
     return (
-      <p className="font-arcade text-[8px] text-white/30">
-        {label}: —{' '}
-        {advantage > 0 && (
-          <span className="text-neon-green">+{advantage}</span>
-        )}
-      </p>
+      <p className="font-arcade text-[8px] text-white/30">{label}: —</p>
     )
   }
   const tone = accent === 'green' ? 'text-neon-green' : 'text-neon-pink'
   return (
     <p className="font-arcade text-[9px] text-white/60">
       <span className={`${tone} mr-2`}>{label}</span>
-      {pieces.map((p) => PIECE_ICON[p] ?? '?').join(' ')}{' '}
-      {advantage > 0 && (
-        <span className="ml-2 text-neon-green">+{advantage}</span>
-      )}
+      {pieces.map((p) => PIECE_ICON[p] ?? '?').join(' ')}
     </p>
   )
 }
