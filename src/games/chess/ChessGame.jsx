@@ -1583,6 +1583,28 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         <DisconnectPauseOverlay
           username={opponentDc.username}
           secondsRemaining={opponentDc.secondsRemaining}
+          onForfeit={() => {
+            const opp = roomRef.current?.players?.find(
+              (p) =>
+                (p.userId ?? p.user_id ?? p.id) !== userIdRef.current,
+            )
+            const oppId = opp?.userId ?? opp?.user_id ?? opp?.id
+            if (socket.connected && oppId) {
+              socket.emit('game_over', {
+                roomCode,
+                winnerId: oppId,
+                loserId: userIdRef.current,
+                score: 0,
+                reason: 'forfeit',
+              })
+            }
+            if (roomCode) {
+              try {
+                sessionStorage.setItem('finishedRoom', roomCode)
+              } catch {}
+            }
+            navigate('/', { replace: true })
+          }}
         />
       )}
 
@@ -1988,7 +2010,7 @@ function MovesSheet({ history, onClose }) {
 // in their reconnect grace window. Replaces the old inline banner +
 // toast. Board stays visible behind the blur but the game state is
 // frozen — the tick effect bails on opponentDc.disconnected.
-function DisconnectPauseOverlay({ username, secondsRemaining }) {
+function DisconnectPauseOverlay({ username, secondsRemaining, onForfeit }) {
   if (typeof document === 'undefined') return null
   let countColor = 'var(--neon-green)'
   if (secondsRemaining <= 10) countColor = 'var(--neon-pink)'
@@ -2049,6 +2071,15 @@ function DisconnectPauseOverlay({ username, secondsRemaining }) {
         <p className="mt-6 text-[11px] leading-relaxed text-white/55">
           Win by default if they don't return in time.
         </p>
+        {onForfeit && (
+          <button
+            type="button"
+            onClick={onForfeit}
+            className="mt-5 font-arcade text-[10px] text-neon-pink/55 transition hover:text-neon-pink hover:drop-shadow-[0_0_6px_rgba(255,0,110,0.7)]"
+          >
+            FORFEIT & LEAVE
+          </button>
+        )}
       </div>
     </div>,
     document.body,
@@ -2060,6 +2091,14 @@ function DisconnectPauseOverlay({ username, secondsRemaining }) {
 // component waits here for match_result from the server, after which
 // the standard ResultPanel takes over.
 function TimeUpOverlay({ flaggedColor, myColor }) {
+  const [showExit, setShowExit] = useState(false)
+  // If the server's match_result never lands, surface a manual exit
+  // after 10 seconds so the player isn't trapped on the overlay.
+  useEffect(() => {
+    const id = window.setTimeout(() => setShowExit(true), 10_000)
+    return () => window.clearTimeout(id)
+  }, [])
+
   if (typeof document === 'undefined') return null
   const youFlagged = flaggedColor === myColor
   return createPortal(
@@ -2074,8 +2113,14 @@ function TimeUpOverlay({ flaggedColor, myColor }) {
       }}
     >
       <div className="glass-panel pixel-corners pixel-corners-pink w-full max-w-[360px] px-6 py-6 text-center">
-        <p className="neon-text font-arcade text-lg text-neon-pink md:text-xl">
-          ⏱ TIME'S UP
+        <p className="neon-text font-arcade text-base text-neon-pink md:text-lg">
+          <span
+            className="mr-2 inline-block rounded border border-neon-pink/60 px-1.5 py-0.5 font-arcade text-[9px] tracking-[0.2em] text-neon-pink"
+            style={{ verticalAlign: '0.18em' }}
+          >
+            TIME
+          </span>
+          TIME'S UP
         </p>
         <p className="mt-4 text-sm text-white/80">
           {youFlagged ? 'Your clock ran out.' : "Opponent's clock ran out."}
@@ -2093,6 +2138,14 @@ function TimeUpOverlay({ flaggedColor, myColor }) {
             Confirming result…
           </span>
         </div>
+        {showExit && (
+          <div className="mt-5 border-t border-white/[0.06] pt-4">
+            <p className="text-[11px] text-white/55">Taking too long?</p>
+            <LobbyBackLink className="mt-2 inline-flex w-full items-center justify-center rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan">
+              BACK TO LOBBY
+            </LobbyBackLink>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
