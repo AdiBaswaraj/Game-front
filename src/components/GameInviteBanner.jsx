@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useFriends } from '../context/FriendsContext'
 import { socket } from '../lib/socket'
@@ -12,6 +13,14 @@ const GAME_NAMES = {
 export default function GameInviteBanner() {
   const { incomingInvite, dismissIncomingInvite } = useFriends()
   const navigate = useNavigate()
+
+  // Auto-dismiss the invite banner after 30 seconds if the user
+  // hasn't decided. Resets when a different invite arrives.
+  useEffect(() => {
+    if (!incomingInvite) return
+    const id = window.setTimeout(() => dismissIncomingInvite(), 30_000)
+    return () => window.clearTimeout(id)
+  }, [incomingInvite, dismissIncomingInvite])
 
   if (!incomingInvite) return null
 
@@ -38,11 +47,20 @@ export default function GameInviteBanner() {
   return (
     <div
       role="alert"
-      className="fixed inset-x-0 top-4 z-[95] flex justify-center px-3"
+      className="pointer-events-none fixed left-1/2 z-[900] -translate-x-1/2 px-3"
+      style={{ top: 68 }}
     >
-      <div className="lb-slide-in flex w-full max-w-md items-center gap-3 rounded-lg border-2 border-neon-pink/60 bg-arcadia-surface/95 px-4 py-3 shadow-neon-pink backdrop-blur">
+      <div
+        className="lb-slide-in glass-panel pixel-corners pointer-events-auto flex items-center gap-3 px-4 py-3 backdrop-blur"
+        style={{
+          width: 'min(360px, 90vw)',
+          borderColor: 'rgba(0, 255, 136, 0.45)',
+          borderWidth: 2,
+          boxShadow: '0 8px 28px rgba(0, 0, 0, 0.5)',
+        }}
+      >
         <div className="flex-1 text-sm">
-          <p className="inline-flex items-center gap-1.5 font-arcade text-[10px] text-neon-pink">
+          <p className="inline-flex items-center gap-1.5 font-arcade text-[10px] text-neon-green">
             <SwordsIcon size={12} aria-hidden="true" />
             <span>GAME INVITE</span>
           </p>

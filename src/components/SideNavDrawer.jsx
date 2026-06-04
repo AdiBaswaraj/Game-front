@@ -56,6 +56,7 @@ export default function SideNavDrawer({ open, onClose }) {
   // local user — that's the global socket count which is rendered
   // elsewhere as "X PLAYERS ONLINE" in the navbar.
   const onlineCount = friendsCtx?.friendsOnlineCount ?? 0
+  const pendingCount = friendsCtx?.pendingRequests?.length ?? 0
 
   const [view, setView] = useState('main') // 'main' | 'friends'
 
@@ -152,6 +153,7 @@ export default function SideNavDrawer({ open, onClose }) {
           isGuest={isGuest}
           displayName={displayName}
           onlineCount={onlineCount}
+          pendingCount={pendingCount}
           onLogin={handleLogin}
           onSignOut={handleSignOut}
           onClose={onClose}
@@ -184,6 +186,7 @@ function MainPanel({
   isGuest,
   displayName,
   onlineCount,
+  pendingCount,
   onLogin,
   onSignOut,
   onClose,
@@ -199,6 +202,7 @@ function MainPanel({
           Icon: FriendsIcon,
           label: 'FRIENDS',
           badge: onlineCount,
+          pendingBadge: pendingCount,
           onClick: onOpenFriends,
         },
         NAV_LINKS[2],
@@ -495,6 +499,11 @@ function NavLinkItem({ item, onClose }) {
         {IconComp ? <IconComp size={20} /> : item.icon}
       </span>
       <span className="flex-1">{item.label}</span>
+      {typeof item.pendingBadge === 'number' && item.pendingBadge > 0 && (
+        <span className="rounded-full bg-neon-pink px-1.5 py-0.5 font-arcade text-[8px] text-arcadia-bg shadow-neon-pink">
+          {item.pendingBadge}
+        </span>
+      )}
       {typeof item.badge === 'number' && item.badge > 0 && (
         <span className="rounded-full border border-neon-cyan/40 bg-neon-cyan/10 px-1.5 py-0.5 font-arcade text-[8px] text-neon-cyan">
           {item.badge} ONLINE

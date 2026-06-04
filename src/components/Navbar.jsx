@@ -9,6 +9,7 @@ export default function Navbar() {
     useAuth()
   const friendsCtx = useFriends()
   const onlineCount = friendsCtx?.onlineCount ?? 0
+  const pendingCount = friendsCtx?.pendingRequests?.length ?? 0
   const [navOpen, setNavOpen] = useState(false)
   const [countFlash, setCountFlash] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -44,7 +45,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setNavOpen((v) => !v)}
-            className="grid h-11 w-11 place-items-center rounded-md border border-white/15 bg-white/[0.02] text-white/70 transition hover:border-neon-green/60 hover:bg-white/[0.06] hover:text-neon-green"
+            className="relative grid h-11 w-11 place-items-center rounded-md border border-white/15 bg-white/[0.02] text-white/70 transition hover:border-neon-green/60 hover:bg-white/[0.06] hover:text-neon-green"
             aria-label={navOpen ? 'Close navigation' : 'Open navigation'}
             aria-expanded={navOpen}
             style={{
@@ -52,6 +53,22 @@ export default function Navbar() {
               WebkitBackdropFilter: 'blur(8px)',
             }}
           >
+            {pendingCount > 0 && (
+              <span
+                aria-label={`${pendingCount} pending friend requests`}
+                className="absolute"
+                style={{
+                  top: 6,
+                  right: 6,
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: 'var(--neon-pink)',
+                  border: '2px solid #050508',
+                  boxShadow: '0 0 6px rgba(255, 0, 110, 0.55)',
+                }}
+              />
+            )}
             <span
               className={`hamburger-icon ${navOpen ? 'open' : ''}`}
               aria-hidden="true"
