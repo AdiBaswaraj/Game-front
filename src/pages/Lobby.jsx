@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import Navbar from '../components/Navbar'
 import Hero from '../components/Hero'
 import GameCard from '../components/GameCard'
 import Footer from '../components/Footer'
@@ -59,7 +58,6 @@ export default function Lobby() {
     <div className="relative min-h-screen text-white">
       <LobbyBackground />
       <div className="relative z-10">
-        <Navbar />
         <Hero />
 
         <main className="mx-auto max-w-7xl px-4 pb-12 pt-14 md:px-8">

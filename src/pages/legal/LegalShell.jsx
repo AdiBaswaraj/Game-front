@@ -6,7 +6,7 @@ export default function LegalShell({ title, lastUpdated, children }) {
   return (
     <div className="relative min-h-screen text-white">
       <header
-        className="sticky top-0 z-30 border-b border-white/[0.06]"
+        className="sticky top-[60px] z-30 border-b border-white/[0.06]"
         style={{
           background: 'rgba(5, 5, 8, 0.85)',
           backdropFilter: 'blur(20px)',
