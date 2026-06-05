@@ -50,7 +50,9 @@ export default function ParticleField() {
           vx: (Math.random() - 0.5) * 0.6,
           vy: (Math.random() - 0.5) * 0.6,
           size,
-          baseOpacity: 0.1 + Math.random() * 0.4,
+          // Reduced 40% from the original 0.1 + 0.4·rand range so the
+          // field reads as quiet ambient texture, not noise.
+          baseOpacity: 0.04 + Math.random() * 0.16,
           phase: Math.random() * Math.PI * 2,
           speed: 0.0005 + Math.random() * 0.001,
           rgb: COLOR_RGB[ci],
@@ -113,7 +115,7 @@ export default function ParticleField() {
           0,
           Math.min(
             1,
-            p.baseOpacity + Math.sin(t * p.speed + p.phase) * 0.2,
+            p.baseOpacity + Math.sin(t * p.speed + p.phase) * 0.08,
           ),
         )
         const [r, g, b] = p.rgb

@@ -6,7 +6,7 @@
 
 :root {
   /* Backgrounds */
-  --bg-base: #050508;
+  --bg-base: #040407;
   --bg-surface: rgba(255, 255, 255, 0.04);
   --bg-surface-hover: rgba(255, 255, 255, 0.07);
   --bg-surface-active: rgba(255, 255, 255, 0.10);
@@ -419,6 +419,23 @@ html {
 @keyframes silhouette-drift-rtl {
   from { transform: translate3d(120vw, 0, 0) rotate(0deg); }
   to   { transform: translate3d(-20vw, 0, 0) rotate(360deg); }
+}
+
+/* ===== Lobby ambient breathing blobs ===== */
+@keyframes ambient-breathe {
+  0%, 100% { transform: scale(1);   opacity: 0.6; }
+  50%      { transform: scale(1.4); opacity: 1;   }
+}
+.ambient-blob {
+  position: absolute;
+  width: 50vw;
+  height: 50vw;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+  animation: ambient-breathe var(--dur, 11s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  will-change: transform, opacity;
 }
 
 /* ===== Section C — hero glitch + section divider ===== */
