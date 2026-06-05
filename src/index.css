@@ -29,10 +29,17 @@
   --neon-cyan-soft: #a8f0e0;
 
   /* Neon glows */
-  --glow-green: 0 0 20px rgba(0, 255, 136, 0.5);
-  --glow-cyan: 0 0 20px rgba(0, 212, 255, 0.5);
-  --glow-pink: 0 0 20px rgba(255, 0, 110, 0.5);
-  --glow-purple: 0 0 20px rgba(112, 0, 255, 0.5);
+  /* Neon glows — softened from the original 20px/0.5 wash. The
+     full-intensity legacy values are kept around as --glow-*-bright
+     for the few surfaces (active low clock, win overlay, selected
+     game card) that should stay loud. */
+  --glow-green: 0 0 10px rgba(0, 255, 136, 0.22);
+  --glow-cyan: 0 0 10px rgba(0, 212, 255, 0.22);
+  --glow-pink: 0 0 10px rgba(255, 0, 110, 0.22);
+  --glow-purple: 0 0 10px rgba(112, 0, 255, 0.22);
+  --glow-green-bright: 0 0 20px rgba(0, 255, 136, 0.5);
+  --glow-cyan-bright: 0 0 20px rgba(0, 212, 255, 0.5);
+  --glow-pink-bright: 0 0 20px rgba(255, 0, 110, 0.5);
 
   /* Typography */
   --font-pixel: 'Press Start 2P', monospace;
@@ -126,6 +133,14 @@ html {
   .pixel-corners-amber::after { border-color: #ffd700; }
 
   .neon-text {
+    /* Reduced from the original 7+10+21px triple-stop. A single
+       gentle 6px currentColor wash is enough to read as neon without
+       washing out the glyphs. */
+    text-shadow: 0 0 6px currentColor;
+  }
+  /* Kept for cases that genuinely need the loud wash — win overlay
+     titles, NEW HIGH SCORE, etc. Use sparingly. */
+  .neon-text-bright {
     text-shadow:
       0 0 7px currentColor,
       0 0 10px currentColor,

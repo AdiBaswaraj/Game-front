@@ -16,10 +16,13 @@ export default {
         sans: ['Outfit', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        'neon-green': '0 0 12px rgba(0, 255, 136, 0.55), 0 0 24px rgba(0, 255, 136, 0.25)',
-        'neon-cyan': '0 0 12px rgba(0, 212, 255, 0.55), 0 0 24px rgba(0, 212, 255, 0.25)',
-        'neon-pink': '0 0 12px rgba(255, 0, 110, 0.55), 0 0 24px rgba(255, 0, 110, 0.25)',
-        'neon-purple': '0 0 12px rgba(112, 0, 255, 0.55), 0 0 24px rgba(112, 0, 255, 0.25)',
+        // Softened from the original two-stop 12px+24px stack. Single
+        // 8px wash at 25% alpha — still recognisably neon but far
+        // easier on the eye over long sessions.
+        'neon-green':  '0 0 8px rgba(0, 255, 136, 0.25)',
+        'neon-cyan':   '0 0 8px rgba(0, 212, 255, 0.25)',
+        'neon-pink':   '0 0 8px rgba(255, 0, 110, 0.25)',
+        'neon-purple': '0 0 8px rgba(112, 0, 255, 0.25)',
       },
       keyframes: {
         blink: {

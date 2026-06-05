@@ -66,7 +66,10 @@ export default function GameCard({ game, index = 0 }) {
         backdropFilter: 'var(--glass-blur)',
         WebkitBackdropFilter: 'var(--glass-blur)',
         border: '1px solid var(--glass-border)',
-        boxShadow: 'var(--glass-shadow)',
+        // Default state has no shadow — keeps the lobby calm. The hover
+        // state picks up shadow-neon-{accent} via the group-hover class
+        // below, which now resolves to a single soft 8px wash.
+        boxShadow: 'none',
         '--card-index': index,
       }}
     >
