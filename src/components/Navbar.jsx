@@ -12,7 +12,6 @@ export default function Navbar() {
   const pendingCount = friendsCtx?.pendingRequests?.length ?? 0
   const [navOpen, setNavOpen] = useState(false)
   const [countFlash, setCountFlash] = useState(false)
-  const [scrolled, setScrolled] = useState(false)
   const prevCountRef = useRef(onlineCount)
 
   useEffect(() => {
@@ -24,21 +23,15 @@ export default function Navbar() {
     }
   }, [onlineCount])
 
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 8)
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
   return (
     <header
-      className={`fixed inset-x-0 top-0 z-[100] border-b transition-[border-color,background-color] duration-300 ${
-        scrolled
-          ? 'border-neon-green/30 bg-[rgba(5,5,8,0.92)]'
-          : 'border-neon-green/10 bg-[rgba(5,5,8,0.8)]'
-      }`}
-      style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+      className="fixed inset-x-0 top-0 z-[100]"
+      style={{
+        background: 'rgba(4, 4, 7, 0.85)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(0, 255, 136, 0.08)',
+      }}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
         <div className="flex items-center gap-3 md:gap-5">

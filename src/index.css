@@ -70,9 +70,11 @@ html {
 }
 html,
 body {
-  /* Disable the rubber-band scroll on iOS / Android so the fixed
-     navbar isn't briefly revealed when the page over-scrolls. */
-  overscroll-behavior: none;
+  /* Only block horizontal rubber-band — the vertical axis must stay
+     enabled so mobile pull-to-refresh keeps working. Game containers
+     that need to swallow scroll during gameplay use touch-action: none
+     instead. */
+  overscroll-behavior-x: none;
 }
 * {
   -webkit-touch-callout: none;
@@ -342,6 +344,21 @@ body {
   100% { background-color: transparent; box-shadow: inset 0 0 0 rgba(0,0,0,0); }
 }
 .sl-flash-ladder { animation: sl-flash-ladder 0.6s ease-out; }
+
+/* Side-nav link: left-border indicator + colour shift only, no fill. */
+.nav-link-item {
+  padding-left: 8px;
+  border-left: 2px solid transparent;
+  transition: color 150ms ease, border-color 150ms ease, padding-left 150ms ease;
+}
+.nav-link-item:hover,
+.nav-link-item--active {
+  border-left-color: var(--neon-green);
+  padding-left: 12px;
+}
+.nav-link-item:hover {
+  color: var(--neon-cyan);
+}
 
 /* Token sliding along a quadratic bezier (offset-path is set inline,
    so the same keyframe pair drives both snake and ladder transitions

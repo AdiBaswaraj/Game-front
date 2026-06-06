@@ -48,48 +48,6 @@ function normalizePlayer(p, fallbackPositions, idx) {
   }
 }
 
-function historyEntryToLog(entry, room) {
-  if (!entry || typeof entry.roll !== 'number') return null
-  const playerIdent = entry.player
-  const players = room?.players ?? []
-  const playerIdx =
-    typeof playerIdent === 'number'
-      ? playerIdent
-      : players.findIndex(
-          (p) =>
-            (p.userId ?? p.user_id ?? p.id) === playerIdent ||
-            p.username === playerIdent,
-        )
-  const name =
-    (playerIdx >= 0 && players[playerIdx]?.username) ||
-    (typeof playerIdent === 'string' ? playerIdent : 'Player')
-  const start = entry.from ?? 1
-  const final = entry.final ?? start
-  const stages = computeStages({ start, roll: entry.roll, finalAt: final })
-  if (stages.length === 0) {
-    return {
-      playerIdx: Math.max(playerIdx, 0),
-      name,
-      text: `rolled a ${entry.roll} — overshoot, stayed on ${start}`,
-    }
-  }
-  const parts = [`rolled a ${entry.roll}`]
-  for (const stage of stages) {
-    if (stage.kind === 'ladder') {
-      parts.push(`LADDER! ${stage.from}→${stage.at}`)
-    } else if (stage.kind === 'snake') {
-      const drop = stage.from - stage.at
-      const drama = drop >= 50 ? ' 😱' : ''
-      parts.push(`SNAKE! ${stage.from}→${stage.at}${drama}`)
-    }
-  }
-  return {
-    playerIdx: Math.max(playerIdx, 0),
-    name,
-    text: parts.join(' → '),
-  }
-}
-
 function turnUserIdToIndex(room, currentTurn) {
   if (currentTurn == null || !room?.players) return null
   if (typeof currentTurn === 'number') return currentTurn
@@ -117,7 +75,6 @@ export default function SnakeAndLadderGame({ roomCode }) {
   const [reconnecting, setReconnecting] = useState(false)
   const [flash, setFlash] = useState(null) // { square, kind, key }
   const [slides, setSlides] = useState([null, null]) // per token
-  const [log, setLog] = useState([])
   const [rollHistory, setRollHistory] = useState([])
   const [showDiceDebug, setShowDiceDebug] = useState(false)
   const flashTimerRef = useRef(null)
@@ -267,42 +224,12 @@ export default function SnakeAndLadderGame({ roomCode }) {
     }, 16)
   }, [])
 
-  const pushLog = useCallback((entry) => {
-    setLog((prev) => [...prev, entry].slice(-5))
-  }, [])
-
   // Play one chain (dice roll + any ladder/snake triggers) for a player.
   const playStages = useCallback(
     async (playerIdx, roll, finalAt) => {
-      const room = roomRef.current
-      const playerName = room?.players?.[playerIdx]?.username ?? 'Player'
       const start = positionsRef.current[playerIdx]
       const stages = computeStages({ start, roll, finalAt })
-
-      if (stages.length === 0) {
-        pushLog({
-          playerIdx,
-          name: playerName,
-          text: `rolled a ${roll} — overshoot, stays on ${start}`,
-        })
-        return
-      }
-
-      const parts = [`rolled a ${roll}`]
-      for (const stage of stages) {
-        if (stage.kind === 'ladder') {
-          parts.push(`LADDER! ${stage.from}→${stage.at}`)
-        } else if (stage.kind === 'snake') {
-          const drop = stage.from - stage.at
-          const drama = drop >= 50 ? ' 😱' : ''
-          parts.push(`SNAKE! ${stage.from}→${stage.at}${drama}`)
-        }
-      }
-      pushLog({
-        playerIdx,
-        name: playerName,
-        text: parts.join(' → '),
-      })
+      if (stages.length === 0) return
 
       for (let i = 0; i < stages.length; i++) {
         const stage = stages[i]
@@ -325,7 +252,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
         }
       }
     },
-    [animateMove, pushLog, slideAlong, triggerFlash],
+    [animateMove, slideAlong, triggerFlash],
   )
 
   // Socket handlers — depend only on stable identities so they don't
@@ -434,16 +361,11 @@ export default function SnakeAndLadderGame({ roomCode }) {
         if (winnerIdx != null && winnerIdx >= 0) setWinner(winnerIdx)
       }
 
-      // Pre-populate event log + dice debug from server's rollHistory if
-      // present. Empty array on game start is normal.
+      // Pre-populate the dice-distribution debug overlay from server's
+      // rollHistory if present. Empty array on game start is normal.
       const history = pick(data, 'rollHistory', 'roll_history')
       if (Array.isArray(history)) {
         setRollHistory(history)
-        const entries = history
-          .map((h) => historyEntryToLog(h, roomRef.current))
-          .filter(Boolean)
-          .slice(-5)
-        if (entries.length > 0) setLog(entries)
       }
 
       setReconnecting(false)
@@ -628,7 +550,6 @@ export default function SnakeAndLadderGame({ roomCode }) {
         animating={animating}
         winner={winner}
         myTurn={myTurn}
-        log={log}
         onRoll={handleRoll}
         onSync={handleSync}
         reconnecting={reconnecting}
@@ -1069,7 +990,6 @@ function Sidebar({
   animating,
   winner,
   myTurn,
-  log,
   onRoll,
   onSync,
   reconnecting,
@@ -1077,10 +997,6 @@ function Sidebar({
   opponentDcUsername,
   opponentDcSeconds,
 }) {
-  const logRef = useRef(null)
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight
-  }, [log?.length])
   return (
     <aside className="flex shrink-0 flex-col gap-2 lg:gap-3">
       {/* Player row — horizontal on mobile, vertical on desktop */}
@@ -1124,33 +1040,6 @@ function Sidebar({
             </div>
           )
         })}
-      </div>
-
-      {/* Compact event log — 3 lines on mobile, more on desktop */}
-      <div className="rounded-md border border-white/10 bg-arcadia-bg/60 p-2">
-        <p className="font-arcade text-[8px] text-white/45 lg:text-[9px]">LOG</p>
-        <div
-          ref={logRef}
-          className="mt-1 max-h-[60px] space-y-0.5 overflow-y-auto font-mono text-[9px] leading-snug lg:max-h-32 lg:text-[10px]"
-        >
-          {!log || log.length === 0 ? (
-            <p className="text-white/30">Waiting on first roll…</p>
-          ) : (
-            log.map((e, i) => {
-              const dotColor =
-                TOKEN_COLORS[e.playerIdx % TOKEN_COLORS.length]
-              const name =
-                e.name ?? room?.players?.[e.playerIdx]?.username ?? 'Player'
-              return (
-                <div key={i} className="flex items-start gap-1.5">
-                  <span style={{ color: dotColor }}>●</span>
-                  <span className="text-white">{name}</span>
-                  <span className="text-white/70">{e.text}</span>
-                </div>
-              )
-            })
-          )}
-        </div>
       </div>
 
       {/* Dice row — horizontal on mobile, vertical on desktop */}
@@ -1200,36 +1089,6 @@ function Sidebar({
         ↑ Ladders climb · ↓ Snakes slide
       </p>
     </aside>
-  )
-}
-
-function EventLog({ log, room, scrollRef }) {
-  return (
-    <div className="rounded-md border border-white/10 bg-arcadia-bg/60 p-2">
-      <p className="font-arcade text-[9px] text-white/45">LOG</p>
-      <div
-        ref={scrollRef}
-        className="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed"
-      >
-        {!log || log.length === 0 ? (
-          <p className="text-white/30">Waiting on first roll…</p>
-        ) : (
-          log.map((e, i) => {
-            const me = e.playerIdx === 0
-            const dotColor = TOKEN_COLORS[e.playerIdx % TOKEN_COLORS.length]
-            const name =
-              e.name ?? room?.players?.[e.playerIdx]?.username ?? 'Player'
-            return (
-              <div key={i} className="flex items-start gap-1.5">
-                <span style={{ color: dotColor }}>●</span>
-                <span className="text-white">{name}</span>
-                <span className="text-white/70">{e.text}</span>
-              </div>
-            )
-          })
-        )}
-      </div>
-    </div>
   )
 }
 

@@ -221,7 +221,7 @@ function MainPanel({
     >
       <PanelAmbience tint="green" />
       <div className="relative z-10 flex h-full flex-col">
-        <header className="flex shrink-0 items-center border-b border-white/[0.06] px-5 py-4">
+        <header className="flex shrink-0 items-center px-5 py-4">
           <span
             className="font-arcade text-sm"
             style={{
@@ -250,11 +250,7 @@ function MainPanel({
             )}
           </StaggerItem>
 
-          <StaggerItem delay={open && visible ? 100 : 0}>
-            <DividerLabel>NAVIGATE</DividerLabel>
-          </StaggerItem>
-
-          <nav aria-label="Primary" className="px-3">
+          <nav aria-label="Primary" className="px-3" style={{ marginTop: 24 }}>
             <ul className="space-y-1">
               {navLinksWithFriends.map((item, i) => (
                 <StaggerItem
@@ -273,7 +269,8 @@ function MainPanel({
             <button
               type="button"
               onClick={onSignOut}
-              className="flex w-full shrink-0 items-center gap-4 border-t border-white/[0.06] px-5 py-4 font-arcade text-[11px] text-neon-pink transition hover:bg-neon-pink/10 hover:shadow-[inset_0_0_20px_rgba(255,0,110,0.15)]"
+              className="flex w-full shrink-0 items-center gap-4 px-5 py-4 font-arcade text-[11px] text-neon-pink transition"
+              style={{ marginTop: 'auto', paddingTop: 16 }}
             >
               <span
                 className="inline-flex h-5 w-5 items-center justify-center"
@@ -286,7 +283,7 @@ function MainPanel({
           </StaggerItem>
         )}
 
-        <footer className="shrink-0 border-t border-white/[0.06] px-5 py-3 text-center font-arcade text-[8px] text-white/25">
+        <footer className="shrink-0 px-5 py-3 text-center font-arcade text-[8px] text-white/25">
           <p>TAP OUTSIDE TO CLOSE</p>
           <p className="mt-1 text-white/20">© ARCADIA 2026</p>
         </footer>
@@ -460,18 +457,6 @@ function StaggerItem({ delay = 0, children }) {
   )
 }
 
-function DividerLabel({ children }) {
-  return (
-    <div className="my-4 flex items-center gap-3 px-5">
-      <div className="h-px flex-1 bg-white/[0.06]" />
-      <span className="font-arcade text-[9px] tracking-[0.3em] text-white/35">
-        {children}
-      </span>
-      <div className="h-px flex-1 bg-white/[0.06]" />
-    </div>
-  )
-}
-
 function NavLinkItem({ item, onClose }) {
   const location = useLocation()
   const isInternal = !item.onClick
@@ -480,18 +465,16 @@ function NavLinkItem({ item, onClose }) {
     (item.to === '/'
       ? location.pathname === '/'
       : location.pathname.startsWith(item.to))
-  const baseClass = `relative flex items-center gap-4 rounded-md px-5 py-3 font-arcade text-[11px] transition-all duration-200 ${
-    isActive
-      ? 'bg-white/[0.05] text-neon-green'
-      : 'text-white/80 hover:bg-white/[0.05] hover:text-neon-cyan'
+  // Hover and active states use a left-border indicator + colour
+  // shift only — no background fill — so the panel reads as a flowing
+  // list rather than discrete blocks.
+  const baseClass = `nav-link-item flex items-center gap-4 py-3 pr-5 font-arcade text-[11px] transition-colors duration-150 ${
+    isActive ? 'nav-link-item--active text-neon-green' : 'text-white/80'
   }`
 
   const IconComp = item.Icon
   const inner = (
     <>
-      {isActive && (
-        <span className="absolute inset-y-2 left-0 w-0.5 rounded-r bg-neon-green shadow-neon-green" />
-      )}
       <span
         className="inline-flex h-5 w-5 items-center justify-center"
         aria-hidden="true"
