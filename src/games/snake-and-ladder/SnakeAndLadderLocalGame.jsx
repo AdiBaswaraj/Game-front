@@ -43,7 +43,6 @@ export default function SnakeAndLadderLocalGame({
     active: winner == null,
     kind: 'single',
   })
-  const [log, setLog] = useState([])
   const [flash, setFlash] = useState(null)
   const [rollHistory, setRollHistory] = useState([])
   const [showDiceDebug, setShowDiceDebug] = useState(false)
@@ -67,10 +66,6 @@ export default function SnakeAndLadderLocalGame({
       setFlash({ square, kind, key: Date.now() })
       flashTimerRef.current = setTimeout(() => setFlash(null), 650)
     }, 16)
-  }, [])
-
-  const pushLog = useCallback((entry) => {
-    setLog((prev) => [...prev, entry].slice(-5))
   }, [])
 
   const isCpuTurn = cpuIndices.has(turnIdx) && winner == null && !animating
@@ -150,26 +145,9 @@ export default function SnakeAndLadderLocalGame({
     )
 
     if (stages.length === 0) {
-      pushLog({
-        playerIdx: idx,
-        name: players[idx],
-        text: `rolled a ${roll} — overshoot, stays on ${cur}`,
-      })
       setTurnIdx((idx + 1) % players.length)
       return
     }
-
-    const parts = [`rolled a ${roll}`]
-    for (const stage of stages) {
-      if (stage.kind === 'ladder') {
-        parts.push(`LADDER! ${stage.from}→${stage.at}`)
-      } else if (stage.kind === 'snake') {
-        const drop = stage.from - stage.at
-        const drama = drop >= 50 ? ' 😱' : ''
-        parts.push(`SNAKE! ${stage.from}→${stage.at}${drama}`)
-      }
-    }
-    pushLog({ playerIdx: idx, name: players[idx], text: parts.join(' → ') })
 
     let curSquare = cur
     for (let i = 0; i < stages.length; i++) {
@@ -201,7 +179,6 @@ export default function SnakeAndLadderLocalGame({
     animateMove,
     players,
     positions,
-    pushLog,
     slideAlong,
     triggerFlash,
     turnIdx,
@@ -225,25 +202,33 @@ export default function SnakeAndLadderLocalGame({
     setRolling(false)
     setAnimating(false)
     setWinner(null)
-    setLog([])
   }
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[auto_18rem]">
+    <div className="flex h-full flex-col gap-3 lg:grid lg:grid-cols-[auto_18rem] lg:gap-5">
       {showDiceDebug && (
         <DiceDistribution
           rollHistory={rollHistory}
           onClose={() => setShowDiceDebug(false)}
         />
       )}
-      <Board
-        positions={positions}
-        slides={slides}
-        winner={winner}
-        players={players}
-        cpuIndices={cpuIndices}
-        flash={flash}
-      />
+      <div className="flex shrink-0 flex-col items-center gap-2 lg:row-span-1">
+        <TurnBanner
+          players={players}
+          cpuIndices={cpuIndices}
+          turnIdx={turnIdx}
+          winner={winner}
+          animating={animating}
+        />
+        <Board
+          positions={positions}
+          slides={slides}
+          winner={winner}
+          players={players}
+          cpuIndices={cpuIndices}
+          flash={flash}
+        />
+      </div>
       <Sidebar
         players={players}
         cpuIndices={cpuIndices}
@@ -253,11 +238,40 @@ export default function SnakeAndLadderLocalGame({
         rolling={rolling}
         animating={animating}
         winner={winner}
-        log={log}
         onRoll={performRoll}
         onReset={reset}
       />
       {leaveModal}
+    </div>
+  )
+}
+
+function TurnBanner({ players, cpuIndices, turnIdx, winner, animating }) {
+  if (winner != null) return null
+  let label
+  let tone
+  if (animating) {
+    label = 'MOVING…'
+    tone = 'cyan'
+  } else if (turnIdx === 0) {
+    label = 'YOUR TURN'
+    tone = 'green'
+  } else {
+    const name = (players[turnIdx] ?? 'OPPONENT').toUpperCase()
+    label = cpuIndices.has(turnIdx) ? `${name}'S TURN · BOT` : `${name}'S TURN`
+    tone = 'dim'
+  }
+  const cls =
+    tone === 'green'
+      ? 'border-neon-green/70 bg-neon-green/10 text-neon-green shadow-neon-green'
+      : tone === 'cyan'
+        ? 'border-neon-cyan/60 bg-neon-cyan/10 text-neon-cyan'
+        : 'border-white/10 bg-arcadia-surface/60 text-white/55'
+  return (
+    <div
+      className={`inline-flex items-center justify-center rounded-md border px-3 py-1.5 font-arcade text-[10px] tracking-wider transition ${cls}`}
+    >
+      {label}
     </div>
   )
 }
@@ -469,47 +483,57 @@ function Sidebar({
   rolling,
   animating,
   winner,
-  log,
   onRoll,
   onReset,
 }) {
   const canRoll = winner == null && !rolling && !animating
   const cpu = cpuIndices.has(turnIdx)
   return (
-    <aside className="flex flex-col gap-3">
-      <div className="flex flex-col gap-2">
+    <aside className="flex shrink-0 flex-col gap-2 lg:gap-3">
+      {/* Player cards — horizontal on mobile so two players fit in
+          one row, vertical on desktop. */}
+      <div className="flex flex-row gap-2 lg:flex-col">
         {players.map((name, i) => {
           const onTurn = i === turnIdx && winner == null
           return (
             <div
               key={i}
-              className={`flex items-center gap-3 rounded-lg border bg-arcadia-surface/70 px-3 py-2 ${
-                onTurn ? 'border-neon-green/50 shadow-neon-green' : 'border-white/10'
+              className={`flex flex-1 items-center gap-2 rounded-lg border bg-arcadia-surface/70 px-2 py-1.5 lg:gap-3 lg:px-3 lg:py-2 ${
+                onTurn
+                  ? 'border-neon-green/60 shadow-neon-green'
+                  : 'border-white/10'
               }`}
             >
-              <Avatar name={name} size="md" />
+              <span
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full lg:hidden"
+                style={{
+                  backgroundColor: TOKEN_COLORS[i % TOKEN_COLORS.length],
+                }}
+              />
+              <span className="hidden lg:inline-flex">
+                <Avatar name={name} size="md" />
+              </span>
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1.5 truncate font-arcade text-[10px] text-white">
-                  <span>{name}</span>
+                <p className="flex items-center gap-1 truncate font-arcade text-[9px] leading-tight text-white lg:text-[10px]">
+                  <span className="truncate">{name}</span>
                   {cpuIndices.has(i) && (
                     <span
-                      className="inline-flex items-center gap-1 text-neon-cyan/80"
+                      className="inline-flex shrink-0 items-center gap-0.5 text-neon-cyan/80"
                       title="Bot"
                     >
-                      <RobotIcon size={12} />
-                      <span className="text-[9px]">BOT</span>
+                      <RobotIcon size={11} />
                     </span>
                   )}
                 </p>
                 <p
-                  className="font-arcade text-[9px]"
+                  className="font-arcade text-[8px] leading-tight lg:text-[9px]"
                   style={{ color: TOKEN_COLORS[i % TOKEN_COLORS.length] }}
                 >
-                  SQUARE {positions[i]}
+                  SQ {positions[i]}
                 </p>
               </div>
               {onTurn && (
-                <span className="font-arcade text-[9px] text-neon-green">
+                <span className="font-arcade text-[8px] text-neon-green lg:text-[9px]">
                   TURN
                 </span>
               )}
@@ -518,16 +542,17 @@ function Sidebar({
         })}
       </div>
 
-      <div className="rounded-lg border border-white/10 bg-arcadia-surface/70 p-4 text-center">
-        <p className="font-arcade text-[9px] text-white/45">DICE</p>
-        <p className="my-2 text-6xl text-neon-green drop-shadow-[0_0_12px_rgba(0,255,136,0.45)]">
+      {/* Dice row — horizontal on mobile so dice face + ROLL fit on
+          one line, vertical on desktop. */}
+      <div className="flex shrink-0 items-stretch gap-2 rounded-lg border border-white/10 bg-arcadia-surface/70 p-2 lg:flex-col lg:p-4 lg:text-center">
+        <div className="grid h-14 w-14 shrink-0 place-items-center rounded-md bg-arcadia-bg text-4xl text-neon-green drop-shadow-[0_0_10px_rgba(0,255,136,0.45)] lg:my-2 lg:h-auto lg:w-auto lg:bg-transparent lg:text-6xl">
           {diceFace ? DICE_FACES[diceFace - 1] : '·'}
-        </p>
+        </div>
         <button
           type="button"
           onClick={onRoll}
           disabled={!canRoll || cpu}
-          className={`mt-2 w-full rounded-md border-2 py-2.5 font-arcade text-[11px] transition ${
+          className={`flex-1 rounded-md border-2 px-3 py-2 font-arcade text-[11px] transition ${
             canRoll && !cpu
               ? 'border-neon-green/70 bg-neon-green/10 text-neon-green hover:bg-neon-green/20 hover:shadow-neon-green'
               : 'cursor-not-allowed border-white/15 text-white/35'
@@ -539,31 +564,8 @@ function Sidebar({
               ? 'ROLLING…'
               : cpu
                 ? 'BOT THINKING…'
-                : `🎲 ROLL — ${players[turnIdx]}`}
+                : '🎲 ROLL DICE'}
         </button>
-      </div>
-
-      <div className="rounded-md border border-white/10 bg-arcadia-bg/60 p-2">
-        <p className="font-arcade text-[9px] text-white/45">LOG</p>
-        <div className="mt-1 max-h-32 space-y-0.5 overflow-y-auto font-mono text-[10px] leading-relaxed">
-          {log.length === 0 ? (
-            <p className="text-white/30">First roll up to {players[turnIdx]}.</p>
-          ) : (
-            log.map((e, i) => (
-              <div key={i} className="flex items-start gap-1.5">
-                <span
-                  style={{
-                    color: TOKEN_COLORS[e.playerIdx % TOKEN_COLORS.length],
-                  }}
-                >
-                  ●
-                </span>
-                <span className="text-white">{e.name}</span>
-                <span className="text-white/70">{e.text}</span>
-              </div>
-            ))
-          )}
-        </div>
       </div>
 
       {winner != null && (

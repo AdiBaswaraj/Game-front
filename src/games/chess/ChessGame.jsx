@@ -270,26 +270,28 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const { width: vw, height: vh } = useViewport()
   const { isFullscreen } = useFullscreen()
   const isDesktop = vw >= 768
-  // Mobile reservation = navbar (60) + opponent card (70) + your card
-  // (70) + controls row (50) + padding (30) = 280. Tightened so the
-  // board doesn't bleed past the viewport on narrow / Samsung phones.
-  // Desktop: board sits in the left 58% column with room for the
-  // right info panel and clocks above + below.
+  // The Chessboard is wrapped in a div with border-2 (4px) and p-1
+  // (8px), so 12px of horizontal overhead lands between the board
+  // wrapper and the chess squares themselves. The wrapper itself lives
+  // inside GameLayout's main with px-4 (32px) on mobile and px-8 (64px)
+  // on desktop. If we don't subtract both, the rightmost file gets
+  // clipped by the parent's overflow:hidden — which is exactly what
+  // was happening on iPhone-class viewports.
+  const BOARD_INNER_OVERHEAD = 12
   const pad = isFullscreen ? 8 : 16
   let boardSize
   if (isDesktop) {
-    const availW = Math.max(0, vw * 0.58 - pad * 2)
-    const availH = Math.max(
+    const layoutPad = isFullscreen ? 16 : 64
+    const availW = Math.max(
       0,
-      vh - (isFullscreen ? 120 : 200),
+      vw * 0.58 - pad * 2 - layoutPad - BOARD_INNER_OVERHEAD,
     )
+    const availH = Math.max(0, vh - (isFullscreen ? 120 : 200))
     boardSize = Math.max(260, Math.min(availW, availH, 640))
   } else {
-    const availW = Math.max(0, vw - 16) // 8px breathing room each side
-    const availH = Math.max(
-      0,
-      vh - (isFullscreen ? 200 : 280),
-    )
+    const layoutPad = isFullscreen ? 16 : 32
+    const availW = Math.max(0, vw - layoutPad - BOARD_INNER_OVERHEAD)
+    const availH = Math.max(0, vh - (isFullscreen ? 200 : 280))
     boardSize = Math.max(240, Math.min(availW, availH, 520))
   }
 
