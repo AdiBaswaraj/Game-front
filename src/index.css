@@ -61,6 +61,19 @@ body,
   font-family: var(--font-body);
 }
 
+/* Subtle ambient color washes on every page so the translucent navbar
+   has something to blur. On the Lobby this sits behind LobbyBackground
+   (which is opaque) so it's hidden; on every other page it shows the
+   navbar floating over coloured highlights instead of a flat black
+   block. */
+body {
+  background-image:
+    radial-gradient(ellipse 800px 380px at 15% -4%, rgba(112, 0, 255, 0.13) 0%, transparent 65%),
+    radial-gradient(ellipse 700px 360px at 85% 4%, rgba(0, 212, 255, 0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 700px 420px at 50% 100%, rgba(0, 255, 136, 0.06) 0%, transparent 60%);
+  background-attachment: fixed;
+}
+
 /* Pinch + double-tap zoom safety net for the whole app. The viewport
    meta locks the initial scale, but on iOS Safari the meta isn't
    always honoured for double-tap; touch-action: manipulation drops

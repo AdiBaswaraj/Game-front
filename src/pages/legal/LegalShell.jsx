@@ -1,31 +1,9 @@
-import { Link } from 'react-router-dom'
 import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 
 export default function LegalShell({ title, lastUpdated, children }) {
   useDocumentTitle(title)
   return (
     <div className="relative min-h-screen text-white" style={{ paddingTop: 60 }}>
-      <header
-        className="sticky top-[60px] z-30 border-b border-white/[0.06]"
-        style={{
-          background: 'rgba(5, 5, 8, 0.85)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
-      >
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-4 md:px-8">
-          <Link
-            to="/"
-            className="flex items-center gap-2 font-arcade text-[10px] text-neon-cyan transition hover:text-neon-green md:text-xs"
-          >
-            <span aria-hidden="true">◀</span> BACK TO LOBBY
-          </Link>
-          <span className="neon-text font-arcade text-[10px] text-neon-green md:text-xs">
-            ★ ARCADIA
-          </span>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-[680px] px-4 py-10 md:px-6 md:py-16">
         <article
           className="glass-panel pixel-corners pixel-corners-cyan p-6 md:p-10"

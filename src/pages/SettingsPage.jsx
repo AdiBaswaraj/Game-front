@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
-import { GearIcon } from '../assets/icons/index.jsx'
 
 const SOUND_KEY = 'arcadia:soundEnabled'
 
@@ -21,23 +20,6 @@ export default function SettingsPage() {
 
   return (
     <div className="relative min-h-screen text-white" style={{ paddingTop: 60 }}>
-      <header className="sticky top-[60px] z-30 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md">
-        <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-4 py-4 md:px-8">
-          <Link
-            to="/"
-            className="flex items-center gap-2 justify-self-start font-arcade text-[10px] text-neon-cyan transition hover:text-neon-green md:text-xs"
-          >
-            <span aria-hidden="true">◀</span>
-            LOBBY
-          </Link>
-          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <GearIcon size={22} aria-hidden="true" />
-            <span>SETTINGS</span>
-          </h1>
-          <span className="justify-self-end" />
-        </div>
-      </header>
-
       <main className="mx-auto max-w-2xl space-y-6 px-4 py-10 md:px-8 md:py-14">
         <section className="rounded-xl border border-white/10 bg-arcadia-surface/60 p-5">
           <h2 className="font-arcade text-xs text-neon-cyan">ACCOUNT</h2>

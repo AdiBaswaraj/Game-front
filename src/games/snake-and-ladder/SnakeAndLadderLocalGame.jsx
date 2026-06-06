@@ -15,13 +15,15 @@ import {
   SNAKES,
   computeStages,
   pathBetween,
-  squareCenter,
   squareToCell,
 } from './board'
+import { LadderShape, SnakeShape, computeSlidePath } from './shapes'
 
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
 const TOKEN_COLORS = ['#00ff88', '#ff006e', '#00d4ff', '#ffaa00']
-const STEP_MS = 200
+const STEP_MS = 150
+const SNAKE_SLIDE_MS = 800
+const LADDER_CLIMB_MS = 600
 const CPU_THINK_MS = 700
 
 export default function SnakeAndLadderLocalGame({
@@ -30,6 +32,7 @@ export default function SnakeAndLadderLocalGame({
 }) {
   const players = playerNames
   const [positions, setPositions] = useState(() => players.map(() => 1))
+  const [slides, setSlides] = useState(() => players.map(() => null))
   const [turnIdx, setTurnIdx] = useState(0)
   const [diceFace, setDiceFace] = useState(null)
   const [rolling, setRolling] = useState(false)
@@ -91,6 +94,32 @@ export default function SnakeAndLadderLocalGame({
     [],
   )
 
+  // Bezier slide along a snake or ladder via CSS offset-path. Mirror
+  // of slideAlong in the multiplayer game.
+  const slideAlong = useCallback(async (idx, fromSq, toSq, kind) => {
+    const duration = kind === 'snake' ? SNAKE_SLIDE_MS : LADDER_CLIMB_MS
+    const easing = kind === 'snake' ? 'ease-in' : 'ease-out'
+    const key = `${kind}-${idx}-${Date.now()}`
+    setAnimating(true)
+    setSlides((prev) => {
+      const next = [...prev]
+      next[idx] = { fromSq, toSq, kind, key, duration, easing }
+      return next
+    })
+    await new Promise((res) => setTimeout(res, duration + 20))
+    setPositions((prev) => {
+      const next = [...prev]
+      next[idx] = toSq
+      return next
+    })
+    setSlides((prev) => {
+      const next = [...prev]
+      next[idx] = null
+      return next
+    })
+    setAnimating(false)
+  }, [])
+
   const performRoll = useCallback(async () => {
     if (winner != null || animating) return
     setRolling(true)
@@ -150,19 +179,14 @@ export default function SnakeAndLadderLocalGame({
         await animateMove(idx, curSquare, stage.at)
         if (stages.length > 1) {
           // eslint-disable-next-line no-await-in-loop
-          await new Promise((res) => setTimeout(res, 280))
+          await new Promise((res) => setTimeout(res, 300))
         }
       } else {
         triggerFlash(stage.from, stage.kind)
-        const dropSize = Math.abs(stage.from - stage.at)
-        const pauseMs =
-          stage.kind === 'snake'
-            ? 450 + Math.min(550, dropSize * 4)
-            : 450
         // eslint-disable-next-line no-await-in-loop
-        await new Promise((res) => setTimeout(res, pauseMs))
+        await new Promise((res) => setTimeout(res, 380))
         // eslint-disable-next-line no-await-in-loop
-        await animateMove(idx, curSquare, stage.at)
+        await slideAlong(idx, stage.from, stage.at, stage.kind)
       }
       curSquare = stage.at
     }
@@ -178,6 +202,7 @@ export default function SnakeAndLadderLocalGame({
     players,
     positions,
     pushLog,
+    slideAlong,
     triggerFlash,
     turnIdx,
     winner,
@@ -194,6 +219,7 @@ export default function SnakeAndLadderLocalGame({
 
   const reset = () => {
     setPositions(players.map(() => 1))
+    setSlides(players.map(() => null))
     setTurnIdx(0)
     setDiceFace(null)
     setRolling(false)
@@ -212,8 +238,10 @@ export default function SnakeAndLadderLocalGame({
       )}
       <Board
         positions={positions}
+        slides={slides}
         winner={winner}
         players={players}
+        cpuIndices={cpuIndices}
         flash={flash}
       />
       <Sidebar
@@ -234,7 +262,7 @@ export default function SnakeAndLadderLocalGame({
   )
 }
 
-function Board({ positions, winner, players, flash }) {
+function Board({ positions, slides = [], winner, players, cpuIndices, flash }) {
   const cells = []
   for (let row = 0; row < SIZE; row++) {
     for (let col = 0; col < SIZE; col++) {
@@ -248,8 +276,24 @@ function Board({ positions, winner, players, flash }) {
   }
   const VIRTUAL = SIZE * 60
 
+  // Track the rendered board pixel size so the Token slide animation
+  // can compute its offset-path in real pixel coordinates.
+  const boardRef = useRef(null)
+  const [boardPx, setBoardPx] = useState(560)
+  useEffect(() => {
+    const el = boardRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver((entries) => {
+      const rect = entries[0]?.contentRect
+      if (rect && rect.width > 0) setBoardPx(rect.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   return (
     <div
+      ref={boardRef}
       className="relative w-full max-w-[640px] self-start rounded-xl border-2 border-neon-cyan/50 bg-arcadia-surface p-2 shadow-neon-cyan"
       style={{ aspectRatio: '1/1' }}
     >
@@ -304,50 +348,22 @@ function Board({ positions, winner, players, flash }) {
         className="pointer-events-none absolute inset-2"
         aria-hidden="true"
       >
-        <defs>
-          <marker id="ladderArrowL" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M0 0 L6 3 L0 6 z" fill="#00ff88" />
-          </marker>
-          <marker id="snakeArrowL" viewBox="0 0 6 6" refX="3" refY="3" markerWidth="6" markerHeight="6" orient="auto">
-            <path d="M0 0 L6 3 L0 6 z" fill="#ff006e" />
-          </marker>
-        </defs>
-        {Object.entries(LADDERS).map(([from, to]) => {
-          const a = squareCenter(Number(from), VIRTUAL / SIZE)
-          const b = squareCenter(Number(to), VIRTUAL / SIZE)
-          if (!a || !b) return null
-          const cx = (a.x + b.x) / 2 - 18
-          const cy = (a.y + b.y) / 2 - 8
-          return (
-            <path
-              key={`L${from}`}
-              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
-              stroke="#00ff88"
-              strokeWidth="3.5"
-              strokeOpacity="0.75"
-              fill="none"
-              markerEnd="url(#ladderArrowL)"
-            />
-          )
-        })}
-        {Object.entries(SNAKES).map(([from, to]) => {
-          const a = squareCenter(Number(from), VIRTUAL / SIZE)
-          const b = squareCenter(Number(to), VIRTUAL / SIZE)
-          if (!a || !b) return null
-          const cx = (a.x + b.x) / 2 + 22
-          const cy = (a.y + b.y) / 2 + 8
-          return (
-            <path
-              key={`S${from}`}
-              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
-              stroke="#ff006e"
-              strokeWidth="3.5"
-              strokeOpacity="0.75"
-              fill="none"
-              markerEnd="url(#snakeArrowL)"
-            />
-          )
-        })}
+        {Object.entries(LADDERS).map(([from, to]) => (
+          <LadderShape
+            key={`L${from}`}
+            from={Number(from)}
+            to={Number(to)}
+            unit={VIRTUAL / SIZE}
+          />
+        ))}
+        {Object.entries(SNAKES).map(([from, to]) => (
+          <SnakeShape
+            key={`S${from}`}
+            from={Number(from)}
+            to={Number(to)}
+            unit={VIRTUAL / SIZE}
+          />
+        ))}
       </svg>
 
       {players.map((_, i) => (
@@ -356,6 +372,8 @@ function Board({ positions, winner, players, flash }) {
           position={positions[i]}
           color={TOKEN_COLORS[i % TOKEN_COLORS.length]}
           offset={i}
+          slide={slides[i]}
+          boardSize={boardPx}
         />
       ))}
 
@@ -389,7 +407,7 @@ function Board({ positions, winner, players, flash }) {
   )
 }
 
-function Token({ position, color, offset }) {
+function Token({ position, color, offset, slide, boardSize = 560 }) {
   const cell = squareToCell(position)
   if (!cell) return null
   // Spread up to four tokens around a square
@@ -400,9 +418,37 @@ function Token({ position, color, offset }) {
     { dx: 10, dy: 8 },
   ]
   const o = corners[offset % corners.length]
+
+  if (slide) {
+    const sp = computeSlidePath({
+      fromSq: slide.fromSq,
+      toSq: slide.toSq,
+      boardSize,
+      kind: slide.kind,
+    })
+    if (sp) {
+      return (
+        <span
+          key={slide.key}
+          className="absolute z-10 grid h-5 w-5 place-items-center rounded-full sm:h-6 sm:w-6"
+          style={{
+            backgroundColor: color,
+            boxShadow: `0 0 14px ${color}80, inset 0 0 4px rgba(0,0,0,0.45)`,
+            left: `${sp.sx + o.dx}px`,
+            top: `${sp.sy + o.dy}px`,
+            transform: 'translate(-50%, -50%)',
+            offsetPath: sp.path,
+            offsetDistance: '0%',
+            animation: `sl-slide-along ${slide.duration}ms ${slide.easing} forwards`,
+          }}
+        />
+      )
+    }
+  }
+
   return (
     <span
-      className="absolute z-10 grid h-5 w-5 place-items-center rounded-full transition-all duration-200 sm:h-6 sm:w-6"
+      className="absolute z-10 grid h-5 w-5 place-items-center rounded-full transition-all duration-150 sm:h-6 sm:w-6"
       style={{
         backgroundColor: color,
         boxShadow: `0 0 14px ${color}80, inset 0 0 4px rgba(0,0,0,0.45)`,

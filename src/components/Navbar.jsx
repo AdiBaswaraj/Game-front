@@ -27,10 +27,10 @@ export default function Navbar() {
     <header
       className="fixed inset-x-0 top-0 z-[100]"
       style={{
-        background: 'rgba(4, 4, 7, 0.85)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(0, 255, 136, 0.08)',
+        background: 'rgba(4, 4, 7, 0.55)',
+        backdropFilter: 'blur(24px) saturate(140%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(140%)',
+        borderBottom: '1px solid rgba(0, 255, 136, 0.10)',
       }}
     >
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-8">
