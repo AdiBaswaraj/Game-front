@@ -1,18 +1,25 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
 import { useToast } from '../../context/ToastContext'
 import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
+import { useViewport } from '../../hooks/useViewport'
 import LandscapeHint from '../../components/LandscapeHint'
 import { postScore } from '../../lib/api'
 import GameOverPanel from '../../components/GameOverPanel'
 
 const DIFFICULTIES = {
-  easy: { rows: 9, cols: 9, mines: 10, label: 'EASY', cell: 32 },
-  medium: { rows: 16, cols: 16, mines: 40, label: 'MEDIUM', cell: 26 },
-  hard: { rows: 16, cols: 30, mines: 99, label: 'HARD', cell: 22 },
+  easy: { rows: 9, cols: 9, mines: 10, label: 'EASY' },
+  medium: { rows: 16, cols: 16, mines: 40, label: 'MEDIUM' },
+  hard: { rows: 16, cols: 30, mines: 99, label: 'HARD' },
 }
+
+const CELL_MIN = 16
+const CELL_MAX = 36
+// Breathing room below the board so the "left click / right click"
+// hint and result panel never push the bottom of the grid off-screen.
+const BOARD_BOTTOM_RESERVE = 90
 
 const NUM_COLORS = [
   '',
@@ -121,6 +128,41 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
   const [time, setTime] = useState(0)
   const [flagMode, setFlagMode] = useState(false)
   const startTimeRef = useRef(null)
+
+  // Dynamic cell sizing — fits the board to the visible viewport so
+  // hard mode in particular doesn't need horizontal scrolling. We
+  // measure the outer flex container's width (which spans the main
+  // content area) instead of the board wrapper itself, since the
+  // wrapper's width is derived from cellSize and would create a
+  // measurement feedback loop.
+  const outerRef = useRef(null)
+  const panelRef = useRef(null)
+  const { width: vw, height: vh } = useViewport()
+  const [cellSize, setCellSize] = useState(28)
+
+  useLayoutEffect(() => {
+    const outer = outerRef.current
+    const panel = panelRef.current
+    if (!outer || !panel) return
+    // Reserve panel border (2px) + padding (12px each side) so the
+    // board interior gets the remaining width.
+    const PANEL_PAD = 28
+    const availW = Math.max(0, outer.clientWidth - PANEL_PAD)
+    const panelRect = panel.getBoundingClientRect()
+    // Counter row sits inside the panel above the board. Estimate its
+    // height conservatively (44px counters + margin) so the board can
+    // fit below it.
+    const COUNTERS_H = 60
+    const availH = Math.max(
+      0,
+      vh - panelRect.top - PANEL_PAD - COUNTERS_H - BOARD_BOTTOM_RESERVE,
+    )
+    const fromW = Math.floor(availW / cfg.cols)
+    const fromH = Math.floor(availH / cfg.rows)
+    const raw = Math.min(fromW, fromH)
+    const clamped = Math.max(CELL_MIN, Math.min(CELL_MAX, raw))
+    if (Number.isFinite(clamped) && clamped > 0) setCellSize(clamped)
+  }, [vw, vh, cfg.rows, cfg.cols])
 
   const newGame = useCallback(() => {
     setBoard(makeBoard(cfg.rows, cfg.cols))
@@ -254,14 +296,17 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
   }
 
   return (
-    <div className="flex flex-col items-center gap-6">
+    <div ref={outerRef} className="flex w-full flex-col items-center gap-6">
       {diff === 'hard' && (
         <LandscapeHint
           keyName="minesweeper-hard"
           message="Hard board fits better in landscape"
         />
       )}
-      <div className="rounded-lg border-2 border-neon-green/60 bg-arcadia-surface p-3 shadow-neon-green">
+      <div
+        ref={panelRef}
+        className="rounded-lg border-2 border-neon-green/60 bg-arcadia-surface p-3 shadow-neon-green"
+      >
         <div className="mb-3 flex items-center justify-between gap-4">
           <Counter
             value={Math.max(-99, flagsLeft).toString().padStart(3, '0')}
@@ -291,10 +336,19 @@ export default function MinesweeperGame({ difficulty = 'easy' }) {
           />
         </div>
 
-        <div className="overflow-x-auto">
+        <div
+          className="flex justify-center"
+          style={{
+            width: cfg.cols * cellSize,
+            height: cfg.rows * cellSize,
+            overflow: 'hidden',
+            touchAction: 'none',
+          }}
+        >
           <Board
             board={board}
             cfg={cfg}
+            cellSize={cellSize}
             onCellClick={handleCellClick}
             onCellContext={handleCellContext}
           />
@@ -330,13 +384,14 @@ function Counter({ value, color, label }) {
   )
 }
 
-function Board({ board, cfg, onCellClick, onCellContext }) {
+function Board({ board, cfg, cellSize, onCellClick, onCellContext }) {
   return (
     <div
-      className="grid select-none gap-px bg-white/10"
+      className="grid select-none bg-white/10"
       style={{
-        gridTemplateColumns: `repeat(${cfg.cols}, ${cfg.cell}px)`,
-        gridTemplateRows: `repeat(${cfg.rows}, ${cfg.cell}px)`,
+        gridTemplateColumns: `repeat(${cfg.cols}, ${cellSize}px)`,
+        gridTemplateRows: `repeat(${cfg.rows}, ${cellSize}px)`,
+        touchAction: 'none',
       }}
       role="grid"
       aria-label="Minesweeper board"
@@ -346,7 +401,7 @@ function Board({ board, cfg, onCellClick, onCellContext }) {
           <Cell
             key={`${r},${c}`}
             cell={cell}
-            size={cfg.cell}
+            size={cellSize}
             onClick={() => onCellClick(r, c)}
             onContextMenu={(e) => onCellContext(e, r, c)}
           />
@@ -358,7 +413,18 @@ function Board({ board, cfg, onCellClick, onCellContext }) {
 
 function Cell({ cell, size, onClick, onContextMenu }) {
   const base = 'flex items-center justify-center font-arcade transition'
-  const fontSize = size <= 22 ? 'text-[11px]' : size <= 26 ? 'text-xs' : 'text-sm'
+  const fontSize =
+    size <= 18
+      ? 'text-[9px]'
+      : size <= 22
+        ? 'text-[11px]'
+        : size <= 26
+          ? 'text-xs'
+          : 'text-sm'
+  // Subtle inset right+bottom gridline so cells don't visually merge
+  // when several reveal at once — keeps the grid container at the exact
+  // cols*cellSize so overflow:hidden never clips a column.
+  const gridLine = 'inset -1px -1px 0 rgba(255,255,255,0.06)'
 
   if (cell.revealed) {
     if (cell.isMine) {
@@ -367,13 +433,17 @@ function Cell({ cell, size, onClick, onContextMenu }) {
           className={`${base} ${
             cell.triggered ? 'bg-neon-pink/40' : 'bg-arcadia-bg'
           }`}
+          style={{ boxShadow: gridLine }}
         >
           💣
         </div>
       )
     }
     return (
-      <div className={`${base} bg-arcadia-bg ${fontSize} ${NUM_COLORS[cell.adjacent] ?? ''}`}>
+      <div
+        className={`${base} bg-arcadia-bg ${fontSize} ${NUM_COLORS[cell.adjacent] ?? ''}`}
+        style={{ boxShadow: gridLine }}
+      >
         {cell.adjacent || ''}
       </div>
     )
@@ -384,6 +454,7 @@ function Cell({ cell, size, onClick, onContextMenu }) {
       onClick={onClick}
       onContextMenu={onContextMenu}
       className={`${base} ${fontSize} cursor-pointer bg-arcadia-surface text-neon-pink transition hover:bg-white/5`}
+      style={{ boxShadow: gridLine, touchAction: 'none' }}
       aria-label={cell.flagged ? 'Flagged' : 'Hidden cell'}
     >
       {cell.flagged ? '🚩' : ''}
