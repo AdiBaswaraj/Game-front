@@ -8,13 +8,50 @@ async function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+// Fetch with bounded retries on network errors and 5xx. Used by the
+// room create / lookup endpoints — a single dropped TCP connection
+// (common on flaky carrier networks) used to surface as "failed to
+// create room" with no way out except refresh. Each attempt has its
+// own AbortController so a hung TCP socket can't eat the full retry
+// budget waiting for the browser's ~minute-long default timeout.
+async function fetchWithRetry(
+  url,
+  init,
+  { retries = 2, backoffMs = 600, perAttemptTimeoutMs = 6000 } = {},
+) {
+  let lastErr
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const ctrl = new AbortController()
+    const t = setTimeout(() => ctrl.abort(), perAttemptTimeoutMs)
+    try {
+      const res = await fetch(url, { ...init, signal: ctrl.signal })
+      clearTimeout(t)
+      // Retry transient 5xx; surface 4xx straight to the caller so the
+      // UI can show "room not found" / "auth required" etc.
+      if (res.status >= 500 && attempt < retries) {
+        await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)))
+        continue
+      }
+      return res
+    } catch (err) {
+      clearTimeout(t)
+      lastErr = err
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, backoffMs * (attempt + 1)))
+        continue
+      }
+    }
+  }
+  throw lastErr ?? new Error('Network error')
+}
+
 async function jsonFetch(url, init = {}) {
   const headers = {
     'Content-Type': 'application/json',
     ...(init.headers || {}),
     ...(await authHeaders()),
   }
-  const res = await fetch(url, { ...init, headers })
+  const res = await fetchWithRetry(url, { ...init, headers })
   if (!res.ok) {
     const text = await res.text().catch(() => '')
     console.error(`[api] ${init.method ?? 'GET'} ${url} failed`, res.status, text)
@@ -176,7 +213,7 @@ export async function createRoom({ gameId, username }) {
 
   let response
   try {
-    response = await fetch(url, {
+    response = await fetchWithRetry(url, {
       method: 'POST',
       headers,
       body: JSON.stringify({ gameId, username }),

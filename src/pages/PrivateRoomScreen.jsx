@@ -149,9 +149,13 @@ function CreateTab({ gameId, username, userId }) {
     }
   }, [])
 
-  // Single create attempt with an 8-second deadline. The timeout
-  // captures the in-flight request so a slow backend doesn't strand
-  // the player on the CREATING ROOM… spinner forever.
+  // Single create attempt with an 18-second deadline. The fetch inside
+  // createRoom now retries up to twice on its own (network errors +
+  // 5xx with linear backoff), so this top-level deadline needs enough
+  // headroom for those retries to land on slow connections — the
+  // previous 8s was firing before the second internal attempt even
+  // returned. The timeout still guards against a backend that hangs
+  // indefinitely without erroring.
   const attemptCreate = useCallback(() => {
     if (!username) return
     if (requestedRef.current) return
@@ -165,7 +169,7 @@ function CreateTab({ gameId, username, userId }) {
       requestedRef.current = false
       setIsCreating(false)
       setError('Room creation timed out. Please try again.')
-    }, 8000)
+    }, 18000)
 
     console.log('[room] CreateTab calling createRoom', { gameId, username })
     createRoom({ gameId, username })
