@@ -27,7 +27,9 @@ import {
 
 const DICE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅']
 const TOKEN_COLORS = ['#00ff88', '#ff006e']
-const STEP_MS = 220
+const STEP_MS = 150
+const SNAKE_SLIDE_MS = 800
+const LADDER_CLIMB_MS = 600
 
 function pick(o, ...keys) {
   for (const k of keys) {
@@ -114,6 +116,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
   useArmGameOverFlash(winner != null)
   const [reconnecting, setReconnecting] = useState(false)
   const [flash, setFlash] = useState(null) // { square, kind, key }
+  const [slides, setSlides] = useState([null, null]) // per token
   const [log, setLog] = useState([])
   const [rollHistory, setRollHistory] = useState([])
   const [showDiceDebug, setShowDiceDebug] = useState(false)
@@ -223,6 +226,37 @@ export default function SnakeAndLadderGame({ roomCode }) {
     setAnimating(false)
   }, [])
 
+  // Bezier slide along a snake or ladder. Sets a per-token slide
+  // descriptor that the Token reads to set its CSS offset-path; once
+  // the animation duration elapses we update positions to the final
+  // square and clear the slide.
+  const slideAlong = useCallback(async (idx, fromSq, toSq, kind) => {
+    const duration = kind === 'snake' ? SNAKE_SLIDE_MS : LADDER_CLIMB_MS
+    const easing = kind === 'snake' ? 'ease-in' : 'ease-out'
+    const key = `${kind}-${idx}-${Date.now()}`
+    animatingRef.current = true
+    setAnimating(true)
+    setSlides((prev) => {
+      const next = [...prev]
+      next[idx] = { fromSq, toSq, kind, key, duration, easing }
+      return next
+    })
+    await new Promise((res) => setTimeout(res, duration + 20))
+    setPositions((prev) => {
+      const next = [...prev]
+      next[idx] = toSq
+      positionsRef.current = next
+      return next
+    })
+    setSlides((prev) => {
+      const next = [...prev]
+      next[idx] = null
+      return next
+    })
+    animatingRef.current = false
+    setAnimating(false)
+  }, [])
+
   const triggerFlash = useCallback((square, kind) => {
     if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
     // Clear first so re-flashing the same square re-runs the animation
@@ -280,22 +314,18 @@ export default function SnakeAndLadderGame({ roomCode }) {
             await new Promise((res) => setTimeout(res, 300))
           }
         } else {
-          // Flash the square the token currently sits on (the source of
-          // this snake/ladder), pause, then slide to the destination.
+          // Flash the square the token sits on (the trigger), brief
+          // pause for legibility, then slide along the snake/ladder
+          // bezier to the destination via CSS offset-path.
           triggerFlash(stage.from, stage.kind)
-          const dropSize = Math.abs(stage.from - stage.at)
-          const pauseMs =
-            stage.kind === 'snake'
-              ? 450 + Math.min(550, dropSize * 4)
-              : 450
           // eslint-disable-next-line no-await-in-loop
-          await new Promise((res) => setTimeout(res, pauseMs))
+          await new Promise((res) => setTimeout(res, 380))
           // eslint-disable-next-line no-await-in-loop
-          await animateMove(playerIdx, stage.at)
+          await slideAlong(playerIdx, stage.from, stage.at, stage.kind)
         }
       }
     },
-    [animateMove, pushLog, triggerFlash],
+    [animateMove, pushLog, slideAlong, triggerFlash],
   )
 
   // Socket handlers — depend only on stable identities so they don't
@@ -579,6 +609,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
         />
         <Board
           positions={positions}
+          slides={slides}
           winner={winner}
           myIdx={myIdx}
           signedIn={!!user}
@@ -645,7 +676,7 @@ function TurnBanner({ room, myIdx, turnIdx, myTurn, winner, animating }) {
   )
 }
 
-function Board({ positions, winner, myIdx, signedIn, room, flash, size = 560 }) {
+function Board({ positions, slides = [null, null], winner, myIdx, signedIn, room, flash, size = 560 }) {
   const cells = []
   for (let row = 0; row < SIZE; row++) {
     for (let col = 0; col < SIZE; col++) {
@@ -725,68 +756,22 @@ function Board({ positions, winner, myIdx, signedIn, room, flash, size = 560 }) 
         className="pointer-events-none absolute inset-2"
         aria-hidden="true"
       >
-        <defs>
-          <marker
-            id="ladderArrow"
-            viewBox="0 0 6 6"
-            refX="3"
-            refY="3"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto"
-          >
-            <path d="M0 0 L6 3 L0 6 z" fill="#00ff88" />
-          </marker>
-          <marker
-            id="snakeArrow"
-            viewBox="0 0 6 6"
-            refX="3"
-            refY="3"
-            markerWidth="6"
-            markerHeight="6"
-            orient="auto"
-          >
-            <path d="M0 0 L6 3 L0 6 z" fill="#ff006e" />
-          </marker>
-        </defs>
-        {Object.entries(LADDERS).map(([from, to]) => {
-          const a = squareCenter(Number(from), VIRTUAL / SIZE)
-          const b = squareCenter(Number(to), VIRTUAL / SIZE)
-          if (!a || !b) return null
-          // Bend toward the side opposite to the slope so multiple
-          // ladders/snakes don't overlap at shared endpoints (eg. 63).
-          const cx = (a.x + b.x) / 2 - 18
-          const cy = (a.y + b.y) / 2 - 8
-          return (
-            <path
-              key={`L${from}`}
-              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
-              stroke="#00ff88"
-              strokeWidth="3.5"
-              strokeOpacity="0.75"
-              fill="none"
-              markerEnd="url(#ladderArrow)"
-            />
-          )
-        })}
-        {Object.entries(SNAKES).map(([from, to]) => {
-          const a = squareCenter(Number(from), VIRTUAL / SIZE)
-          const b = squareCenter(Number(to), VIRTUAL / SIZE)
-          if (!a || !b) return null
-          const cx = (a.x + b.x) / 2 + 22
-          const cy = (a.y + b.y) / 2 + 8
-          return (
-            <path
-              key={`S${from}`}
-              d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
-              stroke="#ff006e"
-              strokeWidth="3.5"
-              strokeOpacity="0.75"
-              fill="none"
-              markerEnd="url(#snakeArrow)"
-            />
-          )
-        })}
+        {Object.entries(LADDERS).map(([from, to]) => (
+          <LadderShape
+            key={`L${from}`}
+            from={Number(from)}
+            to={Number(to)}
+            unit={VIRTUAL / SIZE}
+          />
+        ))}
+        {Object.entries(SNAKES).map(([from, to]) => (
+          <SnakeShape
+            key={`S${from}`}
+            from={Number(from)}
+            to={Number(to)}
+            unit={VIRTUAL / SIZE}
+          />
+        ))}
       </svg>
 
       {[0, 1].map((i) =>
@@ -796,6 +781,8 @@ function Board({ positions, winner, myIdx, signedIn, room, flash, size = 560 }) 
             position={positions[i]}
             color={TOKEN_COLORS[i]}
             offset={i}
+            slide={slides[i]}
+            boardSize={size}
           />
         ) : null,
       )}
@@ -834,14 +821,55 @@ function Board({ positions, winner, myIdx, signedIn, room, flash, size = 560 }) 
   )
 }
 
-function Token({ position, color, offset }) {
+function Token({ position, color, offset, slide, boardSize = 560 }) {
   const cell = squareToCell(position)
   if (!cell) return null
   const dx = offset === 0 ? -12 : 12
   const dy = offset === 0 ? -8 : 8
+
+  if (slide) {
+    const startCell = squareToCell(slide.fromSq)
+    const endCell = squareToCell(slide.toSq)
+    if (startCell && endCell) {
+      const unit = boardSize / SIZE
+      const sx = (startCell.col + 0.5) * unit
+      const sy = (startCell.row + 0.5) * unit
+      const ex = (endCell.col + 0.5) * unit
+      const ey = (endCell.row + 0.5) * unit
+      const ddx = ex - sx
+      const ddy = ey - sy
+      const len = Math.hypot(ddx, ddy) || 1
+      const px = -ddy / len
+      const py = ddx / len
+      // Match the SVG body's bend direction so the token tracks the
+      // drawn shape. Snakes lean further; ladders only barely.
+      const sign = slide.fromSq % 2 === 0 ? 1 : -1
+      const amp = slide.kind === 'snake' ? 32 : 14
+      const cpx = ddx / 2 + px * amp * sign
+      const cpy = ddy / 2 + py * amp * sign
+      const path = `path("M 0 0 Q ${cpx.toFixed(1)} ${cpy.toFixed(1)} ${ddx.toFixed(1)} ${ddy.toFixed(1)}")`
+      return (
+        <span
+          key={slide.key}
+          className="absolute z-10 grid h-5 w-5 place-items-center rounded-full sm:h-6 sm:w-6"
+          style={{
+            backgroundColor: color,
+            boxShadow: `0 0 14px ${color}80, inset 0 0 4px rgba(0,0,0,0.45)`,
+            left: `${sx + dx}px`,
+            top: `${sy + dy}px`,
+            transform: 'translate(-50%, -50%)',
+            offsetPath: path,
+            offsetDistance: '0%',
+            animation: `sl-slide-along ${slide.duration}ms ${slide.easing} forwards`,
+          }}
+        />
+      )
+    }
+  }
+
   return (
     <span
-      className="absolute z-10 grid h-5 w-5 place-items-center rounded-full transition-all duration-200 sm:h-6 sm:w-6"
+      className="absolute z-10 grid h-5 w-5 place-items-center rounded-full transition-all duration-150 sm:h-6 sm:w-6"
       style={{
         backgroundColor: color,
         boxShadow: `0 0 14px ${color}80, inset 0 0 4px rgba(0,0,0,0.45)`,
@@ -850,6 +878,184 @@ function Token({ position, color, offset }) {
         transform: 'translate(-50%, -50%)',
       }}
     />
+  )
+}
+
+// ----- snake & ladder shapes -----
+
+function bezierBend(a, b, perpAmp, sign) {
+  const ddx = b.x - a.x
+  const ddy = b.y - a.y
+  const len = Math.hypot(ddx, ddy) || 1
+  const px = -ddy / len
+  const py = ddx / len
+  return {
+    cx: (a.x + b.x) / 2 + px * perpAmp * sign,
+    cy: (a.y + b.y) / 2 + py * perpAmp * sign,
+  }
+}
+
+function bezierPoint(a, cp, b, t) {
+  const m = 1 - t
+  return {
+    x: m * m * a.x + 2 * m * t * cp.x + t * t * b.x,
+    y: m * m * a.y + 2 * m * t * cp.y + t * t * b.y,
+  }
+}
+
+function bezierTangent(a, cp, b, t) {
+  const x = 2 * (1 - t) * (cp.x - a.x) + 2 * t * (b.x - cp.x)
+  const y = 2 * (1 - t) * (cp.y - a.y) + 2 * t * (b.y - cp.y)
+  const len = Math.hypot(x, y) || 1
+  return { x: x / len, y: y / len }
+}
+
+function LadderShape({ from, to, unit }) {
+  const a = squareCenter(from, unit) // bottom anchor
+  const b = squareCenter(to, unit) // top
+  if (!a || !b) return null
+  const sign = from % 2 === 0 ? 1 : -1
+  const { cx, cy } = bezierBend(a, b, 10, sign)
+  const cp = { x: cx, y: cy }
+  const halfWidth = 8
+  const samples = 18
+  const pts = []
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples
+    const p = bezierPoint(a, cp, b, t)
+    const tg = bezierTangent(a, cp, b, t)
+    const n = { x: -tg.y, y: tg.x }
+    pts.push({
+      left: { x: p.x + n.x * halfWidth, y: p.y + n.y * halfWidth },
+      right: { x: p.x - n.x * halfWidth, y: p.y - n.y * halfWidth },
+    })
+  }
+  const leftRail = pts.map((p) => `${p.left.x.toFixed(2)},${p.left.y.toFixed(2)}`).join(' ')
+  const rightRail = pts.map((p) => `${p.right.x.toFixed(2)},${p.right.y.toFixed(2)}`).join(' ')
+  // Rungs roughly every 15 SVG units of arc length.
+  const rungs = []
+  let prev = pts[0]
+  let acc = 0
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i]
+    const midPrev = { x: (prev.left.x + prev.right.x) / 2, y: (prev.left.y + prev.right.y) / 2 }
+    const midNow = { x: (p.left.x + p.right.x) / 2, y: (p.left.y + p.right.y) / 2 }
+    acc += Math.hypot(midNow.x - midPrev.x, midNow.y - midPrev.y)
+    if (acc >= 18 && i > 0 && i < pts.length - 1) {
+      rungs.push(
+        <line
+          key={`r${i}`}
+          x1={p.left.x}
+          y1={p.left.y}
+          x2={p.right.x}
+          y2={p.right.y}
+          stroke="#ffd700"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          opacity="0.9"
+        />,
+      )
+      acc = 0
+    }
+    prev = p
+  }
+  return (
+    <g>
+      <polyline
+        points={leftRail}
+        stroke="#ffd700"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.95"
+        fill="none"
+      />
+      <polyline
+        points={rightRail}
+        stroke="#ffd700"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        opacity="0.95"
+        fill="none"
+      />
+      {rungs}
+      {/* top cap */}
+      <line
+        x1={pts[pts.length - 1].left.x}
+        y1={pts[pts.length - 1].left.y}
+        x2={pts[pts.length - 1].right.x}
+        y2={pts[pts.length - 1].right.y}
+        stroke="#ffea4d"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      {/* bottom anchors */}
+      <circle cx={pts[0].left.x} cy={pts[0].left.y} r="3" fill="#ffd700" />
+      <circle cx={pts[0].right.x} cy={pts[0].right.y} r="3" fill="#ffd700" />
+    </g>
+  )
+}
+
+function SnakeShape({ from, to, unit }) {
+  const a = squareCenter(from, unit) // head (high square)
+  const b = squareCenter(to, unit) // tail (low square)
+  if (!a || !b) return null
+  // Vary curve per snake: amplitude + side alternation.
+  const sign = from % 2 === 0 ? 1 : -1
+  const amp = 22 + (from % 4) * 6
+  const { cx, cy } = bezierBend(a, b, amp, sign)
+  const cp = { x: cx, y: cy }
+  // Head direction is the opposite of the start tangent (mouth faces
+  // away from the body), used to place eyes + tongue.
+  const startTg = bezierTangent(a, cp, b, 0)
+  const headDir = { x: -startTg.x, y: -startTg.y }
+  const perp = { x: -headDir.y, y: headDir.x }
+  const eye1 = { x: a.x + perp.x * 2.8, y: a.y + perp.y * 2.8 }
+  const eye2 = { x: a.x - perp.x * 2.8, y: a.y - perp.y * 2.8 }
+  const tongueBase = { x: a.x + headDir.x * 7, y: a.y + headDir.y * 7 }
+  const fork1 = {
+    x: tongueBase.x + (headDir.x + perp.x * 0.45) * 5,
+    y: tongueBase.y + (headDir.y + perp.y * 0.45) * 5,
+  }
+  const fork2 = {
+    x: tongueBase.x + (headDir.x - perp.x * 0.45) * 5,
+    y: tongueBase.y + (headDir.y - perp.y * 0.45) * 5,
+  }
+  return (
+    <g>
+      {/* Body — soft glow underneath, sharp stroke on top. */}
+      <path
+        d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
+        stroke="#ff006e"
+        strokeOpacity="0.25"
+        strokeWidth="10"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path
+        d={`M ${a.x} ${a.y} Q ${cx} ${cy} ${b.x} ${b.y}`}
+        stroke="#ff006e"
+        strokeWidth="6"
+        strokeLinecap="round"
+        fill="none"
+      />
+      {/* Tail point — small circle at b. */}
+      <circle cx={b.x} cy={b.y} r="2" fill="#ff006e" />
+      {/* Head — bigger circle, dark outline. */}
+      <circle cx={a.x} cy={a.y} r="7.5" fill="#ff006e" stroke="#1a0010" strokeWidth="1.5" />
+      {/* Eye dots. */}
+      <circle cx={eye1.x} cy={eye1.y} r="1.4" fill="#ffea4d" />
+      <circle cx={eye2.x} cy={eye2.y} r="1.4" fill="#ffea4d" />
+      {/* Forked tongue. */}
+      <path
+        d={`M ${a.x} ${a.y} L ${tongueBase.x} ${tongueBase.y} M ${tongueBase.x} ${tongueBase.y} L ${fork1.x} ${fork1.y} M ${tongueBase.x} ${tongueBase.y} L ${fork2.x} ${fork2.y}`}
+        stroke="#ff006e"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+        fill="none"
+      />
+    </g>
   )
 }
 

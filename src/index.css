@@ -343,6 +343,14 @@ body {
 }
 .sl-flash-ladder { animation: sl-flash-ladder 0.6s ease-out; }
 
+/* Token sliding along a quadratic bezier (offset-path is set inline,
+   so the same keyframe pair drives both snake and ladder transitions
+   — only the duration / easing differ at the call site). */
+@keyframes sl-slide-along {
+  from { offset-distance: 0%; }
+  to   { offset-distance: 100%; }
+}
+
 /* ===== Game-over overlays ===== */
 
 @keyframes go-overlay-in {
