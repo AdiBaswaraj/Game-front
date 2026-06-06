@@ -233,17 +233,48 @@ body {
 }
 .lb-slide-in { animation: lb-slide-in 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) both; animation-delay: 0.15s; }
 
-@keyframes mm-radar-pulse {
-  0% { transform: scale(0.15); opacity: 0.9; }
-  100% { transform: scale(1); opacity: 0; }
-}
-.mm-radar-pulse { animation: mm-radar-pulse 2.4s ease-out infinite; }
+/* ===== Quick Match radar ===== */
 
-@keyframes mm-radar-sweep {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+/* Phantom signal: fades up, lingers, fades down. Total duration must
+   match PHANTOM_TTL_MS in QuickMatchAnimation.jsx (1700ms). */
+@keyframes qm-phantom-cycle {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.55); }
+  18%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  80%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(0.9); }
 }
-.mm-radar-sweep { animation: mm-radar-sweep 3.2s linear infinite; transform-origin: center; }
+.qm-phantom {
+  animation: qm-phantom-cycle 1.7s ease-out forwards;
+}
+.qm-phantom-dot {
+  display: inline-block;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: rgba(0, 212, 255, 0.22);
+  border: 1.5px solid rgba(0, 212, 255, 0.85);
+  box-shadow:
+    0 0 10px rgba(0, 212, 255, 0.55),
+    inset 0 0 6px rgba(0, 212, 255, 0.45);
+}
+
+/* Centre beacon pulse — a slow breath on the green ring so it
+   doesn't read as static. */
+@keyframes qm-center-breath {
+  0%, 100% {
+    box-shadow:
+      0 0 0 0 rgba(0, 255, 136, 0.0),
+      0 0 14px rgba(0, 255, 136, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgba(0, 255, 136, 0.12),
+      0 0 22px rgba(0, 255, 136, 0.7);
+  }
+}
+.qm-center {
+  animation: qm-center-breath 2.4s ease-in-out infinite;
+}
 
 @keyframes mode-card-flash {
   0% { background-color: rgba(0, 255, 136, 0.25); transform: scale(0.97); }

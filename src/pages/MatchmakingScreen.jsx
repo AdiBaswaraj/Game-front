@@ -3,11 +3,11 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { socket } from '../lib/socket'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import QuickMatchAnimation from '../components/QuickMatchAnimation'
 import {
   ChessIcon,
   DoorIcon,
   SnakeLadderIcon,
-  SwordsIcon,
   WordPuzzleIcon,
 } from '../assets/icons/index.jsx'
 
@@ -213,16 +213,11 @@ function SearchingView({ you, queueSize, remaining, onCancel }) {
         SEARCHING FOR OPPONENT…
       </p>
 
-      <Radar>
-        <div className="text-center">
-          <p className="font-arcade text-[9px] text-white/45">YOU</p>
-          <p className="mt-1 max-w-[10rem] truncate font-arcade text-[12px] text-neon-green">
-            {you ?? 'Player'}
-          </p>
-        </div>
-      </Radar>
+      <div className="my-6">
+        <QuickMatchAnimation you={you} />
+      </div>
 
-      <div className="mt-2 flex items-center gap-3 rounded-md border border-neon-cyan/30 bg-neon-cyan/5 px-3 py-1.5">
+      <div className="flex items-center gap-3 rounded-md border border-neon-cyan/30 bg-neon-cyan/5 px-3 py-1.5">
         <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-neon-cyan shadow-neon-cyan" />
         <span className="font-arcade text-[10px] text-neon-cyan">
           {queueSize} {queueSize === 1 ? 'PLAYER' : 'PLAYERS'} IN QUEUE
@@ -296,35 +291,6 @@ function TimeoutView({ onRetry, onPrivateRoom }) {
           <DoorIcon size={12} aria-hidden="true" />
           <span>CREATE PRIVATE ROOM</span>
         </button>
-      </div>
-    </div>
-  )
-}
-
-function Radar({ children }) {
-  return (
-    <div className="relative my-8 grid h-56 w-56 place-items-center">
-      {[0, 800, 1600].map((delay, i) => (
-        <span
-          key={i}
-          className="mm-radar-pulse absolute inset-0 rounded-full border-2 border-neon-green/55"
-          style={{ animationDelay: `${delay}ms` }}
-        />
-      ))}
-      <span className="pointer-events-none absolute inset-2 rounded-full border border-white/5" />
-      <span className="pointer-events-none absolute inset-10 rounded-full border border-white/5" />
-      <span
-        className="mm-radar-sweep pointer-events-none absolute inset-0"
-        aria-hidden="true"
-      >
-        <span className="block h-full w-1/2 origin-right" style={{
-          background:
-            'linear-gradient(to right, transparent, rgba(0,255,136,0.35))',
-          clipPath: 'polygon(0 50%, 100% 0, 100% 100%)',
-        }} />
-      </span>
-      <div className="relative z-10 grid h-20 w-20 place-items-center rounded-full border-2 border-neon-green bg-arcadia-bg shadow-neon-green">
-        {children}
       </div>
     </div>
   )
