@@ -257,6 +257,23 @@ export default function SnakeAndLadderGame({ roomCode }) {
 
   // Socket handlers — depend only on stable identities so they don't
   // need to re-register on every state change.
+  //
+  // Every event that mutates the visible game (dice_result + state_sync)
+  // runs inside a serial promise chain. Without this, two events
+  // arriving in quick succession kick off two animations in parallel,
+  // animatingRef and positions get scrambled, and the player ends up
+  // seeing nothing happen until a manual refresh resyncs from the
+  // server. With the queue, events apply in arrival order and the
+  // winner overlay can't fire until the final move's animation has
+  // played out.
+  const queueRef = useRef(Promise.resolve())
+  const enqueue = useCallback((work) => {
+    queueRef.current = queueRef.current.then(work).catch((err) => {
+      console.error('[sl] queue error', err)
+    })
+    return queueRef.current
+  }, [])
+
   useEffect(() => {
     const onDiceResult = (data) => {
       const roll = pick(data, 'roll', 'value')
@@ -277,35 +294,36 @@ export default function SnakeAndLadderGame({ roomCode }) {
         'playerId',
       )
 
-      const room = roomRef.current
-      const playerIndex =
-        typeof movingIdent === 'number'
-          ? movingIdent
-          : (turnUserIdToIndex(room, movingIdent) ?? turnIdxRef.current)
-
+      // Dice face + history are fine to update synchronously — they
+      // don't fight the animation queue.
       if (typeof roll === 'number') setDiceFace(roll)
       const rollNum = typeof roll === 'number' ? roll : null
-      if (rollNum != null) {
-        const fromSquare = positionsRef.current[playerIndex] ?? 1
-        const player =
-          room?.players?.[playerIndex]?.userId ??
-          room?.players?.[playerIndex]?.user_id ??
-          room?.players?.[playerIndex]?.username ??
-          playerIndex
-        setRollHistory((prev) =>
-          [...prev, {
-            player,
-            roll: rollNum,
-            from: fromSquare,
-            final: newPosition,
-          }].slice(-30),
-        )
-      }
-      const playOut =
-        rollNum != null
-          ? playStages(playerIndex, rollNum, newPosition)
-          : animateMove(playerIndex, newPosition)
-      playOut.then(() => {
+
+      enqueue(async () => {
+        const room = roomRef.current
+        const playerIndex =
+          typeof movingIdent === 'number'
+            ? movingIdent
+            : (turnUserIdToIndex(room, movingIdent) ?? turnIdxRef.current)
+
+        if (rollNum != null) {
+          const fromSquare = positionsRef.current[playerIndex] ?? 1
+          const player =
+            room?.players?.[playerIndex]?.userId ??
+            room?.players?.[playerIndex]?.user_id ??
+            room?.players?.[playerIndex]?.username ??
+            playerIndex
+          setRollHistory((prev) =>
+            [
+              ...prev,
+              { player, roll: rollNum, from: fromSquare, final: newPosition },
+            ].slice(-30),
+          )
+          await playStages(playerIndex, rollNum, newPosition)
+        } else if (newPosition != null) {
+          await animateMove(playerIndex, newPosition)
+        }
+
         const nextIdx = turnUserIdToIndex(room, nextTurn)
         if (nextIdx != null) {
           turnIdxRef.current = nextIdx
@@ -317,7 +335,13 @@ export default function SnakeAndLadderGame({ roomCode }) {
         if (w != null) {
           const winnerIdx =
             typeof w === 'number' ? w : turnUserIdToIndex(room, w)
-          if (winnerIdx != null && winnerIdx >= 0) setWinner(winnerIdx)
+          if (winnerIdx != null && winnerIdx >= 0) {
+            // Hold the final board state visible for ~1.2s before
+            // dropping the winner overlay, so the player actually sees
+            // the winning move land on 100.
+            await new Promise((res) => setTimeout(res, 1200))
+            setWinner(winnerIdx)
+          }
         }
       })
     }
@@ -337,38 +361,50 @@ export default function SnakeAndLadderGame({ roomCode }) {
 
     const onStateSync = (data) => {
       console.log('[sl] state_sync', data)
-      const newPositions = pick(data, 'positions')
-      if (Array.isArray(newPositions) && newPositions.length >= 1) {
-        const arr = newPositions.slice(0, 2)
-        positionsRef.current = arr
-        setPositions(arr)
-      }
-      const gs = pick(data, 'gameState', 'game_state')
-      const currentTurn =
-        pick(data, 'currentTurn', 'current_turn') ??
-        pick(gs, 'currentTurn', 'current_turn')
-      const idx = turnUserIdToIndex(roomRef.current, currentTurn)
-      if (idx != null) {
-        turnIdxRef.current = idx
-        setTurnIdx(idx)
-      }
-      const dice = pick(data, 'diceResult', 'dice_result')
-      if (typeof dice === 'number') setDiceFace(dice)
-      const w = pick(data, 'winner', 'winnerId')
-      if (w != null) {
-        const winnerIdx =
-          typeof w === 'number' ? w : turnUserIdToIndex(roomRef.current, w)
-        if (winnerIdx != null && winnerIdx >= 0) setWinner(winnerIdx)
-      }
+      // State_sync joins the same queue as dice_result so it can never
+      // snap positions out from under an in-flight animation. The
+      // snapshot only writes through when it actually disagrees with
+      // the local state, so a no-op sync (e.g. server confirming a
+      // turn we already played) doesn't visibly twitch the board.
+      enqueue(async () => {
+        const newPositions = pick(data, 'positions')
+        if (Array.isArray(newPositions) && newPositions.length >= 1) {
+          const arr = newPositions.slice(0, 2)
+          const same =
+            positionsRef.current.length === arr.length &&
+            positionsRef.current.every((v, i) => v === arr[i])
+          if (!same) {
+            positionsRef.current = arr
+            setPositions(arr)
+          }
+        }
+        const gs = pick(data, 'gameState', 'game_state')
+        const currentTurn =
+          pick(data, 'currentTurn', 'current_turn') ??
+          pick(gs, 'currentTurn', 'current_turn')
+        const idx = turnUserIdToIndex(roomRef.current, currentTurn)
+        if (idx != null && idx !== turnIdxRef.current) {
+          turnIdxRef.current = idx
+          setTurnIdx(idx)
+        }
+        const dice = pick(data, 'diceResult', 'dice_result')
+        if (typeof dice === 'number') setDiceFace(dice)
+        const w = pick(data, 'winner', 'winnerId')
+        if (w != null) {
+          const winnerIdx =
+            typeof w === 'number'
+              ? w
+              : turnUserIdToIndex(roomRef.current, w)
+          if (winnerIdx != null && winnerIdx >= 0) setWinner(winnerIdx)
+        }
 
-      // Pre-populate the dice-distribution debug overlay from server's
-      // rollHistory if present. Empty array on game start is normal.
-      const history = pick(data, 'rollHistory', 'roll_history')
-      if (Array.isArray(history)) {
-        setRollHistory(history)
-      }
+        const history = pick(data, 'rollHistory', 'roll_history')
+        if (Array.isArray(history)) {
+          setRollHistory(history)
+        }
 
-      setReconnecting(false)
+        setReconnecting(false)
+      })
     }
 
     const onOpponentLeft = () => {
@@ -385,7 +421,7 @@ export default function SnakeAndLadderGame({ roomCode }) {
       socket.off('state_sync', onStateSync)
       socket.off('opponent_left', onOpponentLeft)
     }
-  }, [animateMove, playStages, toast])
+  }, [animateMove, enqueue, playStages, toast])
 
   // D key toggles a debug dice distribution overlay
   useEffect(() => {

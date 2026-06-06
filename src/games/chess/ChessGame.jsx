@@ -173,6 +173,19 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   myColorRef.current = myColor
   userIdRef.current = user?.id ?? null
   const [result, setResult] = useState(null) // {winner: 'w'|'b'|'draw', reason}
+  // Reveal the full-screen ResultPanel a beat AFTER the game ends so
+  // the player actually sees the final move / checkmate land on the
+  // board. `result` itself still flips immediately so move input,
+  // clocks, and the leave-guard treat the game as finished right away.
+  const [resultShown, setResultShown] = useState(false)
+  useEffect(() => {
+    if (!result) {
+      setResultShown(false)
+      return
+    }
+    const t = setTimeout(() => setResultShown(true), 1300)
+    return () => clearTimeout(t)
+  }, [result])
   useArmGameOverFlash(!!result)
   const [error, setError] = useState(null)
   // boardSize now derived from viewport; containerRef no longer needed
@@ -1479,7 +1492,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         )}
 
 
-        {result && (
+        {result && resultShown && (
           <ResultPanel
             result={result}
             myColor={myColor}
