@@ -54,7 +54,7 @@ export default function LeaderboardPage() {
     : game.name.toUpperCase()
 
   return (
-    <div className="relative min-h-screen bg-arcadia-bg text-white">
+    <div className="relative min-h-screen bg-arcadia-bg text-white" style={{ paddingTop: 60 }}>
       <header className="sticky top-[60px] z-30 border-b border-neon-green/30 bg-arcadia-bg/85 shadow-[0_1px_0_0_rgba(0,255,136,0.2)] backdrop-blur-md">
         <div className="mx-auto grid max-w-7xl grid-cols-[1fr_auto_1fr] items-center px-4 py-4 md:px-8">
           <Link

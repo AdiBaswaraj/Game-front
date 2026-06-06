@@ -4,7 +4,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle'
 export default function LegalShell({ title, lastUpdated, children }) {
   useDocumentTitle(title)
   return (
-    <div className="relative min-h-screen text-white">
+    <div className="relative min-h-screen text-white" style={{ paddingTop: 60 }}>
       <header
         className="sticky top-[60px] z-30 border-b border-white/[0.06]"
         style={{
