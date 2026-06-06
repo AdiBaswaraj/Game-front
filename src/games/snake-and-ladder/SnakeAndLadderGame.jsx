@@ -304,7 +304,13 @@ export default function SnakeAndLadderGame({ roomCode }) {
     const onDiceResult = (data) => {
       const roll = pick(data, 'roll', 'value')
       const newPosition = pick(data, 'newPosition', 'position', 'landedOn')
-      const nextTurn = pick(data, 'nextTurn', 'currentTurn', 'turn')
+      const nextTurn = pick(
+        data,
+        'nextTurn',
+        'currentTurn',
+        'currentTurnUserId',
+        'turn',
+      )
       const w = pick(data, 'winner', 'winnerId')
       const movingIdent = pick(
         data,
@@ -380,7 +386,10 @@ export default function SnakeAndLadderGame({ roomCode }) {
         positionsRef.current = arr
         setPositions(arr)
       }
-      const currentTurn = pick(data, 'currentTurn', 'current_turn')
+      const gs = pick(data, 'gameState', 'game_state')
+      const currentTurn =
+        pick(data, 'currentTurn', 'current_turn') ??
+        pick(gs, 'currentTurn', 'current_turn')
       const idx = turnUserIdToIndex(roomRef.current, currentTurn)
       if (idx != null) {
         turnIdxRef.current = idx
@@ -559,7 +568,15 @@ export default function SnakeAndLadderGame({ roomCode }) {
           onClose={() => setShowDiceDebug(false)}
         />
       )}
-      <div className="flex shrink-0 justify-center lg:row-span-1">
+      <div className="flex shrink-0 flex-col items-center gap-2 lg:row-span-1">
+        <TurnBanner
+          room={room}
+          myIdx={myIdx}
+          turnIdx={turnIdx}
+          myTurn={myTurn}
+          winner={winner}
+          animating={animating}
+        />
         <Board
           positions={positions}
           winner={winner}
@@ -589,6 +606,41 @@ export default function SnakeAndLadderGame({ roomCode }) {
         opponentDcSeconds={opponentDc.secondsRemaining}
       />
       {leaveModal}
+    </div>
+  )
+}
+
+function TurnBanner({ room, myIdx, turnIdx, myTurn, winner, animating }) {
+  if (winner != null) return null
+  const opponent =
+    myIdx >= 0 && room?.players
+      ? room.players.find((_, i) => i !== myIdx)
+      : null
+  const turnPlayer = room?.players?.[turnIdx]
+  let label
+  let tone
+  if (animating) {
+    label = 'MOVING…'
+    tone = 'cyan'
+  } else if (myTurn) {
+    label = 'YOUR TURN'
+    tone = 'green'
+  } else {
+    const name = (opponent?.username ?? turnPlayer?.username ?? 'OPPONENT').toUpperCase()
+    label = `WAITING FOR ${name}`
+    tone = 'dim'
+  }
+  const cls =
+    tone === 'green'
+      ? 'border-neon-green/70 bg-neon-green/10 text-neon-green shadow-neon-green'
+      : tone === 'cyan'
+        ? 'border-neon-cyan/60 bg-neon-cyan/10 text-neon-cyan'
+        : 'border-white/10 bg-arcadia-surface/60 text-white/55'
+  return (
+    <div
+      className={`inline-flex items-center justify-center rounded-md border px-3 py-1.5 font-arcade text-[10px] tracking-wider transition ${cls}`}
+    >
+      {label}
     </div>
   )
 }
