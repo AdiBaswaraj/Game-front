@@ -26,7 +26,14 @@ import {
 } from './engine'
 
 const PIECE_VALUE = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 }
-const PIECE_ICON = { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' }
+// Split white / black unicode pieces so a captured white pawn renders
+// as ♙ (outlined "white" glyph) and a captured black pawn as ♟ (filled
+// "black" glyph). The captured-pieces bucket is already keyed by the
+// captured side's colour, so PIECE_ICON[color][type] is unambiguous.
+const PIECE_ICON = {
+  w: { p: '♙', n: '♘', b: '♗', r: '♖', q: '♕', k: '♔' },
+  b: { p: '♟', n: '♞', b: '♝', r: '♜', q: '♛', k: '♚' },
+}
 const DEFAULT_CLOCK_MS = 10 * 60 * 1000
 const SP_SAVE_KEY = 'arcadia:chess:sp'
 const SP_MAX_AGE_MS = 24 * 60 * 60 * 1000
@@ -290,33 +297,39 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const { width: vw, height: vh } = useViewport()
   const { isFullscreen } = useFullscreen()
   const isDesktop = vw >= 768
-  // The Chessboard is wrapped in a div with border-2 (4px) and p-1
-  // (8px), so 12px of horizontal overhead lands between the board
-  // wrapper and the chess squares themselves. Add a small extra
-  // safety margin on top of that (still on mobile reports of the
-  // h-file looking visually clipped against the cyan border at edge
-  // device widths), plus a real reservation for the outer GameLayout
-  // padding (px-4 on mobile, px-8 on desktop). The wrapper itself
-  // lives inside GameLayout's main with px-4 (32px) on mobile and
-  // px-8 (64px) on desktop. If we don't subtract both, the rightmost
-  // file gets clipped by the parent's overflow:hidden.
-  const BOARD_INNER_OVERHEAD = 20
+  // Width budget breakdown around the chess board:
+  //   - the wrapper div has border-2 (4px) + p-1 (8px) = 12px of
+  //     real horizontal overhead before reaching the board itself.
+  //   - we add another 16px of *visible* arcadia-surface breathing
+  //     room (8px on each side) so the cyan border reads as a
+  //     proper frame on the h-file the same way it does on the
+  //     a-file rank-labels. Without it the Chessboard's right edge
+  //     sits flush against the cyan stroke and looks clipped.
+  //   - GameLayout's main wraps the whole thing in px-4 on mobile
+  //     (32px) and px-8 on desktop (64px); the parent enforces
+  //     overflow:hidden, so anything we don't budget for ends up
+  //     getting cropped.
+  // boardSize below is the size of the wrapper. The actual Chessboard
+  // (chessSize) renders smaller so the breathing-room gap is visible.
+  const BOARD_FRAME_OVERHEAD = 12 // border-2 + p-1
+  const BOARD_VISIBLE_PAD = 16 // 8px gap each side, visible black frame
   const pad = isFullscreen ? 8 : 16
   let boardSize
   if (isDesktop) {
     const layoutPad = isFullscreen ? 16 : 64
-    const availW = Math.max(
-      0,
-      vw * 0.58 - pad * 2 - layoutPad - BOARD_INNER_OVERHEAD,
-    )
+    const availW = Math.max(0, vw * 0.58 - pad * 2 - layoutPad)
     const availH = Math.max(0, vh - (isFullscreen ? 120 : 200))
     boardSize = Math.max(260, Math.min(availW, availH, 640))
   } else {
     const layoutPad = isFullscreen ? 16 : 32
-    const availW = Math.max(0, vw - layoutPad - BOARD_INNER_OVERHEAD)
+    const availW = Math.max(0, vw - layoutPad)
     const availH = Math.max(0, vh - (isFullscreen ? 200 : 280))
     boardSize = Math.max(240, Math.min(availW, availH, 520))
   }
+  const chessSize = Math.max(
+    220,
+    boardSize - BOARD_FRAME_OVERHEAD - BOARD_VISIBLE_PAD,
+  )
 
   // ===== Computer mode: subscribe to Stockfish state =====
   useEffect(() => {
@@ -1462,36 +1475,41 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           result={result}
           moveNumber={Math.floor(history.length / 2) + 1}
         />
-        <div className="my-2 overflow-hidden rounded-lg border-2 border-neon-cyan/50 bg-arcadia-surface p-1 shadow-neon-cyan">
-          <Chessboard
-            options={{
-              position: fen,
-              boardOrientation:
-                !isLocal && myColor === 'b' ? 'black' : 'white',
-              onPieceDrop,
-              onSquareClick,
-              squareStyles,
-              // Per-piece guard: even if it's my turn, only pieces of
-              // my colour can be picked up. Stops accidental drags of
-              // the opponent's pieces in click-to-move mode.
-              allowDragging: ({ piece }) => {
-                if (!myTurn || !myColor) return false
-                const code =
-                  typeof piece === 'string'
-                    ? piece
-                    : piece?.pieceType ?? piece?.piece ?? ''
-                return typeof code === 'string' && code.startsWith(myColor)
-              },
-              animationDuration: 150,
-              boardStyle: {
-                borderRadius: 4,
-                width: boardSize,
-                height: boardSize,
-              },
-              darkSquareStyle: { backgroundColor: '#5e6b86' },
-              lightSquareStyle: { backgroundColor: '#d8d8e8' },
-            }}
-          />
+        <div
+          className="my-2 flex items-center justify-center overflow-hidden rounded-lg border-2 border-neon-cyan/50 bg-arcadia-surface p-1 shadow-neon-cyan"
+          style={{ width: boardSize, height: boardSize }}
+        >
+          <div style={{ width: chessSize, height: chessSize }}>
+            <Chessboard
+              options={{
+                position: fen,
+                boardOrientation:
+                  !isLocal && myColor === 'b' ? 'black' : 'white',
+                onPieceDrop,
+                onSquareClick,
+                squareStyles,
+                // Per-piece guard: even if it's my turn, only pieces of
+                // my colour can be picked up. Stops accidental drags of
+                // the opponent's pieces in click-to-move mode.
+                allowDragging: ({ piece }) => {
+                  if (!myTurn || !myColor) return false
+                  const code =
+                    typeof piece === 'string'
+                      ? piece
+                      : piece?.pieceType ?? piece?.piece ?? ''
+                  return typeof code === 'string' && code.startsWith(myColor)
+                },
+                animationDuration: 150,
+                boardStyle: {
+                  borderRadius: 4,
+                  width: chessSize,
+                  height: chessSize,
+                },
+                darkSquareStyle: { backgroundColor: '#5e6b86' },
+                lightSquareStyle: { backgroundColor: '#d8d8e8' },
+              }}
+            />
+          </div>
         </div>
         <PlayerHeader
           name={
@@ -1996,12 +2014,14 @@ function CapturedPanel({ captured, myColor, isLocal }) {
           <CapturedSide
             label={myLabel}
             pieces={mineTook}
+            pieceColor={theirs}
             delta={myDelta}
             tone="green"
           />
           <CapturedSide
             label={theirLabel}
             pieces={theirsTook}
+            pieceColor={mine}
             delta={theirDelta}
             tone="pink"
           />
@@ -2011,9 +2031,19 @@ function CapturedPanel({ captured, myColor, isLocal }) {
   )
 }
 
-function CapturedSide({ label, pieces, delta, tone }) {
+function CapturedSide({ label, pieces, pieceColor, delta, tone }) {
   const labelCls = tone === 'green' ? 'text-neon-green' : 'text-neon-pink'
   const deltaCls = tone === 'green' ? 'text-neon-green' : 'text-neon-pink'
+  // Visually differentiate the captured tiles by the piece's actual
+  // colour: white pieces sit on a light tile with a dark glyph, black
+  // pieces on a dark tile with a bright glyph. The wrong-colour
+  // mismatch (white pawn rendering as a black glyph) is what the
+  // panel used to do — both sides got the same black glyph because
+  // PIECE_ICON wasn't colour-keyed.
+  const isWhite = pieceColor === 'w'
+  const tileCls = isWhite
+    ? 'bg-white/90 text-arcadia-bg'
+    : 'bg-arcadia-bg text-white/90 ring-1 ring-white/15'
   return (
     <div>
       <div className="flex items-center gap-2">
@@ -2033,10 +2063,10 @@ function CapturedSide({ label, pieces, delta, tone }) {
           pieces.map((p, i) => (
             <span
               key={i}
-              className="inline-flex h-6 w-6 items-center justify-center rounded bg-arcadia-bg text-base text-white/85"
+              className={`inline-flex h-6 w-6 items-center justify-center rounded text-base leading-none ${tileCls}`}
               title={p}
             >
-              {PIECE_ICON[p] ?? '?'}
+              {PIECE_ICON[pieceColor]?.[p] ?? PIECE_ICON.b[p] ?? '?'}
             </span>
           ))
         )}
