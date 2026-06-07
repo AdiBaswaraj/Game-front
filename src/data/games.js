@@ -13,9 +13,10 @@ export const games = [
     name: 'Snake',
     icon: '🐍',
     Icon: SnakeIcon,
-    players: '1P',
+    players: '1P / 2P',
     category: 'Arcade',
-    multiplayer: false,
+    multiplayer: true,
+    hasModeSelect: true,
     accent: 'neon-green',
   },
   {
