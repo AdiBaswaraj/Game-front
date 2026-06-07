@@ -292,12 +292,15 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const isDesktop = vw >= 768
   // The Chessboard is wrapped in a div with border-2 (4px) and p-1
   // (8px), so 12px of horizontal overhead lands between the board
-  // wrapper and the chess squares themselves. The wrapper itself lives
-  // inside GameLayout's main with px-4 (32px) on mobile and px-8 (64px)
-  // on desktop. If we don't subtract both, the rightmost file gets
-  // clipped by the parent's overflow:hidden — which is exactly what
-  // was happening on iPhone-class viewports.
-  const BOARD_INNER_OVERHEAD = 12
+  // wrapper and the chess squares themselves. Add a small extra
+  // safety margin on top of that (still on mobile reports of the
+  // h-file looking visually clipped against the cyan border at edge
+  // device widths), plus a real reservation for the outer GameLayout
+  // padding (px-4 on mobile, px-8 on desktop). The wrapper itself
+  // lives inside GameLayout's main with px-4 (32px) on mobile and
+  // px-8 (64px) on desktop. If we don't subtract both, the rightmost
+  // file gets clipped by the parent's overflow:hidden.
+  const BOARD_INNER_OVERHEAD = 20
   const pad = isFullscreen ? 8 : 16
   let boardSize
   if (isDesktop) {
@@ -1449,11 +1452,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           )}
           alignment="top"
         />
-        <CapturedRow
-          pieces={captured[myColor === 'w' ? 'b' : 'w']}
-          accent="green"
-          label="CAPTURED"
-        />
         <GameStatusRow
           myTurn={myTurn}
           isMP={isMP}
@@ -1495,11 +1493,6 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             }}
           />
         </div>
-        <CapturedRow
-          pieces={captured[myColor === 'w' ? 'w' : 'b']}
-          accent="pink"
-          label="LOST"
-        />
         <PlayerHeader
           name={
             isLocal
@@ -1519,6 +1512,11 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
               materialScore(captured[myColor ?? 'w']),
           )}
           alignment="bottom"
+        />
+        <CapturedPanel
+          captured={captured}
+          myColor={myColor}
+          isLocal={isLocal}
         />
         {history.length === 0 && !result && (
           <p className="mt-1 text-center font-arcade text-[9px] text-white/45">
@@ -1921,22 +1919,129 @@ function GameStatusRow({
   )
 }
 
-// Renders the row of pieces one side has captured from the other.
-// The +N material delta is intentionally NOT shown here — that lives
-// next to the player's name in PlayerHeader so it appears beside the
-// leading side. CapturedRow is just the visual list of pieces.
-function CapturedRow({ pieces, accent, label }) {
-  if (!pieces || pieces.length === 0) {
-    return (
-      <p className="font-arcade text-[8px] text-white/30">{label}: —</p>
-    )
-  }
-  const tone = accent === 'green' ? 'text-neon-green' : 'text-neon-pink'
+// Collapsible "BATTLE LOG" — replaces the two inline CapturedRow strips
+// that used to sit above and below the board (and visually collide
+// with the YOUR TURN status row at small heights). Collapsed mode
+// shows a one-line summary with each side's total material taken;
+// expanded shows the full list of taken pieces, properly sized, with
+// unambiguous labels so it's clear which row is "you captured" and
+// which is "you lost". In Pass & Play mode the labels switch to a
+// purely colour-based framing since there is no single "you".
+function CapturedPanel({ captured, myColor, isLocal }) {
+  const [open, setOpen] = useState(false)
+  const mine = myColor ?? 'w'
+  const theirs = mine === 'w' ? 'b' : 'w'
+  // mineTook = opponent's pieces I have captured. theirsTook = my
+  // pieces opponent has captured.
+  const mineTook = captured?.[theirs] ?? []
+  const theirsTook = captured?.[mine] ?? []
+  const myScore = materialScore(mineTook)
+  const theirScore = materialScore(theirsTook)
+  const myDelta = Math.max(0, myScore - theirScore)
+  const theirDelta = Math.max(0, theirScore - myScore)
+  const myLabel = isLocal
+    ? mine === 'w'
+      ? 'WHITE CAPTURED'
+      : 'BLACK CAPTURED'
+    : 'YOU CAPTURED'
+  const theirLabel = isLocal
+    ? mine === 'w'
+      ? 'BLACK CAPTURED'
+      : 'WHITE CAPTURED'
+    : 'OPPONENT CAPTURED'
+  const hasAny = mineTook.length > 0 || theirsTook.length > 0
+
   return (
-    <p className="font-arcade text-[9px] text-white/60">
-      <span className={`${tone} mr-2`}>{label}</span>
-      {pieces.map((p) => PIECE_ICON[p] ?? '?').join(' ')}
-    </p>
+    <div className="mt-2 overflow-hidden rounded-lg border border-white/10 bg-arcadia-surface/40">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left font-arcade text-[10px] text-white/70 transition hover:bg-white/[0.03]"
+        aria-expanded={open}
+      >
+        <span className="inline-flex items-center gap-2">
+          <span className="text-neon-cyan">⚔</span>
+          <span>CAPTURED PIECES</span>
+          {!hasAny && (
+            <span className="font-arcade text-[8px] text-white/35">
+              · none yet
+            </span>
+          )}
+          {hasAny && (
+            <span className="ml-1 inline-flex items-center gap-2 font-arcade text-[8px]">
+              {myScore > 0 && (
+                <span className="text-neon-green">
+                  +{myScore}
+                </span>
+              )}
+              {theirScore > 0 && (
+                <span className="text-neon-pink">
+                  −{theirScore}
+                </span>
+              )}
+            </span>
+          )}
+        </span>
+        <span
+          aria-hidden="true"
+          className={`font-arcade text-[10px] text-white/55 transition-transform ${
+            open ? 'rotate-180' : ''
+          }`}
+        >
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div className="border-t border-white/[0.06] px-3 py-3 space-y-3">
+          <CapturedSide
+            label={myLabel}
+            pieces={mineTook}
+            delta={myDelta}
+            tone="green"
+          />
+          <CapturedSide
+            label={theirLabel}
+            pieces={theirsTook}
+            delta={theirDelta}
+            tone="pink"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CapturedSide({ label, pieces, delta, tone }) {
+  const labelCls = tone === 'green' ? 'text-neon-green' : 'text-neon-pink'
+  const deltaCls = tone === 'green' ? 'text-neon-green' : 'text-neon-pink'
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <span className={`font-arcade text-[9px] tracking-widest ${labelCls}`}>
+          {label}
+        </span>
+        {delta > 0 && (
+          <span className={`font-arcade text-[9px] ${deltaCls}`}>
+            +{delta}
+          </span>
+        )}
+      </div>
+      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+        {pieces.length === 0 ? (
+          <span className="font-arcade text-[10px] text-white/30">—</span>
+        ) : (
+          pieces.map((p, i) => (
+            <span
+              key={i}
+              className="inline-flex h-6 w-6 items-center justify-center rounded bg-arcadia-bg text-base text-white/85"
+              title={p}
+            >
+              {PIECE_ICON[p] ?? '?'}
+            </span>
+          ))
+        )}
+      </div>
+    </div>
   )
 }
 
