@@ -1452,17 +1452,44 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         style={{ width: boardSize, maxWidth: '100%' }}
       >
         <PlayerHeader
-          name={opponentLabel}
-          subtitle={isMP ? 'OPPONENT' : isLocal ? 'WAITING' : 'BOT'}
-          color={opponentColor}
-          ms={liveClocks[opponentColor]}
-          active={turn === opponentColor && !result && !flagged}
-          flash={clockFlash?.color === opponentColor ? clockFlash : null}
-          materialDelta={Math.max(
-            0,
-            materialScore(captured[myColor ?? 'w']) -
-              materialScore(captured[opponentColor]),
-          )}
+          name={
+            isLocal
+              ? 'PLAYER 2 · BLACK'
+              : opponentLabel
+          }
+          subtitle={
+            isMP
+              ? 'OPPONENT'
+              : isLocal
+                ? turn === 'b'
+                  ? 'TO MOVE'
+                  : 'WAITING'
+                : 'BOT'
+          }
+          color={isLocal ? 'b' : opponentColor}
+          ms={liveClocks[isLocal ? 'b' : opponentColor]}
+          active={
+            isLocal
+              ? turn === 'b' && !result && !flagged
+              : turn === opponentColor && !result && !flagged
+          }
+          flash={
+            clockFlash?.color === (isLocal ? 'b' : opponentColor)
+              ? clockFlash
+              : null
+          }
+          materialDelta={
+            isLocal
+              ? Math.max(
+                  0,
+                  materialScore(captured.w) - materialScore(captured.b),
+                )
+              : Math.max(
+                  0,
+                  materialScore(captured[myColor ?? 'w']) -
+                    materialScore(captured[opponentColor]),
+                )
+          }
           alignment="top"
         />
         <GameStatusRow
@@ -1514,21 +1541,40 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         <PlayerHeader
           name={
             isLocal
-              ? myColor === 'b'
-                ? 'PLAYER 2 · BLACK'
-                : 'PLAYER 1 · WHITE'
+              ? 'PLAYER 1 · WHITE'
               : displayName ?? 'You'
           }
-          subtitle={isLocal ? 'TO MOVE' : 'YOU'}
-          color={myColor ?? 'w'}
-          ms={liveClocks[myColor ?? 'w']}
-          active={turn === (myColor ?? 'w') && !result && !flagged}
-          flash={clockFlash?.color === (myColor ?? 'w') ? clockFlash : null}
-          materialDelta={Math.max(
-            0,
-            materialScore(captured[opponentColor]) -
-              materialScore(captured[myColor ?? 'w']),
-          )}
+          subtitle={
+            isLocal
+              ? turn === 'w'
+                ? 'TO MOVE'
+                : 'WAITING'
+              : 'YOU'
+          }
+          color={isLocal ? 'w' : myColor ?? 'w'}
+          ms={liveClocks[isLocal ? 'w' : myColor ?? 'w']}
+          active={
+            isLocal
+              ? turn === 'w' && !result && !flagged
+              : turn === (myColor ?? 'w') && !result && !flagged
+          }
+          flash={
+            clockFlash?.color === (isLocal ? 'w' : myColor ?? 'w')
+              ? clockFlash
+              : null
+          }
+          materialDelta={
+            isLocal
+              ? Math.max(
+                  0,
+                  materialScore(captured.b) - materialScore(captured.w),
+                )
+              : Math.max(
+                  0,
+                  materialScore(captured[opponentColor]) -
+                    materialScore(captured[myColor ?? 'w']),
+                )
+          }
           alignment="bottom"
         />
         <CapturedPanel
@@ -1957,17 +2003,20 @@ function CapturedPanel({ captured, myColor, isLocal }) {
   const theirScore = materialScore(theirsTook)
   const myDelta = Math.max(0, myScore - theirScore)
   const theirDelta = Math.max(0, theirScore - myScore)
-  const myLabel = isLocal
-    ? mine === 'w'
-      ? 'WHITE CAPTURED'
-      : 'BLACK CAPTURED'
-    : 'YOU CAPTURED'
-  const theirLabel = isLocal
-    ? mine === 'w'
-      ? 'BLACK CAPTURED'
-      : 'WHITE CAPTURED'
-    : 'OPPONENT CAPTURED'
-  const hasAny = mineTook.length > 0 || theirsTook.length > 0
+
+  // In Pass & Play the rows are pinned to colours (WHITE first, then
+  // BLACK) so they don't shuffle position every half-move. In every
+  // other mode the rows are framed around the local player.
+  const whiteTook = captured?.b ?? []
+  const blackTook = captured?.w ?? []
+  const whiteScore = materialScore(whiteTook)
+  const blackScore = materialScore(blackTook)
+  const whiteDelta = Math.max(0, whiteScore - blackScore)
+  const blackDelta = Math.max(0, blackScore - whiteScore)
+
+  const hasAny = isLocal
+    ? whiteTook.length > 0 || blackTook.length > 0
+    : mineTook.length > 0 || theirsTook.length > 0
 
   return (
     <div className="mt-2 overflow-hidden rounded-lg border border-white/10 bg-arcadia-surface/40">
@@ -1987,14 +2036,14 @@ function CapturedPanel({ captured, myColor, isLocal }) {
           )}
           {hasAny && (
             <span className="ml-1 inline-flex items-center gap-2 font-arcade text-[8px]">
-              {myScore > 0 && (
+              {(isLocal ? whiteScore : myScore) > 0 && (
                 <span className="text-neon-green">
-                  +{myScore}
+                  +{isLocal ? whiteScore : myScore}
                 </span>
               )}
-              {theirScore > 0 && (
+              {(isLocal ? blackScore : theirScore) > 0 && (
                 <span className="text-neon-pink">
-                  −{theirScore}
+                  −{isLocal ? blackScore : theirScore}
                 </span>
               )}
             </span>
@@ -2011,20 +2060,41 @@ function CapturedPanel({ captured, myColor, isLocal }) {
       </button>
       {open && (
         <div className="border-t border-white/[0.06] px-3 py-3 space-y-3">
-          <CapturedSide
-            label={myLabel}
-            pieces={mineTook}
-            pieceColor={theirs}
-            delta={myDelta}
-            tone="green"
-          />
-          <CapturedSide
-            label={theirLabel}
-            pieces={theirsTook}
-            pieceColor={mine}
-            delta={theirDelta}
-            tone="pink"
-          />
+          {isLocal ? (
+            <>
+              <CapturedSide
+                label="WHITE CAPTURED"
+                pieces={whiteTook}
+                pieceColor="b"
+                delta={whiteDelta}
+                tone="green"
+              />
+              <CapturedSide
+                label="BLACK CAPTURED"
+                pieces={blackTook}
+                pieceColor="w"
+                delta={blackDelta}
+                tone="pink"
+              />
+            </>
+          ) : (
+            <>
+              <CapturedSide
+                label="YOU CAPTURED"
+                pieces={mineTook}
+                pieceColor={theirs}
+                delta={myDelta}
+                tone="green"
+              />
+              <CapturedSide
+                label="OPPONENT CAPTURED"
+                pieces={theirsTook}
+                pieceColor={mine}
+                delta={theirDelta}
+                tone="pink"
+              />
+            </>
+          )}
         </div>
       )}
     </div>
