@@ -12,14 +12,21 @@ import { useFullscreen } from '../../hooks/useFullscreen'
 
 const GRID = 20
 const HS_KEY = 'arcadia:highscore:snake'
+const CONTROL_KEY = 'arcadia:snake:controls'
 
 const UP = { x: 0, y: -1 }
 const DOWN = { x: 0, y: 1 }
 const LEFT = { x: -1, y: 0 }
 const RIGHT = { x: 1, y: 0 }
 
+// Speed ramp: still climbs sharply through the early game (the dopamine
+// hit of "getting faster") then flattens to a floor that a human can
+// actually sustain for long runs. The old curve hit a 60ms tick by
+// level ~10 and stayed there forever, which made anything past the
+// 200-300 score range feel punishing on touch screens.
+const SPEED_FLOOR_MS = 85
 const speedInterval = (level) =>
-  Math.max(60, Math.round(200 * Math.pow(0.85, level - 1)))
+  Math.max(SPEED_FLOOR_MS, Math.round(200 * Math.pow(0.88, level - 1)))
 
 const DEATH_FLASH_MS = 450
 const DEATH_EXPLODE_MS = 400
@@ -104,6 +111,23 @@ function readHighScore() {
   return Number.isFinite(v) ? v : 0
 }
 
+function readControl() {
+  try {
+    const v = localStorage.getItem(CONTROL_KEY)
+    return v === 'joystick' || v === 'touch' ? v : null
+  } catch {
+    return null
+  }
+}
+
+function writeControl(v) {
+  try {
+    localStorage.setItem(CONTROL_KEY, v)
+  } catch {
+    // private mode — ignore
+  }
+}
+
 export default function SnakeGame() {
   const { user } = useAuth()
   const toast = useToast()
@@ -119,6 +143,9 @@ export default function SnakeGame() {
   // the GAME OVER panel takes over.
   const [status, setStatus] = useState('idle')
   useArmGameOverFlash(status === 'gameover')
+  // 'touch' (swipes on the canvas) | 'joystick' (on-screen D-pad).
+  // null means the picker is still showing.
+  const [controlMode, setControlMode] = useState(readControl)
 
   // Single-player active = a game is in progress. Leaving now would
   // throw away the run.
@@ -171,7 +198,11 @@ export default function SnakeGame() {
     }
   }, [user])
 
-  const startGame = useCallback(() => {
+  const startGame = useCallback((mode) => {
+    if (mode === 'touch' || mode === 'joystick') {
+      writeControl(mode)
+      setControlMode(mode)
+    }
     stateRef.current = initialState()
     setScore(0)
     setLevel(1)
@@ -191,9 +222,15 @@ export default function SnakeGame() {
       const k = e.key
       const lower = typeof k === 'string' ? k.toLowerCase() : ''
 
+      // A keyboard player can skip the on-screen control picker — we
+      // assume "touch" as the saved default since their swipe area is
+      // still the canvas. They can change it later from the GAME OVER
+      // screen if they want the joystick instead.
+      const fallback = controlMode ?? 'touch'
+
       if (k === ' ' || k === 'Enter') {
         e.preventDefault()
-        if (statusRef.current !== 'playing') startGame()
+        if (statusRef.current !== 'playing') startGame(fallback)
         return
       }
 
@@ -205,13 +242,13 @@ export default function SnakeGame() {
 
       if (nd) {
         e.preventDefault()
-        if (statusRef.current === 'idle') startGame()
+        if (statusRef.current === 'idle') startGame(fallback)
         if (statusRef.current === 'playing') queueDir(nd)
       }
     }
     window.addEventListener('keydown', handler, { passive: false })
     return () => window.removeEventListener('keydown', handler)
-  }, [startGame, queueDir])
+  }, [startGame, queueDir, controlMode])
 
   // Prevent the document from scrolling while playing — Snake uses
   // swipes for input and any vertical scroll feels broken on phones.
@@ -226,8 +263,11 @@ export default function SnakeGame() {
     return () => document.removeEventListener('touchmove', prevent)
   }, [])
 
-  // Touch swipe input
+  // Touch swipe input — only wired up in touch mode. In joystick mode
+  // the canvas should ignore swipes so a stray drag while reaching for
+  // the on-screen pad doesn't fire a direction.
   useEffect(() => {
+    if (controlMode !== 'touch') return
     const el = canvasRef.current
     if (!el) return
     let startX = 0
@@ -244,13 +284,13 @@ export default function SnakeGame() {
       const ax = Math.abs(dx)
       const ay = Math.abs(dy)
       if (ax < 20 && ay < 20) {
-        if (statusRef.current !== 'playing') startGame()
+        if (statusRef.current !== 'playing') startGame('touch')
         return
       }
       let nd
       if (ax > ay) nd = dx > 0 ? RIGHT : LEFT
       else nd = dy > 0 ? DOWN : UP
-      if (statusRef.current === 'idle') startGame()
+      if (statusRef.current === 'idle') startGame('touch')
       if (statusRef.current === 'playing') queueDir(nd)
     }
     el.addEventListener('touchstart', onStart, { passive: true })
@@ -259,7 +299,7 @@ export default function SnakeGame() {
       el.removeEventListener('touchstart', onStart)
       el.removeEventListener('touchend', onEnd)
     }
-  }, [startGame, queueDir])
+  }, [startGame, queueDir, controlMode])
 
   // Mirror canvas dimensions into refs so the long-lived render loop
   // can read the latest values without a re-bind.
@@ -541,31 +581,26 @@ export default function SnakeGame() {
       </div>
 
       {/* Bottom section — sits 8px below the canvas. Houses either the
-          READY? prompt with INSERT COIN, or the control hint line. */}
+          control picker, the on-screen joystick, or the hint line. */}
       <div
         className={`mt-2 flex w-full flex-col items-center gap-3 px-4 pb-4 text-center ${
           status === 'idle' ? 'mt-6' : ''
         }`}
       >
-        {status === 'idle' ? (
-          <>
-            <p className="font-arcade text-sm text-neon-green md:text-base">
-              READY?
-            </p>
-            <p className="text-xs text-white/60">
-              Arrow keys, WASD, or swipe.
-            </p>
-            <button
-              type="button"
-              onClick={startGame}
-              className="rounded-md border border-neon-green/70 bg-neon-green/10 px-6 py-2.5 font-arcade text-[11px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
-            >
-              ▶ INSERT COIN
-            </button>
-          </>
-        ) : (
+        {status === 'idle' && (
+          <ControlPicker
+            controlMode={controlMode}
+            onStart={(mode) => startGame(mode)}
+          />
+        )}
+
+        {status === 'playing' && controlMode === 'joystick' && (
+          <DPad onDirection={queueDir} />
+        )}
+
+        {status === 'playing' && controlMode !== 'joystick' && (
           <p className="text-[10px] text-white/50">
-            ↑ ↓ ← → / WASD to move · Swipe on mobile
+            ↑ ↓ ← → / WASD · Swipe on the board
           </p>
         )}
 
@@ -608,3 +643,128 @@ export default function SnakeGame() {
   )
 }
 
+// Pre-game prompt. If the player has never picked a control scheme on
+// this device we show both options as equal-weight cards so the choice
+// reads as a real fork. Once they've picked once we collapse to a
+// single CTA + a small "switch" link so PLAY AGAIN is one tap, not
+// three.
+function ControlPicker({ controlMode, onStart }) {
+  if (!controlMode) {
+    return (
+      <>
+        <p className="font-arcade text-sm text-neon-green md:text-base">
+          READY?
+        </p>
+        <p className="text-xs text-white/60">Pick your controls</p>
+        <div className="mt-2 grid w-full max-w-xs grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => onStart('touch')}
+            className="flex flex-col items-center gap-2 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-3 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
+          >
+            <span aria-hidden="true" className="text-xl">↗</span>
+            <span>TOUCH / SWIPE</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onStart('joystick')}
+            className="flex flex-col items-center gap-2 rounded-md border border-neon-pink/60 bg-neon-pink/10 px-4 py-3 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink"
+          >
+            <span aria-hidden="true" className="text-xl">✛</span>
+            <span>JOYSTICK</span>
+          </button>
+        </div>
+        <p className="text-[10px] text-white/35">
+          Arrow keys / WASD always work too.
+        </p>
+      </>
+    )
+  }
+  const other = controlMode === 'touch' ? 'joystick' : 'touch'
+  const otherLabel =
+    other === 'joystick' ? 'Use joystick instead' : 'Use swipe instead'
+  return (
+    <>
+      <p className="font-arcade text-sm text-neon-green md:text-base">
+        READY?
+      </p>
+      <p className="text-xs text-white/60">
+        {controlMode === 'joystick'
+          ? 'On-screen joystick below'
+          : 'Swipe on the board to move'}
+      </p>
+      <button
+        type="button"
+        onClick={() => onStart(controlMode)}
+        className="rounded-md border border-neon-green/70 bg-neon-green/10 px-6 py-2.5 font-arcade text-[11px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
+      >
+        ▶ START
+      </button>
+      <button
+        type="button"
+        onClick={() => onStart(other)}
+        className="font-arcade text-[9px] text-white/50 underline-offset-2 hover:text-neon-cyan hover:underline"
+      >
+        {otherLabel}
+      </button>
+    </>
+  )
+}
+
+// Pixel-arcade D-pad. Uses pointerdown so taps register immediately
+// and don't get blocked by the 300ms touch-action: manipulation delay.
+// touch-action: none keeps the browser from interpreting the press as
+// the start of a scroll.
+function DPad({ onDirection }) {
+  const fire = (e, d) => {
+    e.preventDefault()
+    onDirection(d)
+  }
+  const btnBase =
+    'grid h-12 w-12 place-items-center rounded-md border border-neon-green/50 bg-arcadia-surface/85 font-arcade text-base text-neon-green transition active:bg-neon-green/20 active:shadow-neon-green sm:h-14 sm:w-14'
+  return (
+    <div
+      className="grid select-none grid-cols-3 gap-1.5"
+      style={{ touchAction: 'none' }}
+      aria-label="On-screen controls"
+    >
+      <span />
+      <button
+        type="button"
+        className={btnBase}
+        onPointerDown={(e) => fire(e, UP)}
+        aria-label="Up"
+      >
+        ▲
+      </button>
+      <span />
+      <button
+        type="button"
+        className={btnBase}
+        onPointerDown={(e) => fire(e, LEFT)}
+        aria-label="Left"
+      >
+        ◀
+      </button>
+      <span />
+      <button
+        type="button"
+        className={btnBase}
+        onPointerDown={(e) => fire(e, RIGHT)}
+        aria-label="Right"
+      >
+        ▶
+      </button>
+      <span />
+      <button
+        type="button"
+        className={btnBase}
+        onPointerDown={(e) => fire(e, DOWN)}
+        aria-label="Down"
+      >
+        ▼
+      </button>
+      <span />
+    </div>
+  )
+}
