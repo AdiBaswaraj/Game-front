@@ -160,7 +160,13 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [fen, setFen] = useState(() => chessRef.current.fen())
   const [history, setHistory] = useState([]) // {san, color, captured}[]
   const [room, setRoom] = useState(null)
-  const [myColor, setMyColor] = useState(mode === 'computer' ? 'w' : null)
+  // In local "pass & play" mode there's no fixed colour — myColor
+  // tracks whichever side has the move so the existing turn-gated
+  // logic (move handlers, clock activation, capture totals) keeps
+  // working without a parallel "two-human" branch through the file.
+  const [myColor, setMyColor] = useState(
+    mode === 'computer' || mode === 'local' ? 'w' : null,
+  )
   // Mirror room / myColor / user.id so the MP socket handlers can read
   // the latest values without re-registering. Without this, the handler
   // useEffect would tear down and re-attach listeners every time room
@@ -248,7 +254,21 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
   const [flagged, setFlagged] = useState(null) // 'w' | 'b' | null
 
   const isMP = mode === 'multiplayer'
+  const isLocal = mode === 'local'
   const moveListRef = useRef(null)
+
+  // Pass & Play: keep myColor in sync with whichever side is to move
+  // so the existing "is it my turn" gates always say yes for the
+  // player physically holding the device. The board orientation is
+  // pinned to white below so the device doesn't visually flip every
+  // half-move.
+  useEffect(() => {
+    if (!isLocal) return
+    const sideToMove = fenTurn(fen)
+    if (sideToMove && sideToMove !== myColorRef.current) {
+      setMyColor(sideToMove)
+    }
+  }, [fen, isLocal])
 
   const opponentDc = useOpponentDisconnect(isMP ? roomCode : null)
   const wasDcRef = useRef(false)
@@ -305,7 +325,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
 
   // ===== Computer mode: offer resume if a recent save exists =====
   useEffect(() => {
-    if (isMP) return
+    if (isMP || isLocal) return
     if (spLoadHandledRef.current) return
     spLoadHandledRef.current = true
     const saved = readSPSave()
@@ -316,11 +336,11 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       return
     }
     setResumeOffer(saved)
-  }, [isMP, difficulty])
+  }, [isMP, isLocal, difficulty])
 
   // ===== Computer mode: persist board state on every change =====
   useEffect(() => {
-    if (isMP) return
+    if (isMP || isLocal) return
     if (resumeOffer) return // wait for user choice before saving
     if (result) {
       clearSPSave()
@@ -982,6 +1002,9 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       finalizeLocalResult()
       return
     }
+    // Pass & Play has no AI to wake up after the game-over check —
+    // game-over still has to run so checkmate / stalemate resolve.
+    if (isLocal) return
     const turn = fenTurn(chessRef.current.fen())
     if (turn === myColor) return
     if (aiThinkingRef.current) return
@@ -1379,10 +1402,17 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         )
       : null
 
+  // In Pass & Play the two "players" are simply the two sides of the
+  // board, so opponentLabel becomes whichever colour isn't to move and
+  // the header strip stays in sync as turns swap.
+  const opponentColor = myColor === 'w' ? 'b' : 'w'
   const opponentLabel = isMP
     ? opponent?.username ?? 'Opponent'
-    : `BOT (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})`
-  const opponentColor = myColor === 'w' ? 'b' : 'w'
+    : isLocal
+      ? opponentColor === 'w'
+        ? 'PLAYER 1 · WHITE'
+        : 'PLAYER 2 · BLACK'
+      : `BOT (${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)})`
 
   if (error) {
     return (
@@ -1407,7 +1437,7 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
       >
         <PlayerHeader
           name={opponentLabel}
-          subtitle={isMP ? 'OPPONENT' : 'BOT'}
+          subtitle={isMP ? 'OPPONENT' : isLocal ? 'WAITING' : 'BOT'}
           color={opponentColor}
           ms={liveClocks[opponentColor]}
           active={turn === opponentColor && !result && !flagged}
@@ -1427,6 +1457,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
         <GameStatusRow
           myTurn={myTurn}
           isMP={isMP}
+          isLocal={isLocal}
+          sideToMove={turn}
           aiThinking={aiThinking}
           inCheck={!!checkSquare}
           result={result}
@@ -1436,7 +1468,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           <Chessboard
             options={{
               position: fen,
-              boardOrientation: myColor === 'b' ? 'black' : 'white',
+              boardOrientation:
+                !isLocal && myColor === 'b' ? 'black' : 'white',
               onPieceDrop,
               onSquareClick,
               squareStyles,
@@ -1468,8 +1501,14 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
           label="LOST"
         />
         <PlayerHeader
-          name={displayName ?? 'You'}
-          subtitle="YOU"
+          name={
+            isLocal
+              ? myColor === 'b'
+                ? 'PLAYER 2 · BLACK'
+                : 'PLAYER 1 · WHITE'
+              : displayName ?? 'You'
+          }
+          subtitle={isLocal ? 'TO MOVE' : 'YOU'}
           color={myColor ?? 'w'}
           ms={liveClocks[myColor ?? 'w']}
           active={turn === (myColor ?? 'w') && !result && !flagged}
@@ -1499,7 +1538,8 @@ export default function ChessGame({ mode, roomCode, difficulty = 'easy' }) {
             result={result}
             myColor={myColor}
             signedIn={!!user}
-            isBot={!isMP}
+            isBot={!isMP && !isLocal}
+            isLocal={isLocal}
           />
         )}
       </div>
@@ -1826,6 +1866,8 @@ function PlayerHeader({
 function GameStatusRow({
   myTurn,
   isMP,
+  isLocal,
+  sideToMove,
   aiThinking,
   inCheck,
   result,
@@ -1845,6 +1887,8 @@ function GameStatusRow({
   } else if (inCheck) {
     label = 'CHECK!'
     cls = 'text-neon-pink chess-clock-low'
+  } else if (isLocal) {
+    label = sideToMove === 'w' ? "WHITE'S TURN" : "BLACK'S TURN"
   } else if (myTurn) {
     label = 'YOUR TURN'
   } else if (!isMP && aiThinking) {
@@ -2167,18 +2211,28 @@ function TimeUpOverlay({ flaggedColor, myColor }) {
   )
 }
 
-function ResultPanel({ result, myColor, signedIn, isBot = false }) {
+function ResultPanel({
+  result,
+  myColor,
+  signedIn,
+  isBot = false,
+  isLocal = false,
+}) {
   const isDraw = result.winner === 'draw'
   const won = !isDraw && result.winner === myColor
   const title = isDraw
     ? 'DRAW'
-    : isBot
-      ? won
-        ? 'YOU BEAT THE BOT!'
-        : 'BOT WINS'
-      : won
-        ? 'YOU WIN!'
-        : 'YOU LOST'
+    : isLocal
+      ? result.winner === 'w'
+        ? 'WHITE WINS!'
+        : 'BLACK WINS!'
+      : isBot
+        ? won
+          ? 'YOU BEAT THE BOT!'
+          : 'BOT WINS'
+        : won
+          ? 'YOU WIN!'
+          : 'YOU LOST'
   const accent = won
     ? 'shadow-neon-green text-neon-green'
     : isDraw

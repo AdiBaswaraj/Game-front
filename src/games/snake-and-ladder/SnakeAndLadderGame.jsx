@@ -6,11 +6,8 @@ import { useToast } from '../../context/ToastContext'
 import { getRoom } from '../../lib/api'
 import { socket } from '../../lib/socket'
 import Avatar from '../../components/Avatar'
-import { HallOfFameButton, WinParticles } from '../../components/GameOverFX'
-import {
-  LobbyBackLink,
-  useArmGameOverFlash,
-} from '../../context/GameOverFlashContext'
+import GameOverPanel from '../../components/GameOverPanel'
+import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
 import { useOpponentDisconnect } from '../../hooks/useOpponentDisconnect'
 import { useViewport } from '../../hooks/useViewport'
 import { useFullscreen } from '../../hooks/useFullscreen'
@@ -593,6 +590,19 @@ export default function SnakeAndLadderGame({ roomCode }) {
         opponentDcUsername={opponentDc.username}
         opponentDcSeconds={opponentDc.secondsRemaining}
       />
+      {winner != null && (
+        <GameOverPanel
+          variant={winner === myIdx ? 'win' : 'lose'}
+          title={
+            winner === myIdx
+              ? 'YOU WIN!'
+              : `${room?.players?.[winner]?.username?.toUpperCase() ?? 'OPPONENT'} WINS!`
+          }
+          mainValue={`SQ ${GOAL}`}
+          mainLabel="FINAL POSITION"
+          signedIn={!!user}
+        />
+      )}
       {leaveModal}
     </div>
   )
@@ -744,36 +754,6 @@ function Board({ positions, slides = [null, null], winner, myIdx, signedIn, room
         ) : null,
       )}
 
-      {winner != null && (
-        <div
-          className="go-overlay-in pixel-corners pixel-corners-amber absolute inset-2 flex flex-col items-center justify-center overflow-hidden"
-          style={{
-            background: 'rgba(5, 5, 8, 0.85)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 215, 0, 0.4)',
-            borderRadius: 12,
-          }}
-        >
-          {winner === myIdx && <WinParticles />}
-          <p
-            className={`relative font-arcade text-2xl drop-shadow-[0_0_18px_currentColor] ${
-              winner !== myIdx && myIdx != null ? 'go-shake' : ''
-            }`}
-            style={{ color: TOKEN_COLORS[winner] }}
-          >
-            <span className="go-icon-pop">★</span>{' '}
-            {room.players[winner]?.username?.toUpperCase()} WINS{' '}
-            <span className="go-icon-pop">★</span>
-          </p>
-          <div className="relative mt-5 flex flex-col gap-2 sm:flex-row">
-            <HallOfFameButton signedIn={signedIn} />
-            <LobbyBackLink className="rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-2 text-center font-arcade text-[10px] text-neon-cyan hover:bg-neon-cyan/20 hover:shadow-neon-cyan">
-              BACK TO LOBBY
-            </LobbyBackLink>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

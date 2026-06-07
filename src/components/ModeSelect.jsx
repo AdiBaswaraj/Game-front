@@ -6,6 +6,8 @@ const ACCENTS = {
     'border-neon-green/60 hover:border-neon-green hover:shadow-neon-green text-neon-green',
   cyan: 'border-neon-cyan/60 hover:border-neon-cyan hover:shadow-neon-cyan text-neon-cyan',
   pink: 'border-neon-pink/60 hover:border-neon-pink hover:shadow-neon-pink text-neon-pink',
+  amber:
+    'border-amber-400/60 hover:border-amber-400 hover:shadow-[0_0_18px_rgba(255,215,0,0.35)] text-amber-400',
 }
 
 export default function ModeSelect({
@@ -48,7 +50,11 @@ export default function ModeSelect({
         </p>
         <div
           className={`mt-8 grid w-full grid-cols-1 gap-4 ${
-            cards.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'
+            cards.length >= 4
+              ? 'sm:grid-cols-2 lg:grid-cols-4'
+              : cards.length === 3
+                ? 'sm:grid-cols-3'
+                : 'sm:grid-cols-2'
           }`}
         >
           {cards.map((card) => (

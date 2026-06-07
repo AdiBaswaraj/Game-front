@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom'
+import { SnakeLadderIcon } from '../../assets/icons/index.jsx'
 
 const COUNTS = [
   { n: 2, label: '2 PLAYERS', accent: 'green' },
@@ -15,10 +16,13 @@ const ACCENTS = {
 
 export default function SnakeAndLadderLocalSelect({
   title = 'LOCAL PLAY',
-  icon = '👥',
+  icon,
+  Icon = SnakeLadderIcon,
   basePath = '/game/snake-and-ladder/local',
   backTo = '/game/snake-and-ladder',
   backLabel = 'MODE',
+  prompt = 'HOW MANY PLAYERS?',
+  hint = 'Bots fill the rest',
 }) {
   const navigate = useNavigate()
   return (
@@ -32,16 +36,20 @@ export default function SnakeAndLadderLocalSelect({
             <span aria-hidden="true">◀</span>
             {backLabel}
           </Link>
-          <h1 className="justify-self-center font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
-            <span className="mr-2">{icon}</span>
-            {title}
+          <h1 className="inline-flex items-center justify-self-center gap-2 font-arcade text-sm text-neon-green drop-shadow-[0_0_8px_rgba(0,255,136,0.4)] md:text-lg">
+            {Icon ? (
+              <Icon size={22} aria-hidden="true" />
+            ) : (
+              icon && <span>{icon}</span>
+            )}
+            <span>{title}</span>
           </h1>
           <span className="justify-self-end" />
         </div>
       </header>
       <main className="mx-auto flex max-w-3xl flex-col items-center px-4 py-12 md:py-20">
         <p className="font-arcade text-[10px] text-white/45 md:text-xs">
-          HOW MANY PLAYERS?
+          {prompt}
         </p>
         <div className="mt-8 grid w-full grid-cols-1 gap-4 sm:grid-cols-3">
           {COUNTS.map((opt) => (
@@ -53,7 +61,7 @@ export default function SnakeAndLadderLocalSelect({
             >
               <span className="font-arcade text-lg">{opt.label}</span>
               <span className="text-xs uppercase tracking-widest text-white/45">
-                Bots fill the rest
+                {hint}
               </span>
             </button>
           ))}

@@ -1,13 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import Avatar from '../../components/Avatar'
+import GameOverPanel from '../../components/GameOverPanel'
 import { RobotIcon } from '../../assets/icons/index.jsx'
-import { WinParticles } from '../../components/GameOverFX'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
-import {
-  LobbyBackLink,
-  useArmGameOverFlash,
-} from '../../context/GameOverFlashContext'
+import { useArmGameOverFlash } from '../../context/GameOverFlashContext'
 import {
   GOAL,
   LADDERS,
@@ -239,8 +235,24 @@ export default function SnakeAndLadderLocalGame({
         animating={animating}
         winner={winner}
         onRoll={performRoll}
-        onReset={reset}
       />
+      {winner != null && (
+        <GameOverPanel
+          variant={winner === 0 ? 'win' : 'lose'}
+          title={
+            winner === 0
+              ? cpuIndices.size > 0
+                ? 'YOU BEAT THE BOT!'
+                : 'YOU WIN!'
+              : `${(players[winner] ?? 'Player').toUpperCase()} WINS!`
+          }
+          mainValue={`SQ ${GOAL}`}
+          mainLabel="FINAL POSITION"
+          signedIn={false}
+          onPrimary={reset}
+          primaryLabel="▶ PLAY AGAIN"
+        />
+      )}
       {leaveModal}
     </div>
   )
@@ -391,32 +403,6 @@ function Board({ positions, slides = [], winner, players, cpuIndices, flash }) {
         />
       ))}
 
-      {winner != null && (
-        <div
-          className="go-overlay-in pixel-corners pixel-corners-amber absolute inset-2 flex flex-col items-center justify-center overflow-hidden"
-          style={{
-            background: 'rgba(5, 5, 8, 0.85)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255, 215, 0, 0.4)',
-            borderRadius: 12,
-          }}
-        >
-          <WinParticles />
-          <p
-            className="relative font-arcade text-2xl drop-shadow-[0_0_18px_currentColor]"
-            style={{ color: TOKEN_COLORS[winner % TOKEN_COLORS.length] }}
-          >
-            <span className="go-icon-pop">★</span>{' '}
-            {winner === 0
-              ? 'YOU BEAT THE BOT!'
-              : cpuIndices.has(winner)
-                ? `${players[winner]?.toUpperCase()} WINS!`
-                : `${players[winner]?.toUpperCase()} WINS`}{' '}
-            <span className="go-icon-pop">★</span>
-          </p>
-        </div>
-      )}
     </div>
   )
 }
@@ -484,7 +470,6 @@ function Sidebar({
   animating,
   winner,
   onRoll,
-  onReset,
 }) {
   const canRoll = winner == null && !rolling && !animating
   const cpu = cpuIndices.has(turnIdx)
@@ -568,20 +553,6 @@ function Sidebar({
         </button>
       </div>
 
-      {winner != null && (
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            onClick={onReset}
-            className="rounded-md border border-neon-green/70 bg-neon-green/10 px-3 py-2 font-arcade text-[10px] text-neon-green hover:bg-neon-green/20 hover:shadow-neon-green"
-          >
-            ▶ PLAY AGAIN
-          </button>
-          <LobbyBackLink className="rounded-md border border-white/15 px-3 py-2 text-center font-arcade text-[10px] text-white/55 hover:border-neon-cyan/60 hover:text-neon-cyan">
-            BACK TO LOBBY
-          </LobbyBackLink>
-        </div>
-      )}
     </aside>
   )
 }

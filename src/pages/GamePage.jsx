@@ -12,6 +12,7 @@ import SnakeAndLadderLocalSelect from '../games/snake-and-ladder/SnakeAndLadderL
 import ChessDifficultySelect from '../games/chess/ChessDifficultySelect'
 import {
   DoorIcon,
+  FriendsIcon,
   LightningIcon,
   ModeRobotIcon,
 } from '../assets/icons/index.jsx'
@@ -59,6 +60,14 @@ const CHESS_CARDS = [
     subItems: ['Easy', 'Medium', 'Hard'],
   },
   {
+    id: 'local',
+    to: '/game/chess/local',
+    label: 'PASS & PLAY',
+    Icon: FriendsIcon,
+    accent: 'amber',
+    tag: 'Two players sharing one device',
+  },
+  {
     id: 'matchmaking',
     to: '/game/chess/matchmaking',
     label: 'QUICK MATCH',
@@ -84,6 +93,14 @@ const SL_CARDS = [
     Icon: ModeRobotIcon,
     accent: 'cyan',
     tag: 'Pick 2–4 players · Bots fill the rest',
+  },
+  {
+    id: 'local',
+    to: '/game/snake-and-ladder/local',
+    label: 'PASS & PLAY',
+    Icon: FriendsIcon,
+    accent: 'amber',
+    tag: '2–4 humans on one device',
   },
   {
     id: 'matchmaking',
@@ -180,6 +197,21 @@ function GamePageBody() {
         </GameLayout>
       )
     }
+    if (difficulty === 'local') {
+      return (
+        <GameLayout
+          title={`${title} · PASS & PLAY`}
+          icon={icon}
+          Icon={Icon}
+          backTo="/game/chess/mode"
+          backLabel="MODE"
+          accent={accent}
+          loadingVariant="chess"
+        >
+          <ChessGame mode="local" />
+        </GameLayout>
+      )
+    }
     if (difficulty === 'matchmaking') return <MatchmakingScreen />
     if (difficulty === 'room') return <PrivateRoomScreen />
     return <ModeSelect title={title} icon={icon}
@@ -211,6 +243,7 @@ function GamePageBody() {
         return (
           <SnakeAndLadderLocalSelect
             title={`${title} · VS BOT`}
+            Icon={Icon}
             basePath="/game/snake-and-ladder/computer"
             backTo="/game/snake-and-ladder/mode"
           />
@@ -221,6 +254,7 @@ function GamePageBody() {
         return (
           <SnakeAndLadderLocalSelect
             title={`${title} · VS BOT`}
+            Icon={Icon}
             basePath="/game/snake-and-ladder/computer"
             backTo="/game/snake-and-ladder/mode"
           />
@@ -243,6 +277,50 @@ function GamePageBody() {
           <SnakeAndLadderLocalGame
             playerNames={names}
             cpuIndices={cpuIndices}
+          />
+        </GameLayout>
+      )
+    }
+    if (difficulty === 'local') {
+      if (!variant) {
+        return (
+          <SnakeAndLadderLocalSelect
+            title={`${title} · PASS & PLAY`}
+            Icon={Icon}
+            basePath="/game/snake-and-ladder/local"
+            backTo="/game/snake-and-ladder/mode"
+            prompt="HOW MANY PLAYERS?"
+            hint="All humans · same device"
+          />
+        )
+      }
+      const count = Number(variant)
+      if (![2, 3, 4].includes(count)) {
+        return (
+          <SnakeAndLadderLocalSelect
+            title={`${title} · PASS & PLAY`}
+            Icon={Icon}
+            basePath="/game/snake-and-ladder/local"
+            backTo="/game/snake-and-ladder/mode"
+            prompt="HOW MANY PLAYERS?"
+            hint="All humans · same device"
+          />
+        )
+      }
+      const names = []
+      for (let i = 1; i <= count; i++) names.push(`Player ${i}`)
+      return (
+        <GameLayout
+          title={`${title} · LOCAL ${count}P`}
+          icon={icon}
+          Icon={Icon}
+          backTo="/game/snake-and-ladder/local"
+          backLabel="PLAYERS"
+          accent={accent}
+        >
+          <SnakeAndLadderLocalGame
+            playerNames={names}
+            cpuIndices={new Set()}
           />
         </GameLayout>
       )
