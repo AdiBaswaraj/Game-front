@@ -397,6 +397,44 @@ function NumberPad({ onInput }) {
   )
 }
 
+// Pixel-arcade pause emblem. Two neon-cyan vertical bars (pause)
+// nested inside a chunky CRT bezel with snipped corners (matches the
+// pixel-corners motif the rest of the app uses) and a soft halo so it
+// reads as a glowing logo, not a UI affordance.
+function PauseGlyph({ size = 30 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      role="img"
+      aria-label="Paused"
+      style={{ filter: 'drop-shadow(0 0 6px rgba(0, 212, 255, 0.6))' }}
+    >
+      {/* outer frame */}
+      <rect
+        x="3"
+        y="3"
+        width="26"
+        height="26"
+        rx="3"
+        fill="rgba(0, 212, 255, 0.08)"
+        stroke="#00d4ff"
+        strokeWidth="2"
+      />
+      {/* pixel-snipped corners — small dark squares clipped from the
+          frame corners so the bezel reads as 8-bit, not generic */}
+      <rect x="3" y="3" width="2" height="2" fill="#050508" />
+      <rect x="27" y="3" width="2" height="2" fill="#050508" />
+      <rect x="3" y="27" width="2" height="2" fill="#050508" />
+      <rect x="27" y="27" width="2" height="2" fill="#050508" />
+      {/* twin pause bars */}
+      <rect x="11" y="10" width="3" height="12" fill="#00d4ff" />
+      <rect x="18" y="10" width="3" height="12" fill="#00d4ff" />
+    </svg>
+  )
+}
+
 function PausedModal({ time, onResume, onNewPuzzle }) {
   if (typeof document === 'undefined') return null
   return createPortal(
@@ -418,9 +456,12 @@ function PausedModal({ time, onResume, onNewPuzzle }) {
           borderWidth: 2,
         }}
       >
-        <p className="font-arcade text-base text-neon-cyan drop-shadow-[0_0_10px_rgba(0,212,255,0.45)] md:text-lg">
-          ◼ PAUSED
-        </p>
+        <div className="flex items-center justify-center gap-3">
+          <PauseGlyph />
+          <p className="font-arcade text-base text-neon-cyan drop-shadow-[0_0_10px_rgba(0,212,255,0.45)] md:text-lg">
+            PAUSED
+          </p>
+        </div>
         <p className="mt-2 text-xs text-white/55">
           Game paused while you were away. Pick up where you left off,
           or start fresh.
