@@ -1,4 +1,5 @@
 import {
+  CheckersIcon,
   ChessIcon,
   MinesweeperIcon,
   SnakeIcon,
@@ -72,5 +73,16 @@ export const games = [
     multiplayer: true,
     hasModeSelect: true,
     accent: 'neon-pink',
+  },
+  {
+    id: 'checkers',
+    name: 'Checkers',
+    icon: '⚫',
+    Icon: CheckersIcon,
+    players: '1P / 2P',
+    category: 'Strategy',
+    multiplayer: true,
+    hasModeSelect: true,
+    accent: 'neon-cyan',
   },
 ]

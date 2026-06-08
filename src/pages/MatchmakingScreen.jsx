@@ -5,6 +5,7 @@ import { socket } from '../lib/socket'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import QuickMatchAnimation from '../components/QuickMatchAnimation'
 import {
+  CheckersIcon,
   ChessIcon,
   DoorIcon,
   SnakeIcon,
@@ -20,6 +21,7 @@ const GAME_LABELS = {
   'snake-and-ladder': { name: 'SNAKE & LADDER', Icon: SnakeLadderIcon },
   'word-puzzle': { name: 'WORD PUZZLE', Icon: WordPuzzleIcon },
   snake: { name: 'SNAKE', Icon: SnakeIcon },
+  checkers: { name: 'CHECKERS', Icon: CheckersIcon },
 }
 
 function pick(o, ...keys) {

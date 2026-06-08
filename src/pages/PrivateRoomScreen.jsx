@@ -7,6 +7,7 @@ import { socket } from '../lib/socket'
 import { useDocumentTitle } from '../hooks/useDocumentTitle'
 
 import {
+  CheckersIcon,
   ChessIcon,
   SnakeIcon,
   SnakeLadderIcon,
@@ -19,6 +20,7 @@ const GAME_LABELS = {
   'snake-and-ladder': { name: 'SNAKE & LADDER', Icon: SnakeLadderIcon },
   'word-puzzle': { name: 'WORD PUZZLE', Icon: WordPuzzleIcon },
   snake: { name: 'SNAKE', Icon: SnakeIcon },
+  checkers: { name: 'CHECKERS', Icon: CheckersIcon },
 }
 
 function pick(o, ...keys) {

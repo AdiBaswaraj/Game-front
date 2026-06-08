@@ -10,6 +10,7 @@ import WordPuzzleModeSelect from '../games/word-puzzle/WordPuzzleModeSelect'
 import WordPuzzleLengthSelect from '../games/word-puzzle/WordPuzzleLengthSelect'
 import SnakeAndLadderLocalSelect from '../games/snake-and-ladder/SnakeAndLadderLocalSelect'
 import ChessDifficultySelect from '../games/chess/ChessDifficultySelect'
+import CheckersDifficultySelect from '../games/checkers/CheckersDifficultySelect'
 import {
   DoorIcon,
   FriendsIcon,
@@ -36,6 +37,7 @@ const SnakeAndLadderLocalGame = lazy(() =>
   import('../games/snake-and-ladder/SnakeAndLadderLocalGame'),
 )
 const ChessGame = lazy(() => import('../games/chess/ChessGame'))
+const CheckersGame = lazy(() => import('../games/checkers/CheckersGame'))
 
 const SIMPLE_GAMES = {
   snake: SnakeGame,
@@ -120,6 +122,42 @@ const SL_CARDS = [
   },
 ]
 
+const CHECKERS_CARDS = [
+  {
+    id: 'computer',
+    to: '/game/checkers/computer',
+    label: 'VS BOT',
+    Icon: ModeRobotIcon,
+    accent: 'cyan',
+    tag: 'Play against the bot',
+    subItems: ['Easy', 'Medium', 'Hard'],
+  },
+  {
+    id: 'local',
+    to: '/game/checkers/local',
+    label: 'PASS & PLAY',
+    Icon: FriendsIcon,
+    accent: 'amber',
+    tag: 'Two players sharing one device',
+  },
+  {
+    id: 'matchmaking',
+    to: '/game/checkers/matchmaking',
+    label: 'QUICK MATCH',
+    Icon: LightningIcon,
+    accent: 'green',
+    tag: 'Auto-match with a random opponent',
+  },
+  {
+    id: 'room',
+    to: '/game/checkers/room',
+    label: 'PRIVATE ROOM',
+    Icon: DoorIcon,
+    accent: 'pink',
+    tag: 'Play with a friend using a room code',
+  },
+]
+
 const SNAKE_CARDS = [
   {
     id: 'solo',
@@ -173,6 +211,7 @@ const GAME_ACCENTS = {
   chess: 'purple',
   'snake-and-ladder': 'amber',
   'word-puzzle': 'cyan',
+  checkers: 'cyan',
 }
 
 function GamePageBody() {
@@ -243,6 +282,74 @@ function GamePageBody() {
     if (difficulty === 'room') return <PrivateRoomScreen />
     return <ModeSelect title={title} icon={icon}
           Icon={Icon} cards={CHESS_CARDS} />
+  }
+
+  // ===== Checkers =====
+  if (gameId === 'checkers') {
+    if (room) {
+      return (
+        <GameLayout
+          title={`${title} · BATTLE`}
+          icon={icon}
+          Icon={Icon}
+          backTo="/"
+          backLabel="LOBBY"
+          accent={accent}
+        >
+          <CheckersGame mode="multiplayer" roomCode={room} />
+        </GameLayout>
+      )
+    }
+    if (!difficulty || difficulty === 'mode') {
+      return (
+        <ModeSelect
+          title={title}
+          icon={icon}
+          Icon={Icon}
+          cards={CHECKERS_CARDS}
+        />
+      )
+    }
+    if (difficulty === 'computer') {
+      if (!variant) return <CheckersDifficultySelect />
+      if (!VALID_DIFFICULTIES.has(variant)) return <CheckersDifficultySelect />
+      return (
+        <GameLayout
+          title={`${title} · BOT · ${variant.toUpperCase()}`}
+          icon={icon}
+          Icon={Icon}
+          backTo="/game/checkers/computer"
+          backLabel="DIFFICULTY"
+          accent={accent}
+        >
+          <CheckersGame mode="computer" difficulty={variant} />
+        </GameLayout>
+      )
+    }
+    if (difficulty === 'local') {
+      return (
+        <GameLayout
+          title={`${title} · PASS & PLAY`}
+          icon={icon}
+          Icon={Icon}
+          backTo="/game/checkers/mode"
+          backLabel="MODE"
+          accent={accent}
+        >
+          <CheckersGame mode="local" />
+        </GameLayout>
+      )
+    }
+    if (difficulty === 'matchmaking') return <MatchmakingScreen />
+    if (difficulty === 'room') return <PrivateRoomScreen />
+    return (
+      <ModeSelect
+        title={title}
+        icon={icon}
+        Icon={Icon}
+        cards={CHECKERS_CARDS}
+      />
+    )
   }
 
   // ===== Snake & Ladder =====

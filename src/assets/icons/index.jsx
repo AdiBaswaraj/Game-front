@@ -607,4 +607,47 @@ export const ICONS_BY_ID = {
   chess: ChessIcon,
   'snake-and-ladder': SnakeLadderIcon,
   'word-puzzle': WordPuzzleIcon,
+  checkers: CheckersIcon,
+}
+
+// Pixel-art checkers board: a 2x2 darkened tile cluster with a red
+// disc + black-king disc stacked on top, marking it as a board game
+// distinct from the Chess SVG (which is a pawn silhouette).
+export function CheckersIcon({ size = 48, ...rest }) {
+  return (
+    <svg
+      viewBox="0 0 48 48"
+      width={size}
+      height={size}
+      fill="none"
+      role="img"
+      aria-label="Checkers"
+      {...rest}
+    >
+      {/* board tiles */}
+      <rect x="6" y="6" width="36" height="36" fill="#d8d8e8" />
+      <rect x="6" y="6" width="18" height="18" fill="#5e6b86" />
+      <rect x="24" y="24" width="18" height="18" fill="#5e6b86" />
+      {/* pixel-clipped frame corners */}
+      <rect x="6" y="6" width="2" height="2" fill="#050508" />
+      <rect x="40" y="6" width="2" height="2" fill="#050508" />
+      <rect x="6" y="40" width="2" height="2" fill="#050508" />
+      <rect x="40" y="40" width="2" height="2" fill="#050508" />
+      {/* red piece (bottom-left dark tile) */}
+      <circle cx="15" cy="33" r="6" fill="#ff006e" stroke="#aa003a" strokeWidth="1.5" />
+      <circle cx="15" cy="33" r="3.5" fill="none" stroke="#aa003a" strokeWidth="0.8" strokeDasharray="2 1.5" />
+      {/* black king piece (top-right dark tile) */}
+      <circle cx="33" cy="15" r="6" fill="#1a1a26" stroke="#5a5a76" strokeWidth="1.5" />
+      <text
+        x="33"
+        y="18.5"
+        textAnchor="middle"
+        fontSize="9"
+        fontWeight="900"
+        fill="#00d4ff"
+      >
+        ★
+      </text>
+    </svg>
+  )
 }
