@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 import { useAuth } from '../../context/AuthContext'
 import { useGameLeaveGuard } from '../../context/LeaveGuardContext'
@@ -39,11 +40,13 @@ export default function SudokuGame({ difficulty = 'easy' }) {
   const [board, setBoard] = useState(() => makeBoard(difficulty))
   const [selected, setSelected] = useState(null)
   const [time, setTime] = useState(0)
+  // 'playing' → solving. 'paused' → tab/window not focused; the welcome-
+  // back modal owns the next move. 'won' → completed.
   const [status, setStatus] = useState('playing')
   useArmGameOverFlash(status === 'won')
 
   const leaveModal = useGameLeaveGuard({
-    active: status === 'playing',
+    active: status === 'playing' || status === 'paused',
     kind: 'single',
   })
 
@@ -56,7 +59,15 @@ export default function SudokuGame({ difficulty = 'easy' }) {
     maxSize: 520,
   })
   const [showErrors, setShowErrors] = useState(false)
+  // Timer accounting that survives pauses. `startTimeRef` is the
+  // Date.now() of the *current* play segment; `accumulatedMsRef` is
+  // every prior segment's duration added together. Total elapsed
+  // when playing is accumulated + (now - start); when paused it's
+  // just accumulated.
   const startTimeRef = useRef(Date.now())
+  const accumulatedMsRef = useRef(0)
+  const statusRef = useRef('playing')
+  statusRef.current = status
 
   // If difficulty changes (route param), reset the game
   useEffect(() => {
@@ -66,6 +77,7 @@ export default function SudokuGame({ difficulty = 'easy' }) {
     setShowErrors(false)
     setStatus('playing')
     startTimeRef.current = Date.now()
+    accumulatedMsRef.current = 0
   }, [difficulty])
 
   const conflicts = useMemo(() => findConflicts(board.grid), [board.grid])
@@ -85,12 +97,17 @@ export default function SudokuGame({ difficulty = 'easy' }) {
     return s
   }, [showErrors, board])
 
-  // Timer
+  // Timer. Reads accumulated + active-segment elapsed so paused time
+  // never counts against the player.
   useEffect(() => {
     if (status !== 'playing') return
-    const id = setInterval(() => {
-      setTime(Math.floor((Date.now() - startTimeRef.current) / 1000))
-    }, 250)
+    const tick = () => {
+      const ms =
+        accumulatedMsRef.current + (Date.now() - startTimeRef.current)
+      setTime(Math.floor(ms / 1000))
+    }
+    tick()
+    const id = setInterval(tick, 250)
     return () => clearInterval(id)
   }, [status])
 
@@ -101,7 +118,41 @@ export default function SudokuGame({ difficulty = 'easy' }) {
     setShowErrors(false)
     setStatus('playing')
     startTimeRef.current = Date.now()
+    accumulatedMsRef.current = 0
   }, [difficulty])
+
+  // Freeze the timer and bank the current segment's elapsed time.
+  const pause = useCallback(() => {
+    if (statusRef.current !== 'playing') return
+    accumulatedMsRef.current += Date.now() - startTimeRef.current
+    setStatus('paused')
+  }, [])
+
+  // Resume by starting a fresh segment from "now".
+  const resume = useCallback(() => {
+    if (statusRef.current !== 'paused') return
+    startTimeRef.current = Date.now()
+    setStatus('playing')
+  }, [])
+
+  // Auto-pause whenever the player leaves the tab / minimises the
+  // browser / locks the phone. Coming back surfaces a modal that
+  // asks RESUME or NEW PUZZLE instead of silently dropping the
+  // player back into a board they no longer remember.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) pause()
+    }
+    const onBlur = () => pause()
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('pagehide', pause)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('pagehide', pause)
+    }
+  }, [pause])
 
   const handleInput = useCallback(
     (value) => {
@@ -199,9 +250,32 @@ export default function SudokuGame({ difficulty = 'easy' }) {
           size={boardSize}
           onSelect={setSelected}
         />
+        {status === 'paused' && (
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center rounded-md"
+            style={{
+              background: 'rgba(5, 5, 8, 0.78)',
+              backdropFilter: 'blur(10px)',
+              WebkitBackdropFilter: 'blur(10px)',
+            }}
+            aria-hidden="true"
+          >
+            <p className="neon-text font-arcade text-base text-neon-cyan md:text-xl">
+              PAUSED
+            </p>
+          </div>
+        )}
       </div>
 
       <NumberPad onInput={handleInput} />
+
+      {status === 'paused' && (
+        <PausedModal
+          time={time}
+          onResume={resume}
+          onNewPuzzle={newGame}
+        />
+      )}
 
       {status === 'won' && (
         <SudokuWinPanel
@@ -320,6 +394,59 @@ function NumberPad({ onInput }) {
         ERASE
       </button>
     </div>
+  )
+}
+
+function PausedModal({ time, onResume, onNewPuzzle }) {
+  if (typeof document === 'undefined') return null
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Game paused"
+      className="fixed inset-0 z-[600] flex items-center justify-center px-4"
+      style={{
+        background: 'rgba(5, 5, 8, 0.88)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+    >
+      <div
+        className="go-overlay-in glass-panel pixel-corners pixel-corners-cyan relative w-full max-w-[340px] px-6 py-6 text-center"
+        style={{
+          borderColor: 'rgba(0, 212, 255, 0.5)',
+          borderWidth: 2,
+        }}
+      >
+        <p className="font-arcade text-base text-neon-cyan drop-shadow-[0_0_10px_rgba(0,212,255,0.45)] md:text-lg">
+          ◼ PAUSED
+        </p>
+        <p className="mt-2 text-xs text-white/55">
+          Game paused while you were away. Pick up where you left off,
+          or start fresh.
+        </p>
+        <p className="mt-4 font-arcade text-[10px] tracking-widest text-white/45">
+          TIME · <span className="text-neon-cyan">{fmtTime(time)}</span>
+        </p>
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onResume}
+            className="w-full rounded-md border border-neon-green/70 bg-neon-green/10 px-4 py-2 font-arcade text-[10px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
+          >
+            ▶ RESUME
+          </button>
+          <button
+            type="button"
+            onClick={onNewPuzzle}
+            className="w-full rounded-md border border-neon-pink/60 px-4 py-2 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/15 hover:shadow-neon-pink"
+          >
+            NEW PUZZLE
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   )
 }
 
