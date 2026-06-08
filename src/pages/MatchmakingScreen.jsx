@@ -7,6 +7,7 @@ import QuickMatchAnimation from '../components/QuickMatchAnimation'
 import {
   ChessIcon,
   DoorIcon,
+  SnakeIcon,
   SnakeLadderIcon,
   WordPuzzleIcon,
 } from '../assets/icons/index.jsx'
@@ -18,6 +19,7 @@ const GAME_LABELS = {
   chess: { name: 'CHESS', Icon: ChessIcon },
   'snake-and-ladder': { name: 'SNAKE & LADDER', Icon: SnakeLadderIcon },
   'word-puzzle': { name: 'WORD PUZZLE', Icon: WordPuzzleIcon },
+  snake: { name: 'SNAKE', Icon: SnakeIcon },
 }
 
 function pick(o, ...keys) {

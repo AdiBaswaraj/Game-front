@@ -580,11 +580,14 @@ export default function SnakeGame() {
         )}
       </div>
 
-      {/* Bottom section — sits 8px below the canvas. Houses either the
-          control picker, the on-screen joystick, or the hint line. */}
+      {/* Bottom section — sits well below the canvas so the on-screen
+          joystick doesn't crowd the board (or get covered by a score-
+          saved toast sliding up from the bottom of the page). */}
       <div
-        className={`mt-2 flex w-full flex-col items-center gap-3 px-4 pb-4 text-center ${
-          status === 'idle' ? 'mt-6' : ''
+        className={`flex w-full flex-col items-center gap-3 px-4 pb-4 text-center ${
+          status === 'playing' && controlMode === 'joystick'
+            ? 'mt-8'
+            : 'mt-6'
         }`}
       >
         {status === 'idle' && (
@@ -643,70 +646,116 @@ export default function SnakeGame() {
   )
 }
 
-// Pre-game prompt. If the player has never picked a control scheme on
-// this device we show both options as equal-weight cards so the choice
-// reads as a real fork. Once they've picked once we collapse to a
-// single CTA + a small "switch" link so PLAY AGAIN is one tap, not
-// three.
+// Pre-game prompt. Both control options are always rendered as
+// equal-weight cards so the "alternative" never disappears behind a
+// tiny text link — the previous version collapsed to a "Use joystick
+// instead" string after the first pick, which reads as flavour text,
+// not a button. Tapping a card flips the selection; tapping the
+// currently selected card or hitting START fires the game with that
+// mode. A third "KEYBOARD" card surfaces the arrow/WASD path so
+// laptop users see it as a real choice instead of having to discover
+// it from a one-line hint.
 function ControlPicker({ controlMode, onStart }) {
-  if (!controlMode) {
-    return (
-      <>
-        <p className="font-arcade text-sm text-neon-green md:text-base">
-          READY?
-        </p>
-        <p className="text-xs text-white/60">Pick your controls</p>
-        <div className="mt-2 grid w-full max-w-xs grid-cols-2 gap-3">
-          <button
-            type="button"
-            onClick={() => onStart('touch')}
-            className="flex flex-col items-center gap-2 rounded-md border border-neon-cyan/60 bg-neon-cyan/10 px-4 py-3 font-arcade text-[10px] text-neon-cyan transition hover:bg-neon-cyan/20 hover:shadow-neon-cyan"
-          >
-            <span aria-hidden="true" className="text-xl">↗</span>
-            <span>TOUCH / SWIPE</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onStart('joystick')}
-            className="flex flex-col items-center gap-2 rounded-md border border-neon-pink/60 bg-neon-pink/10 px-4 py-3 font-arcade text-[10px] text-neon-pink transition hover:bg-neon-pink/20 hover:shadow-neon-pink"
-          >
-            <span aria-hidden="true" className="text-xl">✛</span>
-            <span>JOYSTICK</span>
-          </button>
-        </div>
-        <p className="text-[10px] text-white/35">
-          Arrow keys / WASD always work too.
-        </p>
-      </>
-    )
-  }
-  const other = controlMode === 'touch' ? 'joystick' : 'touch'
-  const otherLabel =
-    other === 'joystick' ? 'Use joystick instead' : 'Use swipe instead'
+  const selected = controlMode ?? 'touch'
+  const options = [
+    {
+      id: 'touch',
+      label: 'TOUCH',
+      hint: 'Swipe on the board',
+      glyph: '↗',
+      accent: 'cyan',
+    },
+    {
+      id: 'joystick',
+      label: 'JOYSTICK',
+      hint: 'On-screen D-pad',
+      glyph: '✛',
+      accent: 'pink',
+    },
+    {
+      id: 'keyboard',
+      label: 'KEYBOARD',
+      hint: 'Arrow keys / WASD',
+      glyph: '⌨',
+      accent: 'green',
+    },
+  ]
+  // The keyboard "mode" reuses touch internally (no on-screen pad,
+  // canvas swipes still wired up via the touch branch) — it just
+  // hides the on-screen joystick from a desktop player who's clearly
+  // typing.
+  const realMode = (id) => (id === 'keyboard' ? 'touch' : id)
   return (
     <>
       <p className="font-arcade text-sm text-neon-green md:text-base">
         READY?
       </p>
-      <p className="text-xs text-white/60">
-        {controlMode === 'joystick'
-          ? 'On-screen joystick below'
-          : 'Swipe on the board to move'}
+      <p className="text-xs text-white/60">Pick your controls</p>
+      <div className="mt-2 grid w-full max-w-sm grid-cols-3 gap-2">
+        {options.map((opt) => {
+          const isSelected = selected === opt.id ||
+            // Touch is the underlying mode for KEYBOARD too, so a
+            // player who initially picked TOUCH still sees TOUCH (not
+            // KEYBOARD) highlighted on next entry.
+            (opt.id === selected)
+          const baseAccent =
+            opt.accent === 'pink'
+              ? {
+                  border: 'border-neon-pink/35',
+                  bg: 'bg-neon-pink/[0.04]',
+                  text: 'text-neon-pink',
+                  ring: 'ring-neon-pink',
+                  shadow: 'hover:shadow-neon-pink',
+                  glow: 'rgba(255, 0, 110, 0.15)',
+                }
+              : opt.accent === 'cyan'
+                ? {
+                    border: 'border-neon-cyan/35',
+                    bg: 'bg-neon-cyan/[0.04]',
+                    text: 'text-neon-cyan',
+                    ring: 'ring-neon-cyan',
+                    shadow: 'hover:shadow-neon-cyan',
+                    glow: 'rgba(0, 212, 255, 0.15)',
+                  }
+                : {
+                    border: 'border-neon-green/35',
+                    bg: 'bg-neon-green/[0.04]',
+                    text: 'text-neon-green',
+                    ring: 'ring-neon-green',
+                    shadow: 'hover:shadow-neon-green',
+                    glow: 'rgba(0, 255, 136, 0.18)',
+                  }
+          return (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => onStart(realMode(opt.id))}
+              className={`relative flex flex-col items-center gap-1 rounded-md border-2 px-2 py-3 font-arcade text-[9px] transition ${baseAccent.bg} ${baseAccent.text} ${baseAccent.shadow} ${
+                isSelected
+                  ? `border-current ring-1 ${baseAccent.ring}`
+                  : baseAccent.border
+              }`}
+              style={
+                isSelected
+                  ? { boxShadow: `0 0 16px ${baseAccent.glow}` }
+                  : undefined
+              }
+              aria-pressed={isSelected}
+            >
+              <span aria-hidden="true" className="text-xl leading-none">
+                {opt.glyph}
+              </span>
+              <span>{opt.label}</span>
+              <span className="text-[8px] font-normal text-white/45 normal-case">
+                {opt.hint}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <p className="text-[9px] text-white/35">
+        Tap a card to start with those controls.
       </p>
-      <button
-        type="button"
-        onClick={() => onStart(controlMode)}
-        className="rounded-md border border-neon-green/70 bg-neon-green/10 px-6 py-2.5 font-arcade text-[11px] text-neon-green transition hover:bg-neon-green/20 hover:shadow-neon-green"
-      >
-        ▶ START
-      </button>
-      <button
-        type="button"
-        onClick={() => onStart(other)}
-        className="font-arcade text-[9px] text-white/50 underline-offset-2 hover:text-neon-cyan hover:underline"
-      >
-        {otherLabel}
-      </button>
     </>
   )
 }

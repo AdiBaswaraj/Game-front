@@ -19,7 +19,6 @@ import {
 import { games } from '../data/games'
 
 const SnakeGame = lazy(() => import('../games/snake/SnakeGame'))
-const SnakeDuoGame = lazy(() => import('../games/snake/SnakeDuoGame'))
 const SudokuGame = lazy(() => import('../games/sudoku/SudokuGame'))
 const MinesweeperGame = lazy(() =>
   import('../games/minesweeper/MinesweeperGame'),
@@ -127,16 +126,24 @@ const SNAKE_CARDS = [
     to: '/game/snake/solo',
     label: 'SOLO',
     Icon: ModeRobotIcon,
-    accent: 'green',
+    accent: 'cyan',
     tag: 'Single player · classic Snake',
   },
   {
-    id: 'local',
-    to: '/game/snake/local',
-    label: 'PASS & PLAY',
-    Icon: FriendsIcon,
-    accent: 'amber',
-    tag: '2 players · same device · 2-min round',
+    id: 'matchmaking',
+    to: '/game/snake/matchmaking',
+    label: 'QUICK MATCH',
+    Icon: LightningIcon,
+    accent: 'green',
+    tag: 'Auto-match with a random opponent',
+  },
+  {
+    id: 'room',
+    to: '/game/snake/room',
+    label: 'PRIVATE ROOM',
+    Icon: DoorIcon,
+    accent: 'pink',
+    tag: 'Play with a friend using a room code',
   },
 ]
 
@@ -464,20 +471,8 @@ function GamePageBody() {
         </GameLayout>
       )
     }
-    if (difficulty === 'local') {
-      return (
-        <GameLayout
-          title={`${title} · PASS & PLAY`}
-          icon={icon}
-          Icon={Icon}
-          backTo="/game/snake/mode"
-          backLabel="MODE"
-          accent={accent}
-        >
-          <SnakeDuoGame />
-        </GameLayout>
-      )
-    }
+    if (difficulty === 'matchmaking') return <MatchmakingScreen />
+    if (difficulty === 'room') return <PrivateRoomScreen />
     // Unknown sub-route → fall back to mode select.
     return (
       <ModeSelect

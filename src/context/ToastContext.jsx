@@ -112,7 +112,8 @@ function ToastView({ toast, onDismiss }) {
     <div
       role="status"
       aria-live="polite"
-      className={`toast-in fixed bottom-6 left-1/2 z-[1300] flex w-[min(90vw,28rem)] -translate-x-1/2 items-center gap-3 rounded-lg border bg-arcadia-surface/95 px-5 py-3 backdrop-blur ${t.border} ${t.glow}`}
+      className={`toast-in fixed left-1/2 z-[1300] flex w-[min(90vw,28rem)] -translate-x-1/2 items-center gap-3 rounded-lg border bg-arcadia-surface/95 px-5 py-3 backdrop-blur ${t.border} ${t.glow}`}
+      style={{ top: 'calc(env(safe-area-inset-top, 0px) + 76px)' }}
     >
       <span className={`font-arcade text-sm ${t.iconColor}`} aria-hidden="true">
         {t.icon}
