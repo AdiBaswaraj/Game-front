@@ -8,6 +8,34 @@ async function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+// Force-refresh the supabase session and return a fresh access_token.
+// Returns null if the user is signed out or the refresh fails — the
+// caller should treat that as "needs to log in again".
+async function refreshSupabaseToken() {
+  try {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (error) {
+      console.warn('[api] supabase refresh failed', error)
+      return null
+    }
+    return data?.session?.access_token ?? null
+  } catch (err) {
+    console.warn('[api] supabase refresh threw', err)
+    return null
+  }
+}
+
+// Parses the backend's structured error body. Backend contract:
+//   { "code": "SESSION_EXPIRED", "message": "..." }
+// Falls back to plain status text if the body isn't JSON.
+function attachErrorCode(err, body) {
+  if (body && typeof body === 'object') {
+    if (typeof body.code === 'string') err.code = body.code
+    if (typeof body.message === 'string') err.message = body.message
+  }
+  return err
+}
+
 // Fetch with bounded retries on network errors and 5xx. Used by the
 // room create / lookup endpoints — a single dropped TCP connection
 // (common on flaky carrier networks) used to surface as "failed to
@@ -46,18 +74,62 @@ async function fetchWithRetry(
 }
 
 async function jsonFetch(url, init = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(init.headers || {}),
-    ...(await authHeaders()),
+  const doFetch = async () => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+      ...(await authHeaders()),
+    }
+    return fetchWithRetry(url, { ...init, headers })
   }
-  const res = await fetchWithRetry(url, { ...init, headers })
+
+  let res = await doFetch()
+  // Mirror createRoom's session-refresh dance for all authed endpoints:
+  // parse the body once to look for { code: 'SESSION_EXPIRED' }; if we
+  // see it, refresh the token and re-issue the request. Otherwise fall
+  // through to the original error-handling path.
+  if (res.status === 401) {
+    const text = await res.text().catch(() => '')
+    let data = null
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {
+      data = null
+    }
+    if (data?.code === 'SESSION_EXPIRED') {
+      const fresh = await refreshSupabaseToken()
+      if (fresh) {
+        res = await doFetch()
+      } else {
+        const err = new Error('Session expired. Please log in again.')
+        err.status = 401
+        err.code = 'SESSION_EXPIRED'
+        err.body = data
+        throw err
+      }
+    } else {
+      // Other 401 — bubble up with as much detail as we have.
+      console.error(`[api] ${init.method ?? 'GET'} ${url} 401`, text)
+      const err = new Error(data?.message || 'Request failed: 401')
+      err.status = 401
+      err.body = data ?? text
+      attachErrorCode(err, data)
+      throw err
+    }
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => '')
+    let data = null
+    try {
+      data = text ? JSON.parse(text) : null
+    } catch {
+      data = null
+    }
     console.error(`[api] ${init.method ?? 'GET'} ${url} failed`, res.status, text)
-    const err = new Error(`Request failed: ${res.status}`)
+    const err = new Error(data?.message || `Request failed: ${res.status}`)
     err.status = res.status
-    err.body = text
+    err.body = data ?? text
+    attachErrorCode(err, data)
     throw err
   }
   return res.json().catch(() => ({}))
@@ -202,58 +274,82 @@ export async function createRoom({ gameId, username }) {
 
   if (!BASE) {
     const err = new Error('Backend URL not configured')
+    err.code = 'CLIENT_MISCONFIGURED'
     console.error('[room] VITE_BACKEND_URL is undefined!')
     throw err
   }
 
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(await authHeaders()),
-  }
-
-  let response
-  try {
-    response = await fetchWithRetry(url, {
+  // Single attempt that we can re-run if the first response says the
+  // session expired. The fetchWithRetry inside handles network blips
+  // and 5xx already; 401 SESSION_EXPIRED is a one-off refresh-and-go.
+  const attempt = async () => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(await authHeaders()),
+    }
+    const response = await fetchWithRetry(url, {
       method: 'POST',
       headers,
       body: JSON.stringify({ gameId, username }),
     })
-  } catch (networkError) {
-    console.error('[room] network error:', networkError)
-    throw networkError
+    const text = await response.text()
+    let data
+    try {
+      data = text ? JSON.parse(text) : {}
+    } catch {
+      const err = new Error(`Non-JSON response: ${text.slice(0, 100)}`)
+      err.status = response.status
+      throw err
+    }
+    return { response, data }
   }
 
-  console.log('[room] fetch resolved!', response.status)
-  console.log('[room] response ok:', response.ok)
-  console.log(
-    '[room] response headers:',
-    Object.fromEntries(response.headers.entries()),
-  )
+  let { response, data } = await attempt()
 
-  const text = await response.text()
-  console.log('[room] raw response body:', text)
-
-  let data
-  try {
-    data = JSON.parse(text)
-    console.log('[room] parsed response:', data)
-  } catch {
-    console.error('[room] response is not JSON:', text)
-    throw new Error(`Non-JSON response: ${text.slice(0, 100)}`)
+  // Backend contract: 401 + { code: 'SESSION_EXPIRED' } means the
+  // access token is past its lifetime but the refresh token is still
+  // good. Refresh once and re-fire. Any other 401 (MISSING_TOKEN,
+  // invalid claims) bubbles up so the UI can ask the user to log in.
+  if (response.status === 401 && data?.code === 'SESSION_EXPIRED') {
+    console.log('[room] session expired — refreshing supabase token')
+    const fresh = await refreshSupabaseToken()
+    if (fresh) {
+      const next = await attempt()
+      response = next.response
+      data = next.data
+    } else {
+      const err = new Error(
+        'Your session has expired. Please log in again.',
+      )
+      err.status = 401
+      err.code = 'SESSION_EXPIRED'
+      err.body = data
+      throw err
+    }
   }
 
   if (!response.ok) {
-    console.error('[room] backend error:', data)
-    const err = new Error(data?.message || `HTTP ${response.status}`)
+    console.error('[room] backend error:', response.status, data)
+    const err = new Error(
+      data?.message ||
+        (data?.code === 'MISSING_TOKEN'
+          ? 'Please log in to create a room.'
+          : data?.code === 'VALIDATION_FAILED'
+            ? 'Could not create room — invalid game.'
+            : `Could not create room (HTTP ${response.status}).`),
+    )
     err.status = response.status
     err.body = data
+    attachErrorCode(err, data)
     throw err
   }
 
   const code = data?.code ?? data?.roomCode ?? data?.room_code
   if (!code) {
     console.error('[room] missing room code in response:', data)
-    throw new Error('No room code in response')
+    const err = new Error('No room code in response')
+    err.code = 'MALFORMED_RESPONSE'
+    throw err
   }
 
   console.log('[room] success! code:', code)

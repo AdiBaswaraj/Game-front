@@ -6,6 +6,30 @@ support before it actually works for a user.
 
 ---
 
+## 0. POST /api/rooms/create contract — implemented on the frontend ✅
+
+Backend confirmed the new shape on 2026-06-17. Frontend now matches:
+
+- Sends `Authorization: Bearer <supabase_jwt>` on every request.
+- Sends body `{ "gameId": "...", "username": "..." }`.
+- Reads response `{ "code": "ABC123", ... }` — any extra fields
+  (`room`, `profile`, etc.) pass through untouched.
+- Branches on the structured error body:
+
+  | Status | `code` | Frontend behaviour |
+  |--------|--------|--------------------|
+  | 401 | `MISSING_TOKEN` | Toast "Your session expired — please log in again." |
+  | 401 | `SESSION_EXPIRED` | Auto-refreshes the supabase session, re-fires the request once. Only surfaces an error to the UI if the refresh itself fails. |
+  | 400 | `VALIDATION_FAILED` | Toast "This game isn't available for private rooms yet." |
+  | 5xx | (any) | Already retried by `fetchWithRetry` (linear backoff, 6 s per-attempt timeout). |
+
+The same refresh-and-retry pattern is now applied across **every**
+authenticated endpoint via `jsonFetch` (`getRoom`, friends APIs, etc.),
+so the user shouldn't see "Session expired" toasts mid-game unless
+their refresh token has actually died.
+
+---
+
 ## 1. Snake multiplayer — full design
 
 ### Status

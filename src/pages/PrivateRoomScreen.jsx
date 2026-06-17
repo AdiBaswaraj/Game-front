@@ -208,7 +208,17 @@ function CreateTab({ gameId, username, userId }) {
         if (!mountedRef.current) return
         requestedRef.current = false
         setIsCreating(false)
-        const msg = `Could not create room — ${err?.message ?? 'unknown error'}`
+        // Branch on the backend's structured error code so the user
+        // sees something actionable ("log in again" vs "try again")
+        // instead of a generic HTTP message.
+        const msg =
+          err?.code === 'SESSION_EXPIRED' || err?.code === 'MISSING_TOKEN'
+            ? 'Your session expired — please log in again.'
+            : err?.code === 'VALIDATION_FAILED'
+              ? 'This game isn’t available for private rooms yet.'
+              : err?.code === 'CLIENT_MISCONFIGURED'
+                ? 'App is misconfigured — backend URL is missing.'
+                : `Could not create room — ${err?.message ?? 'unknown error'}`
         setError(msg)
         toast.error(msg)
       })
